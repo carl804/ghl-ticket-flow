@@ -47,14 +47,22 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
   
   return (
     <Card 
-      className={`bg-card transition-all duration-300 ease-in-out hover:border-primary hover:border-2 hover:border-dashed hover:shadow-lg hover:-translate-y-0.5 ${
-        isDragging ? "opacity-50" : ""
-      }`}
+      className={`bg-card cursor-pointer ${isDragging ? "opacity-50" : ""}`}
+      style={{ transition: 'box-shadow 0.2s ease, transform 0.2s ease' }}
+      onClick={onClick}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)';
+        e.currentTarget.style.transform = 'scale(1.02)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = '';
+        e.currentTarget.style.transform = '';
+      }}
     >
       <CardContent className="p-5 space-y-3">
         {/* Header with drag handle */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0 cursor-pointer" onClick={onClick}>
+          <div className="flex-1 min-w-0">
             <h3 className="font-bold text-base mb-1">{ticket.name}</h3>
             <p className="text-sm text-muted-foreground">{ticket.contact.name}</p>
           </div>
@@ -70,7 +78,7 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
         </div>
 
         {/* Status, Priority, Category badges */}
-        <div className="flex items-center gap-2 flex-wrap cursor-pointer" onClick={onClick}>
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge className={`${statusConfig[ticket.status].color} text-xs font-medium px-3 py-1`}>
             {ticket.status}
           </Badge>
@@ -86,7 +94,7 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
         </div>
 
         {/* Contact Info */}
-        <div className="space-y-2 text-sm cursor-pointer" onClick={onClick}>
+        <div className="space-y-2 text-sm">
           {ticket.contact.email && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Mail className="h-4 w-4 shrink-0" />
@@ -117,7 +125,7 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
 
         {/* Description if available */}
         {ticket.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 cursor-pointer pt-2 border-t" onClick={onClick}>
+          <p className="text-sm text-muted-foreground line-clamp-2 pt-2 border-t">
             {ticket.description}
           </p>
         )}

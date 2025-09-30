@@ -33,6 +33,7 @@ export interface Ticket {
   resolutionSummary?: string;
   assignedTo?: string;
   assignedToUserId?: string;
+  contactId?: string;
   createdAt: string;
   updatedAt: string;
   value?: number;

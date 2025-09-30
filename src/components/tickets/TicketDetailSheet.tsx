@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { updateTicket } from "@/lib/api";
+import { updateTicket, fetchUsers } from "@/lib/api";
 import type { Ticket, TicketStatus, TicketPriority } from "@/lib/types";
 import { toast } from "sonner";
 import {
@@ -32,6 +32,8 @@ import {
   Clock,
   X,
   Plus,
+  MessageSquare,
+  ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -71,6 +73,11 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
   const [newTag, setNewTag] = useState("");
 
+  const { data: users = [] } = useQuery({
+    queryKey: ["users"],
+    queryFn: fetchUsers,
+  });
+
   useEffect(() => {
     if (ticket) {
       setEditedTicket(ticket);
@@ -89,7 +96,26 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
   });
 
   const handleSave = () => {
-    updateMutation.mutate(editedTicket);
+    const updates: Partial<Ticket> = { ...editedTicket };
+    
+    // If assignedToUserId changed, find the user's name
+    if (updates.assignedToUserId) {
+      const selectedUser = users.find(u => u.id === updates.assignedToUserId);
+      if (selectedUser) {
+        updates.assignedTo = selectedUser.name;
+      }
+    }
+    
+    updateMutation.mutate(updates);
+  };
+
+  const handleViewConversations = () => {
+    if (ticket?.contactId) {
+      const ghlUrl = `https://app.gohighlevel.com/v2/location/${import.meta.env.VITE_GHL_LOCATION_ID || 'YOUR_LOCATION_ID'}/conversations/all/${ticket.contactId}`;
+      window.open(ghlUrl, '_blank');
+    } else {
+      toast.error("Contact ID not available");
+    }
   };
 
   const handleAddTag = () => {
@@ -229,14 +255,23 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
           {/* Assigned To */}
           <div className="space-y-2">
             <Label>Assigned To</Label>
-            <Input
-              value={editedTicket.assignedTo || ""}
-              onChange={(e) =>
-                setEditedTicket({ ...editedTicket, assignedTo: e.target.value })
+            <Select
+              value={editedTicket.assignedToUserId}
+              onValueChange={(value) =>
+                setEditedTicket({ ...editedTicket, assignedToUserId: value })
               }
-              placeholder="Enter assignee name"
-              className="bg-popover"
-            />
+            >
+              <SelectTrigger className="bg-popover">
+                <SelectValue placeholder="Select assignee" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-[100]">
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Description */}
@@ -321,6 +356,19 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
               <span>{format(new Date(ticket.updatedAt), "MMM d, yyyy")}</span>
             </div>
           </div>
+
+          {/* Conversations Button */}
+          <Button 
+            variant="outline" 
+            onClick={handleViewConversations}
+            className="w-full"
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            View Conversations
+            <ExternalLink className="h-4 w-4 ml-2" />
+          </Button>
+
+          <Separator />
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">

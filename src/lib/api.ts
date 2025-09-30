@@ -63,6 +63,7 @@ const MOCK_TICKETS: Ticket[] = [
     resolutionSummary: "",
     assignedTo: "Sarah Johnson",
     assignedToUserId: "u1",
+    contactId: "c1",
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     value: 500,
@@ -80,6 +81,7 @@ const MOCK_TICKETS: Ticket[] = [
     resolutionSummary: "Investigating API connection issues",
     assignedTo: "Mike Chen",
     assignedToUserId: "u2",
+    contactId: "c2",
     createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
     value: 1200,
@@ -97,6 +99,7 @@ const MOCK_TICKETS: Ticket[] = [
     resolutionSummary: "Waiting for customer response on pricing",
     assignedTo: "Sarah Johnson",
     assignedToUserId: "u1",
+    contactId: "c3",
     createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
     value: 3000,
@@ -114,6 +117,7 @@ const MOCK_TICKETS: Ticket[] = [
     resolutionSummary: "Completed setup and training session",
     assignedTo: "Mike Chen",
     assignedToUserId: "u2",
+    contactId: "c4",
     createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
     value: 0,
@@ -131,6 +135,7 @@ const MOCK_TICKETS: Ticket[] = [
     resolutionSummary: "Working with engineering team",
     assignedTo: "Sarah Johnson",
     assignedToUserId: "u1",
+    contactId: "c5",
     createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
     value: 0,
@@ -148,6 +153,7 @@ const MOCK_TICKETS: Ticket[] = [
     resolutionSummary: "",
     assignedTo: "Mike Chen",
     assignedToUserId: "u2",
+    contactId: "c6",
     createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
     value: 200,
@@ -188,6 +194,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
           resolutionSummary: opp.customField?.find((f: any) => f.id === FIELD_MAP.resolutionSummary)?.value,
           assignedTo: opp.assignedTo,
           assignedToUserId: opp.assignedToUserId,
+          contactId: opp.contactId,
           createdAt: opp.createdAt || new Date().toISOString(),
           updatedAt: opp.updatedAt || new Date().toISOString(),
           value: opp.value,
@@ -366,6 +373,39 @@ export async function bulkUpdateStatus(ids: string[], status: string): Promise<v
 // Bulk update priority
 export async function bulkUpdatePriority(ids: string[], priority: string): Promise<void> {
   await Promise.all(ids.map(id => updatePriority(id, priority)));
+}
+
+// Fetch GHL users/owners
+export interface GHLUser {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+const MOCK_USERS: GHLUser[] = [
+  { id: "u1", name: "Sarah Johnson", email: "sarah@example.com" },
+  { id: "u2", name: "Mike Chen", email: "mike@example.com" },
+  { id: "u3", name: "Emily Davis", email: "emily@example.com" },
+  { id: "u4", name: "Alex Martinez", email: "alex@example.com" },
+];
+
+export async function fetchUsers(): Promise<GHLUser[]> {
+  if (USE_MOCK_DATA) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return MOCK_USERS;
+  }
+
+  try {
+    const response = await ghlRequest<any>("/users/");
+    return response.users.map((user: any) => ({
+      id: user.id,
+      name: user.name || `${user.firstName} ${user.lastName}`,
+      email: user.email,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch users:", error);
+    return [];
+  }
 }
 
 export { USE_MOCK_DATA };
