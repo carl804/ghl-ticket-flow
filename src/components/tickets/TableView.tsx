@@ -162,7 +162,7 @@ export function TableView({
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Badge className={`${statusConfig[ticket.status].color} cursor-pointer`}>
+                      <Badge className={`${statusConfig[ticket.status]?.color || "bg-muted text-muted-foreground"} cursor-pointer`}>
                         {ticket.status}
                       </Badge>
                     </DropdownMenuTrigger>
@@ -183,7 +183,7 @@ export function TableView({
                     <DropdownMenuTrigger asChild>
                       <Badge
                         variant="outline"
-                        className={`${priorityConfig[ticket.priority].color} cursor-pointer border`}
+                        className={`${priorityConfig[ticket.priority]?.color || "bg-muted text-muted-foreground border-muted"} cursor-pointer border`}
                       >
                         {ticket.priority}
                       </Badge>
