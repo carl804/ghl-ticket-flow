@@ -12,23 +12,33 @@ interface TicketCardProps {
 }
 
 const priorityConfig = {
-  Low: { color: "bg-priority-low/10 text-priority-low border-priority-low/20" },
-  Medium: { color: "bg-priority-medium/10 text-priority-medium border-priority-medium/20" },
-  High: { color: "bg-priority-high/10 text-priority-high border-priority-high/20" },
-  Urgent: { color: "bg-priority-urgent/10 text-priority-urgent border-priority-urgent/20" },
+  Low: { color: "border-muted-foreground/30 text-muted-foreground bg-background" },
+  Medium: { color: "border-warning/50 text-warning bg-background" },
+  High: { color: "border-priority-high/50 text-priority-high bg-background" },
+  Urgent: { color: "border-destructive/50 text-destructive bg-background" },
 };
 
 const statusConfig = {
-  Open: { color: "bg-status-open text-white" },
-  "In Progress": { color: "bg-status-in-progress text-white" },
-  "Pending Customer": { color: "bg-status-pending text-white" },
-  Resolved: { color: "bg-status-resolved text-white" },
+  Open: { color: "bg-primary text-primary-foreground" },
+  "In Progress": { color: "bg-primary text-primary-foreground" },
+  "Pending Customer": { color: "bg-warning text-warning-foreground" },
+  Resolved: { color: "bg-success text-success-foreground" },
+};
+
+const categoryColors: Record<string, string> = {
+  Billing: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300",
+  Tech: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300",
+  Sales: "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300",
+  Onboarding: "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300",
+  Outage: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300",
 };
 
 export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: TicketCardProps) {
+  const categoryColor = categoryColors[ticket.category] || "bg-secondary text-secondary-foreground";
+  
   return (
     <Card 
-      className={`bg-card transition-all duration-200 hover:shadow-lg border ${
+      className={`bg-card transition-all duration-200 hover:border-primary hover:border-2 hover:border-dashed hover:shadow-lg ${
         isDragging ? "opacity-50" : ""
       }`}
     >
@@ -52,16 +62,16 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
 
         {/* Status, Priority, Category badges */}
         <div className="flex items-center gap-2 flex-wrap cursor-pointer" onClick={onClick}>
-          <Badge className={`${statusConfig[ticket.status].color} text-xs font-medium`}>
+          <Badge className={`${statusConfig[ticket.status].color} text-xs font-medium px-3 py-1`}>
             {ticket.status}
           </Badge>
           <Badge 
             variant="outline" 
-            className={`text-xs font-medium border-2 ${priorityConfig[ticket.priority].color}`}
+            className={`text-xs font-medium border-2 px-3 py-1 ${priorityConfig[ticket.priority].color}`}
           >
             {ticket.priority}
           </Badge>
-          <Badge variant="secondary" className="text-xs font-medium">
+          <Badge className={`text-xs font-medium px-3 py-1 ${categoryColor}`}>
             {ticket.category}
           </Badge>
         </div>

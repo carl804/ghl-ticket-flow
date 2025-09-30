@@ -81,12 +81,10 @@ function KanbanColumn({
     <div className={`flex flex-col h-full transition-all duration-200 rounded-lg ${
       isOver ? "ring-2 ring-primary" : ""
     }`}>
-      <div className="bg-muted/30 px-4 py-3 rounded-t-lg border-b">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">{status} ({tickets.length})</h3>
-        </div>
+      <div className="bg-primary/10 px-4 py-3 rounded-t-lg">
+        <h3 className="font-semibold text-foreground">{status} ({tickets.length})</h3>
       </div>
-      <div className="flex-1 overflow-y-auto space-y-3 p-3 bg-muted/10">
+      <div className="flex-1 overflow-y-auto space-y-3 p-3 bg-muted/5">
         <SortableContext items={tickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tickets.map((ticket) => (
             <SortableTicketCard
