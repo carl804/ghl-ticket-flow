@@ -9,98 +9,126 @@ All colors MUST be HSL.
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --foreground: 217 33% 17%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 217 33% 17%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 217 33% 17%;
 
-    --primary: 221 83% 53%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 214 32% 91%;
+    --secondary-foreground: 217 33% 17%;
 
-    --muted: 210 40% 96%;
+    --muted: 214 32% 91%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
+    --border: 214 32% 88%;
+    --input: 214 32% 88%;
+    --ring: 217 91% 60%;
 
     --radius: 0.5rem;
 
-    /* Status Colors */
-    --status-open: 220 13% 69%;
-    --status-in-progress: 221 83% 53%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    
+    --status-resolved: 142 76% 36%;
     --status-pending: 38 92% 50%;
-    --status-resolved: 142 71% 45%;
-
-    /* Priority Colors */
-    --priority-low: 142 71% 45%;
-    --priority-medium: 38 92% 50%;
-    --priority-high: 25 95% 53%;
+    --status-in-progress: 217 91% 60%;
+    --status-closed: 215 16% 47%;
+    
     --priority-urgent: 0 84% 60%;
+    --priority-high: 24 95% 53%;
+    --priority-medium: 38 92% 50%;
+    --priority-low: 215 16% 47%;
 
-    /* Dashboard specific */
-    --dashboard-bg: 210 40% 98%;
-    --kanban-column: 0 0% 100%;
-    --drag-hover: 221 83% 53% / 0.1;
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
 
-    --card: 224 71% 4%;
+    --card: 217 33% 17%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 224 71% 4%;
+    --popover: 217 33% 17%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 221 83% 53%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 17%;
+    --secondary: 217 33% 24%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 17%;
+    --muted: 217 33% 24%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 221 83% 53%;
-
-    /* Status Colors - Dark Mode */
-    --status-open: 220 13% 69%;
-    --status-in-progress: 221 83% 53%;
+    --border: 217 33% 24%;
+    --input: 217 33% 24%;
+    --ring: 217 91% 60%;
+    
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    
+    --status-resolved: 142 76% 36%;
     --status-pending: 38 92% 50%;
-    --status-resolved: 142 71% 45%;
-
-    /* Priority Colors - Dark Mode */
-    --priority-low: 142 71% 45%;
-    --priority-medium: 38 92% 50%;
-    --priority-high: 25 95% 53%;
+    --status-in-progress: 217 91% 60%;
+    --status-closed: 215 16% 47%;
+    
     --priority-urgent: 0 84% 60%;
-
-    /* Dashboard specific - Dark Mode */
-    --dashboard-bg: 222 47% 8%;
-    --kanban-column: 224 71% 4%;
-    --drag-hover: 221 83% 53% / 0.15;
+    --priority-high: 24 95% 53%;
+    --priority-medium: 38 92% 50%;
+    --priority-low: 215 16% 47%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
