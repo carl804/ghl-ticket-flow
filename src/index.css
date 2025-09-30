@@ -57,6 +57,12 @@ All colors MUST be HSL.
     --priority-medium: 38 92% 50%;
     --priority-low: 215 16% 47%;
 
+    /* Dashboard specific */
+    --dashboard-bg: 0 0% 98%;
+    --status-open: 215 16% 47%;
+    --kanban-column: 0 0% 100%;
+    --drag-hover: 217 91% 60% / 0.1;
+
     --sidebar-background: 0 0% 98%;
 
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -121,6 +127,13 @@ All colors MUST be HSL.
     --priority-high: 24 95% 53%;
     --priority-medium: 38 92% 50%;
     --priority-low: 215 16% 47%;
+
+    /* Dashboard specific - Dark Mode */
+    --dashboard-bg: 222 47% 8%;
+    --status-open: 215 16% 47%;
+    --kanban-column: 217 33% 17%;
+    --drag-hover: 217 91% 60% / 0.15;
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;

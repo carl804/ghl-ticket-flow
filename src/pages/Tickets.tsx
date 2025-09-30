@@ -219,7 +219,7 @@ export default function Tickets() {
 
   return (
     <div className="min-h-screen bg-dashboard-bg">
-      <div className="sticky top-0 z-10 bg-dashboard-bg border-b pb-4 pt-6 px-6">
+      <div className="sticky top-0 z-50 bg-dashboard-bg/95 backdrop-blur-sm border-b pb-4 pt-6 px-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
