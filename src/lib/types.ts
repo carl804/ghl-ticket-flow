@@ -1,6 +1,19 @@
 export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
-export type TicketCategory = "Billing" | "Tech" | "Sales" | "Onboarding" | "Outage";
+export type TicketCategory = 
+  | "BILLING" 
+  | "TECHNICAL SUPPORT" 
+  | "ONBOARDING" 
+  | "SALES INQUIRY" 
+  | "REPORT AN OUTAGE" 
+  | "GENERAL QUESTIONS" 
+  | "CANCEL ACCOUNT" 
+  | "UPGRADE PLAN"
+  | "Billing" // Legacy support
+  | "Tech" 
+  | "Sales" 
+  | "Onboarding" 
+  | "Outage";
 
 export interface Contact {
   id: string;

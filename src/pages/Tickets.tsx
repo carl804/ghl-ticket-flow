@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import { KanbanView } from "@/components/tickets/KanbanView";
 import { TableView } from "@/components/tickets/TableView";
 import { CompactView } from "@/components/tickets/CompactView";
 import { FilterBar, type Filters } from "@/components/tickets/FilterBar";
+import { TicketDetailSheet } from "@/components/tickets/TicketDetailSheet";
 import {
   fetchTickets,
   fetchStats,
@@ -30,10 +30,11 @@ import { toast } from "sonner";
 import { Loader2, LayoutGrid, Table as TableIcon, List, MoreHorizontal } from "lucide-react";
 
 export default function Tickets() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>("kanban");
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     search: "",
     status: "all",
@@ -185,7 +186,8 @@ export default function Tickets() {
 
   // Handlers
   const handleTicketClick = (ticket: Ticket) => {
-    navigate(`/tickets/${ticket.id}`);
+    setSelectedTicket(ticket);
+    setIsDetailOpen(true);
   };
 
   const handleSelectTicket = (ticketId: string) => {
@@ -327,6 +329,13 @@ export default function Tickets() {
           <CompactView tickets={filteredTickets} onTicketClick={handleTicketClick} />
         )}
       </div>
+
+      {/* Ticket Detail Sheet */}
+      <TicketDetailSheet
+        ticket={selectedTicket}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+      />
     </div>
   );
 }

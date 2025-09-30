@@ -12,10 +12,10 @@ interface TicketCardProps {
 }
 
 const priorityConfig = {
-  Low: { color: "border-muted-foreground/30 text-muted-foreground bg-background" },
-  Medium: { color: "border-warning/50 text-warning bg-background" },
-  High: { color: "border-priority-high/50 text-priority-high bg-background" },
-  Urgent: { color: "border-destructive/50 text-destructive bg-background" },
+  Low: { color: "border-green-500/50 text-green-600 bg-background dark:text-green-400" },
+  Medium: { color: "border-yellow-500/50 text-yellow-600 bg-background dark:text-yellow-400" },
+  High: { color: "border-orange-500/50 text-orange-600 bg-background dark:text-orange-400" },
+  Urgent: { color: "border-red-500/50 text-red-600 bg-background dark:text-red-400" },
 };
 
 const statusConfig = {
@@ -26,11 +26,20 @@ const statusConfig = {
 };
 
 const categoryColors: Record<string, string> = {
-  Billing: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300",
-  Tech: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300",
-  Sales: "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300",
-  Onboarding: "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300",
-  Outage: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300",
+  BILLING: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  "TECHNICAL SUPPORT": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  ONBOARDING: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+  "SALES INQUIRY": "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
+  "REPORT AN OUTAGE": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  "GENERAL QUESTIONS": "bg-gray-100 text-gray-700 dark:bg-gray-800/30 dark:text-gray-300",
+  "CANCEL ACCOUNT": "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
+  "UPGRADE PLAN": "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  // Legacy support
+  Billing: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  Tech: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  Sales: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
+  Onboarding: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+  Outage: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
 };
 
 export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: TicketCardProps) {
@@ -38,7 +47,7 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
   
   return (
     <Card 
-      className={`bg-card transition-all duration-200 hover:border-primary hover:border-2 hover:border-dashed hover:shadow-lg ${
+      className={`bg-card transition-all duration-300 ease-in-out hover:border-primary hover:border-2 hover:border-dashed hover:shadow-lg hover:-translate-y-0.5 ${
         isDragging ? "opacity-50" : ""
       }`}
     >

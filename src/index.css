@@ -53,9 +53,9 @@ All colors MUST be HSL.
     --status-closed: 215 16% 47%;
     
     --priority-urgent: 0 84% 60%;
-    --priority-high: 24 95% 53%;
+    --priority-high: 25 95% 53%;
     --priority-medium: 38 92% 50%;
-    --priority-low: 215 16% 47%;
+    --priority-low: 142 76% 45%;
 
     /* Dashboard specific */
     --dashboard-bg: 0 0% 98%;
@@ -124,9 +124,9 @@ All colors MUST be HSL.
     --status-closed: 215 16% 47%;
     
     --priority-urgent: 0 84% 60%;
-    --priority-high: 24 95% 53%;
+    --priority-high: 25 95% 53%;
     --priority-medium: 38 92% 50%;
-    --priority-low: 215 16% 47%;
+    --priority-low: 142 76% 45%;
 
     /* Dashboard specific - Dark Mode */
     --dashboard-bg: 222 47% 8%;
