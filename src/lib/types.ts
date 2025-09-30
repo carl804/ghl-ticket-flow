@@ -34,6 +34,11 @@ export interface Stats {
   pendingCustomer: number;
   resolvedToday: number;
   avgResolutionTime: string;
+  totalTrend?: number;
+  openTrend?: number;
+  pending?: number;
+  pendingTrend?: number;
+  resolvedTodayTrend?: number;
 }
 
 export interface CustomField {

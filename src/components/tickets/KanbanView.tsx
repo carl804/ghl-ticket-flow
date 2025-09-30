@@ -48,8 +48,13 @@ function SortableTicketCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <TicketCard ticket={ticket} onClick={onClick} isDragging={isDragging} />
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <TicketCard 
+        ticket={ticket} 
+        onClick={onClick} 
+        isDragging={isDragging}
+        dragHandleProps={listeners}
+      />
     </div>
   );
 }
@@ -73,18 +78,15 @@ function KanbanColumn({
   };
 
   return (
-    <Card className={`flex flex-col h-full transition-all duration-200 ${
-      isOver ? "ring-2 ring-primary shadow-lg" : ""
+    <div className={`flex flex-col h-full transition-all duration-200 rounded-lg ${
+      isOver ? "ring-2 ring-primary" : ""
     }`}>
-      <CardHeader className="pb-3">
+      <div className="bg-muted/30 px-4 py-3 rounded-t-lg border-b">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold">{status}</CardTitle>
-          <Badge variant="secondary" className={statusColors[status]}>
-            {tickets.length}
-          </Badge>
+          <h3 className="font-semibold text-foreground">{status} ({tickets.length})</h3>
         </div>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto space-y-2 pb-4">
+      </div>
+      <div className="flex-1 overflow-y-auto space-y-3 p-3 bg-muted/10">
         <SortableContext items={tickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tickets.map((ticket) => (
             <SortableTicketCard
@@ -95,12 +97,12 @@ function KanbanColumn({
           ))}
         </SortableContext>
         {tickets.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground text-sm">
+          <div className="text-center py-12 text-muted-foreground text-sm">
             No tickets
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

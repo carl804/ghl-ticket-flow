@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Loader2, Ticket, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { Stats } from "@/lib/types";
 
 interface StatsCardsProps {
@@ -7,51 +7,14 @@ interface StatsCardsProps {
   isLoading?: boolean;
 }
 
-const StatCard = ({ 
-  title, 
-  value, 
-  trend, 
-  trendValue 
-}: { 
-  title: string; 
-  value: string | number; 
-  trend?: "up" | "down" | "neutral";
-  trendValue?: string;
-}) => {
-  const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
-  const trendColor = trend === "up" ? "text-status-resolved" : trend === "down" ? "text-destructive" : "text-muted-foreground";
-
-  return (
-    <Card className="transition-all duration-200 hover:shadow-md">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold">{value}</p>
-          </div>
-          {trendValue && (
-            <div className={`flex items-center gap-1 text-sm ${trendColor}`}>
-              <TrendIcon className="h-4 w-4" />
-              <span>{trendValue}</span>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
 export function StatsCards({ stats, isLoading }: StatsCardsProps) {
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {[...Array(5)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="border-0 shadow-sm">
             <CardContent className="p-6">
-              <div className="space-y-2">
-                <div className="h-4 w-24 bg-muted rounded" />
-                <div className="h-8 w-16 bg-muted rounded" />
-              </div>
+              <Loader2 className="h-6 w-6 animate-spin" />
             </CardContent>
           </Card>
         ))}
@@ -59,36 +22,70 @@ export function StatsCards({ stats, isLoading }: StatsCardsProps) {
     );
   }
 
+  const statCards = [
+    {
+      label: "Total Tickets",
+      value: stats.total,
+      trend: stats.totalTrend ?? 12,
+      icon: Ticket,
+      iconBg: "bg-blue-100 dark:bg-blue-900/20",
+      iconColor: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      label: "Open Tickets",
+      value: stats.open,
+      trend: stats.openTrend ?? -5,
+      icon: Clock,
+      iconBg: "bg-blue-100 dark:bg-blue-900/20",
+      iconColor: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      label: "Pending Customer",
+      value: stats.pending ?? stats.pendingCustomer,
+      trend: stats.pendingTrend,
+      icon: AlertCircle,
+      iconBg: "bg-blue-100 dark:bg-blue-900/20",
+      iconColor: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      label: "Resolved Today",
+      value: stats.resolvedToday,
+      trend: stats.resolvedTodayTrend ?? 8,
+      icon: CheckCircle2,
+      iconBg: "bg-blue-100 dark:bg-blue-900/20",
+      iconColor: "text-blue-600 dark:text-blue-400",
+    },
+  ];
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-      <StatCard 
-        title="Total Tickets" 
-        value={stats.total}
-        trend="neutral"
-      />
-      <StatCard 
-        title="Open" 
-        value={stats.open}
-        trend={stats.open > 5 ? "up" : "down"}
-        trendValue={`${stats.open}`}
-      />
-      <StatCard 
-        title="Pending Customer" 
-        value={stats.pendingCustomer}
-        trend="neutral"
-      />
-      <StatCard 
-        title="Resolved Today" 
-        value={stats.resolvedToday}
-        trend="up"
-        trendValue={`+${stats.resolvedToday}`}
-      />
-      <StatCard 
-        title="Avg Resolution" 
-        value={stats.avgResolutionTime}
-        trend="down"
-        trendValue="12%"
-      />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {statCards.map((card, index) => {
+        const Icon = card.icon;
+        return (
+          <Card key={index} className="border-0 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground mb-3">{card.label}</p>
+                  <h3 className="text-4xl font-bold mb-2">{card.value}</h3>
+                  {card.trend !== undefined && (
+                    <div className="flex items-center text-sm font-medium">
+                      {card.trend > 0 ? (
+                        <span className="text-green-600 dark:text-green-400">+{card.trend}% vs last week</span>
+                      ) : (
+                        <span className="text-red-600 dark:text-red-400">{card.trend}% vs last week</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className={`${card.iconBg} p-3 rounded-full`}>
+                  <Icon className={`h-6 w-6 ${card.iconColor}`} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }

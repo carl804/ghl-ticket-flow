@@ -8,6 +8,7 @@ interface TicketCardProps {
   ticket: Ticket;
   onClick?: () => void;
   isDragging?: boolean;
+  dragHandleProps?: any;
 }
 
 const priorityConfig = {
@@ -24,66 +25,83 @@ const statusConfig = {
   Resolved: { color: "bg-status-resolved text-white" },
 };
 
-export function TicketCard({ ticket, onClick, isDragging }: TicketCardProps) {
+export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: TicketCardProps) {
   return (
     <Card 
-      className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] ${
+      className={`bg-card transition-all duration-200 hover:shadow-lg border ${
         isDragging ? "opacity-50" : ""
       }`}
-      onClick={onClick}
     >
-      <CardContent className="p-4 space-y-3">
-        {/* Header */}
+      <CardContent className="p-5 space-y-3">
+        {/* Header with drag handle */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm truncate">{ticket.name}</p>
-            <p className="text-xs text-muted-foreground truncate">{ticket.contact.name}</p>
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={onClick}>
+            <h3 className="font-bold text-base mb-1">{ticket.name}</h3>
+            <p className="text-sm text-muted-foreground">{ticket.contact.name}</p>
           </div>
-          <Badge className={`${statusConfig[ticket.status].color} shrink-0`}>
-            {ticket.status}
-          </Badge>
+          <div 
+            {...dragHandleProps} 
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg className="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            </svg>
+          </div>
         </div>
 
-        {/* Category & Priority */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="text-xs">
-            {ticket.category}
+        {/* Status, Priority, Category badges */}
+        <div className="flex items-center gap-2 flex-wrap cursor-pointer" onClick={onClick}>
+          <Badge className={`${statusConfig[ticket.status].color} text-xs font-medium`}>
+            {ticket.status}
           </Badge>
           <Badge 
             variant="outline" 
-            className={`text-xs border ${priorityConfig[ticket.priority].color}`}
+            className={`text-xs font-medium border-2 ${priorityConfig[ticket.priority].color}`}
           >
             {ticket.priority}
+          </Badge>
+          <Badge variant="secondary" className="text-xs font-medium">
+            {ticket.category}
           </Badge>
         </div>
 
         {/* Contact Info */}
-        <div className="space-y-1 text-xs text-muted-foreground">
+        <div className="space-y-2 text-sm cursor-pointer" onClick={onClick}>
           {ticket.contact.email && (
-            <div className="flex items-center gap-1.5 truncate">
-              <Mail className="h-3 w-3 shrink-0" />
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Mail className="h-4 w-4 shrink-0" />
               <span className="truncate">{ticket.contact.email}</span>
             </div>
           )}
           {ticket.contact.phone && (
-            <div className="flex items-center gap-1.5">
-              <Phone className="h-3 w-3 shrink-0" />
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Phone className="h-4 w-4 shrink-0" />
               <span>{ticket.contact.phone}</span>
+            </div>
+          )}
+          {ticket.agencyName && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span className="truncate">{ticket.agencyName}</span>
+            </div>
+          )}
+          {ticket.assignedTo && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <User className="h-4 w-4 shrink-0" />
+              <span className="truncate">{ticket.assignedTo}</span>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <User className="h-3 w-3" />
-            <span className="truncate">{ticket.assignedTo || "Unassigned"}</span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Clock className="h-3 w-3" />
-            <span>{formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}</span>
-          </div>
-        </div>
+        {/* Description if available */}
+        {ticket.description && (
+          <p className="text-sm text-muted-foreground line-clamp-2 cursor-pointer pt-2 border-t" onClick={onClick}>
+            {ticket.description}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
