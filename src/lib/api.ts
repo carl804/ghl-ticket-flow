@@ -1,30 +1,30 @@
 import type { Ticket, Stats, FieldMap, CustomField } from "./types";
 
-const GHL_API_BASE = "https://services.leadconnectorhq.com";
-const USE_MOCK_DATA = !import.meta.env.VITE_GHL_API_TOKEN;
+import { supabase } from "@/integrations/supabase/client";
+
+const USE_MOCK_DATA = false; // Always use real API through edge function
 
 let FIELD_MAP: FieldMap = {};
 
-// Helper to make GHL requests
+// Helper to make GHL requests through edge function
 async function ghlRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const token = import.meta.env.VITE_GHL_API_TOKEN;
-  
-  const response = await fetch(`${GHL_API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-      "Version": "2021-07-28",
-      ...options?.headers,
+  const { data, error } = await supabase.functions.invoke("ghl-proxy", {
+    body: {
+      endpoint,
+      method: options?.method || "GET",
+      body: options?.body ? JSON.parse(options.body as string) : undefined,
     },
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`GHL API Error (${response.status}): ${text}`);
+  if (error) {
+    throw new Error(`GHL API Error: ${error.message}`);
   }
 
-  return response.json();
+  if (data.error) {
+    throw new Error(`GHL API Error: ${data.error}`);
+  }
+
+  return data;
 }
 
 // Initialize custom field mapping
