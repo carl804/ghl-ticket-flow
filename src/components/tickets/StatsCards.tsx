@@ -3,12 +3,12 @@ import { Loader2, Ticket, Clock, AlertCircle, CheckCircle2 } from "lucide-react"
 import type { Stats } from "@/lib/types";
 
 interface StatsCardsProps {
-  stats: Stats;
+  stats?: Stats;
   isLoading?: boolean;
 }
 
 export function StatsCards({ stats, isLoading }: StatsCardsProps) {
-  if (isLoading) {
+  if (isLoading || !stats) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[1, 2, 3, 4].map((i) => (

@@ -14,13 +14,20 @@ serve(async (req) => {
   }
 
   try {
-    const { endpoint, method = "GET", body } = await req.json();
+    const { endpoint, method = "GET", body, queryParams } = await req.json();
 
     if (!GHL_API_TOKEN) {
       throw new Error("GHL API token not configured");
     }
 
-    const response = await fetch(`${GHL_API_BASE}${endpoint}`, {
+    // Build URL with query parameters
+    let url = `${GHL_API_BASE}${endpoint}`;
+    if (queryParams) {
+      const params = new URLSearchParams(queryParams);
+      url += `?${params.toString()}`;
+    }
+
+    const response = await fetch(url, {
       method,
       headers: {
         "Authorization": `Bearer ${GHL_API_TOKEN}`,

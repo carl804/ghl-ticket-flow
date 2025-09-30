@@ -3,16 +3,25 @@ import type { Ticket, Stats, FieldMap, CustomField } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 
 const USE_MOCK_DATA = false; // Always use real API through edge function
+const GHL_LOCATION_ID = import.meta.env.VITE_GHL_LOCATION_ID;
 
 let FIELD_MAP: FieldMap = {};
 
 // Helper to make GHL requests through edge function
-async function ghlRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function ghlRequest<T>(endpoint: string, options?: { method?: string; body?: any; queryParams?: Record<string, string> }): Promise<T> {
+  const queryParams = options?.queryParams || {};
+  
+  // Add location_id to all requests if not already present
+  if (GHL_LOCATION_ID && !queryParams.location_id) {
+    queryParams.location_id = GHL_LOCATION_ID;
+  }
+
   const { data, error } = await supabase.functions.invoke("ghl-proxy", {
     body: {
       endpoint,
       method: options?.method || "GET",
-      body: options?.body ? JSON.parse(options.body as string) : undefined,
+      body: options?.body,
+      queryParams,
     },
   });
 
@@ -255,7 +264,7 @@ export async function updateTicketStatus(ticketId: string, newStatus: string): P
 
   await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
-    body: JSON.stringify({ status: newStatus }),
+    body: { status: newStatus },
   });
 }
 
@@ -271,9 +280,9 @@ export async function updateResolutionSummary(ticketId: string, summary: string)
 
   await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
-    body: JSON.stringify({
+    body: {
       customField: [{ id: fieldId, value: summary }],
-    }),
+    },
   });
 }
 
@@ -289,9 +298,9 @@ export async function updatePriority(ticketId: string, priority: string): Promis
 
   await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
-    body: JSON.stringify({
+    body: {
       customField: [{ id: fieldId, value: priority }],
-    }),
+    },
   });
 }
 
@@ -307,9 +316,9 @@ export async function updateCategory(ticketId: string, category: string): Promis
 
   await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
-    body: JSON.stringify({
+    body: {
       customField: [{ id: fieldId, value: category }],
-    }),
+    },
   });
 }
 
@@ -322,7 +331,7 @@ export async function updateOwner(ticketId: string, userId: string): Promise<voi
 
   await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
-    body: JSON.stringify({ assignedToUserId: userId }),
+    body: { assignedToUserId: userId },
   });
 }
 
@@ -361,7 +370,7 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
 
   await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
-    body: JSON.stringify(body),
+    body,
   });
 }
 
