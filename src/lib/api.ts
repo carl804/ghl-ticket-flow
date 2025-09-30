@@ -1,0 +1,371 @@
+import type { Ticket, Stats, FieldMap, CustomField } from "./types";
+
+const GHL_API_BASE = "https://services.leadconnectorhq.com";
+const USE_MOCK_DATA = !import.meta.env.VITE_GHL_API_TOKEN;
+
+let FIELD_MAP: FieldMap = {};
+
+// Helper to make GHL requests
+async function ghlRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const token = import.meta.env.VITE_GHL_API_TOKEN;
+  
+  const response = await fetch(`${GHL_API_BASE}${endpoint}`, {
+    ...options,
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "Version": "2021-07-28",
+      ...options?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`GHL API Error (${response.status}): ${text}`);
+  }
+
+  return response.json();
+}
+
+// Initialize custom field mapping
+export async function initializeFieldMap(): Promise<void> {
+  if (USE_MOCK_DATA) return;
+
+  try {
+    const response = await ghlRequest<{ customFields: CustomField[] }>("/custom-fields");
+    const fields = response.customFields;
+
+    FIELD_MAP = {
+      priority: fields.find(f => f.fieldKey === "priority")?.id,
+      category: fields.find(f => f.fieldKey === "category")?.id,
+      resolutionSummary: fields.find(f => f.fieldKey === "resolutionSummary")?.id,
+      agencyName: fields.find(f => f.fieldKey === "agencyName")?.id,
+    };
+  } catch (error) {
+    console.error("Failed to initialize field map:", error);
+  }
+}
+
+export function getFieldId(key: keyof FieldMap): string | undefined {
+  return FIELD_MAP[key];
+}
+
+// Mock data for development
+const MOCK_TICKETS: Ticket[] = [
+  {
+    id: "1",
+    name: "BILLING-10001",
+    contact: { id: "c1", name: "John Doe", email: "john@example.com", phone: "+1234567890" },
+    agencyName: "Acme Corp",
+    status: "Open",
+    priority: "High",
+    category: "Billing",
+    resolutionSummary: "",
+    assignedTo: "Sarah Johnson",
+    assignedToUserId: "u1",
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    value: 500,
+    description: "Customer cannot access billing portal",
+    tags: ["urgent", "portal"],
+  },
+  {
+    id: "2",
+    name: "TECH-10002",
+    contact: { id: "c2", name: "Jane Smith", email: "jane@example.com", phone: "+1234567891" },
+    agencyName: "TechFlow Inc",
+    status: "In Progress",
+    priority: "Medium",
+    category: "Tech",
+    resolutionSummary: "Investigating API connection issues",
+    assignedTo: "Mike Chen",
+    assignedToUserId: "u2",
+    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    value: 1200,
+    description: "Integration not syncing properly",
+    tags: ["api", "integration"],
+  },
+  {
+    id: "3",
+    name: "SALES-10003",
+    contact: { id: "c3", name: "Bob Wilson", email: "bob@example.com", phone: "+1234567892" },
+    agencyName: "Digital Solutions",
+    status: "Pending Customer",
+    priority: "Low",
+    category: "Sales",
+    resolutionSummary: "Waiting for customer response on pricing",
+    assignedTo: "Sarah Johnson",
+    assignedToUserId: "u1",
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    value: 3000,
+    description: "Enterprise plan inquiry",
+    tags: ["enterprise"],
+  },
+  {
+    id: "4",
+    name: "ONBOARDING-10004",
+    contact: { id: "c4", name: "Alice Brown", email: "alice@example.com", phone: "+1234567893" },
+    agencyName: "StartupHub",
+    status: "Resolved",
+    priority: "Medium",
+    category: "Onboarding",
+    resolutionSummary: "Completed setup and training session",
+    assignedTo: "Mike Chen",
+    assignedToUserId: "u2",
+    createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+    value: 0,
+    description: "New customer onboarding",
+    tags: ["training"],
+  },
+  {
+    id: "5",
+    name: "OUTAGE-10005",
+    contact: { id: "c5", name: "Chris Davis", email: "chris@example.com", phone: "+1234567894" },
+    agencyName: "CloudNet",
+    status: "In Progress",
+    priority: "Urgent",
+    category: "Outage",
+    resolutionSummary: "Working with engineering team",
+    assignedTo: "Sarah Johnson",
+    assignedToUserId: "u1",
+    createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    value: 0,
+    description: "Service disruption reported",
+    tags: ["critical", "outage"],
+  },
+  {
+    id: "6",
+    name: "BILLING-10006",
+    contact: { id: "c6", name: "Emma Wilson", email: "emma@example.com", phone: "+1234567895" },
+    agencyName: "Acme Corp",
+    status: "Open",
+    priority: "Low",
+    category: "Billing",
+    resolutionSummary: "",
+    assignedTo: "Mike Chen",
+    assignedToUserId: "u2",
+    createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    value: 200,
+    description: "Invoice inquiry",
+    tags: ["billing"],
+  },
+];
+
+// Fetch tickets with stitched data
+export async function fetchTickets(): Promise<Ticket[]> {
+  if (USE_MOCK_DATA) {
+    await new Promise(resolve => setTimeout(resolve, 800));
+    return MOCK_TICKETS;
+  }
+
+  try {
+    // Fetch opportunities with pagination
+    const opportunities = await ghlRequest<any>("/opportunities/search");
+    
+    // Fetch contacts for each opportunity
+    const ticketsPromises = opportunities.opportunities.map(async (opp: any) => {
+      try {
+        const contact = await ghlRequest<any>(`/contacts/${opp.contactId}`);
+        
+        return {
+          id: opp.id,
+          name: opp.name,
+          contact: {
+            id: contact.id,
+            name: contact.name || contact.firstName + " " + contact.lastName,
+            email: contact.email,
+            phone: contact.phone,
+          },
+          agencyName: opp.customField?.find((f: any) => f.id === FIELD_MAP.agencyName)?.value,
+          status: opp.status || opp.stageName || "Open",
+          priority: opp.customField?.find((f: any) => f.id === FIELD_MAP.priority)?.value || "Medium",
+          category: opp.customField?.find((f: any) => f.id === FIELD_MAP.category)?.value || "Tech",
+          resolutionSummary: opp.customField?.find((f: any) => f.id === FIELD_MAP.resolutionSummary)?.value,
+          assignedTo: opp.assignedTo,
+          assignedToUserId: opp.assignedToUserId,
+          createdAt: opp.createdAt || new Date().toISOString(),
+          updatedAt: opp.updatedAt || new Date().toISOString(),
+          value: opp.value,
+          dueDate: opp.dueDate,
+          description: opp.description,
+          tags: opp.tags,
+        } as Ticket;
+      } catch (error) {
+        console.error(`Failed to fetch contact for opportunity ${opp.id}:`, error);
+        return null;
+      }
+    });
+
+    const tickets = await Promise.allSettled(ticketsPromises);
+    return tickets
+      .filter((result): result is PromiseFulfilledResult<Ticket> => result.status === "fulfilled" && result.value !== null)
+      .map(result => result.value);
+  } catch (error) {
+    console.error("Failed to fetch tickets:", error);
+    throw error;
+  }
+}
+
+// Fetch stats
+export async function fetchStats(): Promise<Stats> {
+  const tickets = await fetchTickets();
+  
+  const total = tickets.length;
+  const open = tickets.filter(t => t.status === "Open").length;
+  const pendingCustomer = tickets.filter(t => t.status === "Pending Customer").length;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const resolvedToday = tickets.filter(t => 
+    t.status === "Resolved" && new Date(t.updatedAt) >= today
+  ).length;
+
+  // Calculate avg resolution time (simplified)
+  const resolved = tickets.filter(t => t.status === "Resolved");
+  const avgMs = resolved.reduce((acc, t) => {
+    const created = new Date(t.createdAt).getTime();
+    const updated = new Date(t.updatedAt).getTime();
+    return acc + (updated - created);
+  }, 0) / (resolved.length || 1);
+  
+  const avgHours = Math.round(avgMs / (1000 * 60 * 60));
+  const avgResolutionTime = avgHours < 24 ? `${avgHours}h` : `${Math.round(avgHours / 24)}d`;
+
+  return { total, open, pendingCustomer, resolvedToday, avgResolutionTime };
+}
+
+// Update ticket status
+export async function updateTicketStatus(ticketId: string, newStatus: string): Promise<void> {
+  if (USE_MOCK_DATA) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return;
+  }
+
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: newStatus }),
+  });
+}
+
+// Update resolution summary
+export async function updateResolutionSummary(ticketId: string, summary: string): Promise<void> {
+  if (USE_MOCK_DATA) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return;
+  }
+
+  const fieldId = getFieldId("resolutionSummary");
+  if (!fieldId) throw new Error("Resolution summary field not found");
+
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      customField: [{ id: fieldId, value: summary }],
+    }),
+  });
+}
+
+// Update priority
+export async function updatePriority(ticketId: string, priority: string): Promise<void> {
+  if (USE_MOCK_DATA) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return;
+  }
+
+  const fieldId = getFieldId("priority");
+  if (!fieldId) throw new Error("Priority field not found");
+
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      customField: [{ id: fieldId, value: priority }],
+    }),
+  });
+}
+
+// Update category
+export async function updateCategory(ticketId: string, category: string): Promise<void> {
+  if (USE_MOCK_DATA) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return;
+  }
+
+  const fieldId = getFieldId("category");
+  if (!fieldId) throw new Error("Category field not found");
+
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      customField: [{ id: fieldId, value: category }],
+    }),
+  });
+}
+
+// Update owner
+export async function updateOwner(ticketId: string, userId: string): Promise<void> {
+  if (USE_MOCK_DATA) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return;
+  }
+
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ assignedToUserId: userId }),
+  });
+}
+
+// Update ticket (general)
+export async function updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<void> {
+  if (USE_MOCK_DATA) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return;
+  }
+
+  const body: any = {};
+  const customFields: Array<{ id: string; value: any }> = [];
+
+  if (updates.status) body.status = updates.status;
+  if (updates.assignedToUserId) body.assignedToUserId = updates.assignedToUserId;
+  if (updates.description) body.description = updates.description;
+  if (updates.value !== undefined) body.value = updates.value;
+  if (updates.dueDate) body.dueDate = updates.dueDate;
+
+  if (updates.priority) {
+    const fieldId = getFieldId("priority");
+    if (fieldId) customFields.push({ id: fieldId, value: updates.priority });
+  }
+  if (updates.category) {
+    const fieldId = getFieldId("category");
+    if (fieldId) customFields.push({ id: fieldId, value: updates.category });
+  }
+  if (updates.resolutionSummary !== undefined) {
+    const fieldId = getFieldId("resolutionSummary");
+    if (fieldId) customFields.push({ id: fieldId, value: updates.resolutionSummary });
+  }
+
+  if (customFields.length > 0) {
+    body.customField = customFields;
+  }
+
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+// Bulk update status
+export async function bulkUpdateStatus(ids: string[], status: string): Promise<void> {
+  await Promise.all(ids.map(id => updateTicketStatus(id, status)));
+}
+
+// Bulk update priority
+export async function bulkUpdatePriority(ids: string[], priority: string): Promise<void> {
+  await Promise.all(ids.map(id => updatePriority(id, priority)));
+}
+
+export { USE_MOCK_DATA };
