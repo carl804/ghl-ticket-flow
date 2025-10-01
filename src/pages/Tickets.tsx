@@ -1,5 +1,5 @@
-// src/pages/Tickets.tsx
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchTickets,
   fetchStats,
@@ -8,101 +8,128 @@ import {
   bulkUpdateStatus,
   bulkUpdatePriority,
   initializeFieldMap,
-  USE_MOCK_DATA,
 } from "@/lib/api";
+
 import type { Ticket, TicketStatus, TicketPriority, Stats } from "@/lib/types";
+
 import KanbanView from "@/components/tickets/KanbanView";
-import TicketDetailSheet from "@/components/tickets/TicketDetailSheet";
-import StatsCards from "@/components/tickets/StatsCards";
-import { toast } from "sonner";
+import TableView from "@/components/tickets/TableView";
+import CompactView from "@/components/tickets/CompactView";
+import { TicketDetailSheet } from "@/components/tickets/TicketDetailSheet"; // ✅ fixed
+import { StatsCards } from "@/components/tickets/StatsCards"; // ✅ fixed
+
+// Define view modes here instead of importing ViewMode
+type ViewMode = "kanban" | "table" | "compact";
 
 export default function TicketsPage() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const queryClient = useQueryClient();
+  const [viewMode, setViewMode] = useState<ViewMode>("kanban");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
 
-  // Initial load
-  useEffect(() => {
+  // Fetch field map (custom fields) once on load
+  React.useEffect(() => {
     initializeFieldMap();
-    loadTickets();
   }, []);
 
-  async function loadTickets() {
-    try {
-      setLoading(true);
-      const t = await fetchTickets();
-      const s = await fetchStats();
-      setTickets(t);
-      setStats(s);
-    } catch (err: any) {
-      toast.error(`Failed to load tickets: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Fetch tickets
+  const {
+    data: tickets = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<Ticket[]>({
+    queryKey: ["tickets"],
+    queryFn: fetchTickets,
+    refetchInterval: 60000, // auto-refresh every 60s
+  });
 
-  async function handleStatusChange(ticketId: string, status: string) {
-    try {
-      await updateTicketStatus(ticketId, status as TicketStatus); // ✅ cast to TicketStatus
-      toast.success("Status updated");
-      await loadTickets();
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-  }
+  // Fetch stats
+  const { data: stats } = useQuery<Stats>({
+    queryKey: ["stats"],
+    queryFn: fetchStats,
+    refetchInterval: 60000,
+  });
 
-  async function handlePriorityChange(ticketId: string, priority: string) {
-    try {
-      await updatePriority(ticketId, priority as TicketPriority); // ✅ cast to TicketPriority
-      toast.success("Priority updated");
-      await loadTickets();
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-  }
+  // Mutations
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: TicketStatus }) =>
+      updateTicketStatus(id, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
+  });
 
-  async function handleBulkStatus(ids: string[], status: string) {
-    try {
-      await bulkUpdateStatus(ids, status as TicketStatus); // ✅ cast
-      toast.success("Bulk status update complete");
-      await loadTickets();
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-  }
+  const priorityMutation = useMutation({
+    mutationFn: ({ id, priority }: { id: string; priority: TicketPriority }) =>
+      updatePriority(id, priority),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
+  });
 
-  async function handleBulkPriority(ids: string[], priority: string) {
-    try {
-      await bulkUpdatePriority(ids, priority as TicketPriority); // ✅ cast
-      toast.success("Bulk priority update complete");
-      await loadTickets();
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-  }
+  const bulkStatusMutation = useMutation({
+    mutationFn: ({ ids, status }: { ids: string[]; status: TicketStatus }) =>
+      bulkUpdateStatus(ids, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
+  });
+
+  const bulkPriorityMutation = useMutation({
+    mutationFn: ({ ids, priority }: { ids: string[]; priority: TicketPriority }) =>
+      bulkUpdatePriority(ids, priority),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
+  });
+
+  // UI handlers
+  const handleTicketClick = (ticket: Ticket) => setSelectedTicket(ticket);
+
+  const handleStatusChange = (ticketId: string, newStatus: string) => {
+    statusMutation.mutate({ id: ticketId, status: newStatus as TicketStatus });
+  };
+
+  const handlePriorityChange = (ticketId: string, newPriority: string) => {
+    priorityMutation.mutate({ id: ticketId, priority: newPriority as TicketPriority });
+  };
 
   return (
     <div className="p-4 space-y-4">
-      <h1 className="text-2xl font-bold">Tickets</h1>
+      <h1 className="text-2xl font-bold">Tickets Dashboard</h1>
 
+      {/* Stats */}
       {stats && <StatsCards stats={stats} />}
 
-      {loading ? (
-        <p>Loading tickets...</p>
-      ) : (
-        <KanbanView
-          tickets={tickets}
-          onTicketClick={(t) => setSelectedTicket(t)}
-        />
+      {/* Controls */}
+      <div className="flex gap-2 items-center">
+        <button onClick={() => setViewMode("kanban")}>Kanban</button>
+        <button onClick={() => setViewMode("table")}>Table</button>
+        <button onClick={() => setViewMode("compact")}>Compact</button>
+        <button onClick={() => refetch()}>Force Refresh</button>
+      </div>
+
+      {/* Content */}
+      {isLoading && <p>Loading tickets...</p>}
+      {isError && (
+        <p className="text-red-500">Failed to load tickets. Please try again.</p>
+      )}
+      {!isLoading && !isError && (
+        <>
+          {viewMode === "kanban" && (
+            <KanbanView tickets={tickets} onTicketClick={handleTicketClick} />
+          )}
+          {viewMode === "table" && (
+            <TableView
+              tickets={tickets}
+              onTicketClick={handleTicketClick}
+              onStatusChange={handleStatusChange}
+              onPriorityChange={handlePriorityChange}
+            />
+          )}
+          {viewMode === "compact" && (
+            <CompactView tickets={tickets} onTicketClick={handleTicketClick} />
+          )}
+        </>
       )}
 
+      {/* Ticket Detail Sheet */}
       {selectedTicket && (
         <TicketDetailSheet
           ticket={selectedTicket}
           onClose={() => setSelectedTicket(null)}
-          onStatusChange={handleStatusChange}
-          onPriorityChange={handlePriorityChange}
         />
       )}
     </div>
