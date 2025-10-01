@@ -1,3 +1,7 @@
+// Add this at the top of src/lib/api.ts temporarily
+console.log("API Token:", import.meta.env.VITE_GHL_API_TOKEN?.substring(0, 10) + "...");
+console.log("Location ID:", import.meta.env.VITE_GHL_LOCATION_ID);
+
 // src/lib/api.ts
 import type {
   Ticket,
@@ -203,4 +207,5 @@ export function toTicketStatus(value: string): TicketStatus {
 export function toTicketPriority(value: string): TicketPriority {
   const allowed: TicketPriority[] = ["Low", "Medium", "High", "Urgent"];
   return (allowed.includes(value as TicketPriority) ? value : "Medium") as TicketPriority;
+
 }
