@@ -2,7 +2,7 @@
 export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
 
-// Expanded categories
+// Your real categories (typed backend values)
 export type TicketCategory =
   | "Billing"
   | "Technical Support"
@@ -13,7 +13,7 @@ export type TicketCategory =
   | "Cancel Account"
   | "Upgrade Plan";
 
-// Contact (make name optional to avoid runtime missing-name errors)
+// Contact (name optional for safety)
 export interface Contact {
   id: string;
   name?: string;
@@ -24,7 +24,7 @@ export interface Contact {
 // Ticket
 export interface Ticket {
   id: string;
-  name: string;              // e.g. BILLING-10001
+  name: string;           // e.g. BILLING-10001
   contact: Contact;
   agencyName?: string;
   status: TicketStatus;
@@ -42,7 +42,7 @@ export interface Ticket {
   tags?: string[];
 }
 
-// Stats (extend to match UI props used in StatsCards)
+// Stats (kept to match your UI)
 export interface Stats {
   total: number;
   open: number;
@@ -50,7 +50,6 @@ export interface Stats {
   resolvedToday: number;
   avgResolutionTime: string;
 
-  // UI expects these (optional so we don’t force logic right now)
   pending?: number;
   totalTrend?: number;
   openTrend?: number;
@@ -66,7 +65,7 @@ export interface FieldMap {
   agencyName?: string;
 }
 
-// CustomField (for mapping responses)
+// CustomField (for robustness to API shapes)
 export interface CustomField {
   id: string;
   fieldKey?: string;
@@ -75,10 +74,10 @@ export interface CustomField {
   type?: string;
 }
 
-// Used in Tickets.tsx (your UI compares against "kanban" / "table")
+// Views
 export type ViewMode = "kanban" | "table" | "compact";
 
-// GHL user object (for assignees)
+// GHL user object (assignees)
 export interface GHLUser {
   id: string;
   name: string;
