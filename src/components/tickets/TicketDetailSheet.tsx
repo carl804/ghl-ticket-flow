@@ -43,7 +43,22 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-// Categories must match your TicketCategory union exactly
+const priorityConfig = {
+  Low: { color: "border-green-500/50 text-green-600 bg-background dark:text-green-400" },
+  Medium: { color: "border-yellow-500/50 text-yellow-600 bg-background dark:text-yellow-400" },
+  High: { color: "border-orange-500/50 text-orange-600 bg-background dark:text-orange-400" },
+  Urgent: { color: "border-red-500/50 text-red-600 bg-background dark:text-red-400" },
+};
+
+const statusConfig = {
+  Open: { color: "bg-primary text-primary-foreground" },
+  "In Progress": { color: "bg-primary text-primary-foreground" },
+  "Pending Customer": { color: "bg-warning text-warning-foreground" },
+  Resolved: { color: "bg-success text-success-foreground" },
+  Closed: { color: "bg-gray-500 text-white" },
+};
+
+// ✅ Categories match your TicketCategory union exactly
 const CATEGORIES: TicketCategory[] = [
   "Billing",
   "Tech",
@@ -64,14 +79,15 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
   const [newTag, setNewTag] = useState("");
 
-  // Assigned-to users
   const { data: users = [] } = useQuery<GHLUser[]>({
     queryKey: ["users"],
     queryFn: fetchUsers,
   });
 
   useEffect(() => {
-    if (ticket) setEditedTicket(ticket);
+    if (ticket) {
+      setEditedTicket(ticket);
+    }
   }, [ticket]);
 
   const updateMutation = useMutation({
@@ -88,10 +104,11 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
   const handleSave = () => {
     const updates: Partial<Ticket> = { ...editedTicket };
 
-    // keep assignedTo name in sync with assignedToUserId
     if (updates.assignedToUserId) {
       const selectedUser = users.find((u) => u.id === updates.assignedToUserId);
-      if (selectedUser) updates.assignedTo = selectedUser.name;
+      if (selectedUser) {
+        updates.assignedTo = selectedUser.name;
+      }
     }
 
     updateMutation.mutate(updates);
@@ -99,9 +116,10 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
   const handleViewConversations = () => {
     if (ticket?.contactId) {
-      const loc = import.meta.env.VITE_GHL_LOCATION_ID || "YOUR_LOCATION_ID";
-      const url = `https://app.gohighlevel.com/v2/location/${loc}/conversations/all/${ticket.contactId}`;
-      window.open(url, "_blank");
+      const ghlUrl = `https://app.gohighlevel.com/v2/location/${
+        import.meta.env.VITE_GHL_LOCATION_ID || "YOUR_LOCATION_ID"
+      }/conversations/all/${ticket.contactId}`;
+      window.open(ghlUrl, "_blank");
     } else {
       toast.error("Contact ID not available");
     }
@@ -109,9 +127,10 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
   const handleAddTag = () => {
     if (newTag.trim()) {
+      const currentTags = editedTicket.tags || [];
       setEditedTicket({
         ...editedTicket,
-        tags: [...(editedTicket.tags || []), newTag.trim()],
+        tags: [...currentTags, newTag.trim()],
       });
       setNewTag("");
     }
@@ -135,7 +154,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
         </SheetHeader>
 
         <div className="py-6 space-y-6">
-          {/* Status / Priority / Category */}
+          {/* Status, Priority, Category */}
           <div className="flex flex-wrap gap-3">
             {/* Status */}
             <div className="flex-1 min-w-[150px]">
@@ -154,6 +173,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
                   <SelectItem value="In Progress">In Progress</SelectItem>
                   <SelectItem value="Pending Customer">Pending Customer</SelectItem>
                   <SelectItem value="Resolved">Resolved</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -204,7 +224,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
           <Separator />
 
-          {/* Contact Info */}
+          {/* Contact Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Contact Information</h3>
             <div className="grid gap-4">
@@ -217,161 +237,4 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
                 <div className="flex items-center gap-3 text-sm">
                   <Mail className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">Email:</span>
-                  <a href={`mailto:${ticket.contact.email}`} className="text-primary hover:underline">
-                    {ticket.contact.email}
-                  </a>
-                </div>
-              )}
-              {ticket.contact.phone && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Phone:</span>
-                  <a href={`tel:${ticket.contact.phone}`} className="text-primary hover:underline">
-                    {ticket.contact.phone}
-                  </a>
-                </div>
-              )}
-              {ticket.agencyName && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Agency:</span>
-                  <span>{ticket.agencyName}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Assigned To */}
-          <div className="space-y-2">
-            <Label>Assigned To</Label>
-            <Select
-              value={editedTicket.assignedToUserId}
-              onValueChange={(value) =>
-                setEditedTicket({ ...editedTicket, assignedToUserId: value })
-              }
-            >
-              <SelectTrigger className="bg-popover">
-                <SelectValue placeholder="Select assignee" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover z-[100]">
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label>Description</Label>
-            <Textarea
-              value={editedTicket.description || ""}
-              onChange={(e) =>
-                setEditedTicket({ ...editedTicket, description: e.target.value })
-              }
-              placeholder="Enter ticket description"
-              rows={4}
-              className="bg-popover"
-            />
-          </div>
-
-          {/* Resolution Summary */}
-          <div className="space-y-2">
-            <Label>Resolution Summary</Label>
-            <Textarea
-              value={editedTicket.resolutionSummary || ""}
-              onChange={(e) =>
-                setEditedTicket({ ...editedTicket, resolutionSummary: e.target.value })
-              }
-              placeholder="Enter resolution summary"
-              rows={3}
-              className="bg-popover"
-            />
-          </div>
-
-          {/* Tags */}
-          <div className="space-y-2">
-            <Label>Tags</Label>
-            <div className="flex gap-2">
-              <Input
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
-                placeholder="Add a tag"
-                className="bg-popover"
-              />
-              <Button type="button" variant="outline" size="icon" onClick={handleAddTag}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {(editedTicket.tags || []).map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="pr-1 cursor-pointer hover:bg-secondary/80"
-                >
-                  {tag}
-                  <button
-                    onClick={() => handleRemoveTag(tag)}
-                    className="ml-2 hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Metadata */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Created:</span>
-              <span>{format(new Date(ticket.createdAt), "MMM d, yyyy")}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Updated:</span>
-              <span>{format(new Date(ticket.updatedAt), "MMM d, yyyy")}</span>
-            </div>
-          </div>
-
-          {/* Conversations Button */}
-          <Button variant="outline" onClick={handleViewConversations} className="w-full">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            View Conversations
-            <ExternalLink className="h-4 w-4 ml-2" />
-          </Button>
-
-          <Separator />
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-              className="flex-1"
-            >
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
+                  <a href={`mailto:${ticket.contact.email}`} className="text-primary hover:underl
