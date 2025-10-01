@@ -10,10 +10,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatsCards } from "@/components/tickets/StatsCards";
-import KanbanView from "@/components/tickets/KanbanView";            // ✅ default import
-import TableView from "@/components/tickets/TableView";               // ✅ default import
-import CompactView from "@/components/tickets/CompactView";           // ✅ default import
-import TicketDetailSheet from "@/components/tickets/TicketDetailSheet"; // ✅ default import
+import { KanbanView } from "@/components/tickets/KanbanView";   // ✅ named import
+import { TableView } from "@/components/tickets/TableView";     // ✅ named import
+import { CompactView } from "@/components/tickets/CompactView"; // ✅ named import
+import { FilterBar, type Filters } from "@/components/tickets/FilterBar";
+import { TicketDetailSheet } from "@/components/tickets/TicketDetailSheet"; // ✅ named import
 import {
   fetchTickets,
   fetchStats,
@@ -34,7 +35,7 @@ export default function Tickets() {
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     search: "",
     status: "all",
     priority: "all",
@@ -42,6 +43,7 @@ export default function Tickets() {
     assignedTo: "all",
   });
 
+  // Initialize field map on mount
   useEffect(() => {
     initializeFieldMap();
   }, []);
@@ -65,12 +67,12 @@ export default function Tickets() {
     refetchInterval: 60000,
   });
 
-  // Refresh
+  // Manual refresh handler
   const handleRefresh = async () => {
     try {
       await Promise.all([refetchTickets(), refetchStats()]);
       toast.success("Tickets refreshed ✅");
-    } catch {
+    } catch (error) {
       toast.error("Failed to refresh tickets", {
         action: { label: "Retry", onClick: () => handleRefresh() },
       });
@@ -94,9 +96,11 @@ export default function Tickets() {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
-    onError: (_e, _v, ctx) => {
+    onError: (_, __, context) => {
       toast.error("Failed to update status");
-      if (ctx?.previousTickets) queryClient.setQueryData(["tickets"], ctx.previousTickets);
+      if (context?.previousTickets) {
+        queryClient.setQueryData(["tickets"], context.previousTickets);
+      }
     },
   });
 
@@ -115,9 +119,11 @@ export default function Tickets() {
       toast.success("Priority updated successfully");
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
     },
-    onError: (_e, _v, ctx) => {
+    onError: (_, __, context) => {
       toast.error("Failed to update priority");
-      if (ctx?.previousTickets) queryClient.setQueryData(["tickets"], ctx.previousTickets);
+      if (context?.previousTickets) {
+        queryClient.setQueryData(["tickets"], context.previousTickets);
+      }
     },
   });
 
@@ -147,15 +153,14 @@ export default function Tickets() {
   // Filter tickets
   const filteredTickets = useMemo(() => {
     return tickets.filter((ticket) => {
-      // Search filter
       if (filters.search) {
-        const s = filters.search.toLowerCase();
-        const matches =
-          ticket.name.toLowerCase().includes(s) ||
-          (ticket.contact.name || "").toLowerCase().includes(s) ||
-          (ticket.contact.email || "").toLowerCase().includes(s) ||
-          (ticket.contact.phone || "").includes(s);
-        if (!matches) return false;
+        const search = filters.search.toLowerCase();
+        const matchesSearch =
+          ticket.name.toLowerCase().includes(search) ||
+          ticket.contact.name?.toLowerCase().includes(search) ||
+          ticket.contact.email?.toLowerCase().includes(search) ||
+          ticket.contact.phone?.includes(search);
+        if (!matchesSearch) return false;
       }
       if (filters.status !== "all" && ticket.status !== filters.status) return false;
       if (filters.priority !== "all" && ticket.priority !== filters.priority) return false;
@@ -165,7 +170,6 @@ export default function Tickets() {
     });
   }, [tickets, filters]);
 
-  // Values for filters
   const agencies = useMemo(
     () => Array.from(new Set(tickets.map((t) => t.agencyName).filter(Boolean) as string[])),
     [tickets]
@@ -218,9 +222,7 @@ export default function Tickets() {
             <h1 className="text-3xl font-bold">Tickets Dashboard</h1>
             <p className="text-muted-foreground mt-1">Manage and track all support tickets</p>
           </div>
-
           <div className="flex items-center gap-2">
-            {/* Bulk Actions */}
             {selectedTickets.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -231,24 +233,18 @@ export default function Tickets() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
-                    onClick={() =>
-                      bulkStatusMutation.mutate({ ids: selectedTickets, status: "Resolved" as TicketStatus })
-                    }
+                    onClick={() => bulkStatusMutation.mutate({ ids: selectedTickets, status: "Resolved" })}
                   >
                     Mark as Resolved
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() =>
-                      bulkPriorityMutation.mutate({ ids: selectedTickets, priority: "Urgent" as TicketPriority })
-                    }
+                    onClick={() => bulkPriorityMutation.mutate({ ids: selectedTickets, priority: "Urgent" })}
                   >
                     Set Priority: Urgent
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-
-            {/* Refresh */}
             <Button
               variant="outline"
               size="default"
@@ -259,8 +255,6 @@ export default function Tickets() {
               <RefreshCw className={`h-4 w-4 ${ticketsFetching ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-
-            {/* View Switcher */}
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
               <TabsList>
                 <TabsTrigger value="kanban">
@@ -280,7 +274,6 @@ export default function Tickets() {
           </div>
         </div>
 
-        {/* Mock Data Banner */}
         {USE_MOCK_DATA && (
           <Alert className="mb-4">
             <AlertDescription>
@@ -289,13 +282,11 @@ export default function Tickets() {
           </Alert>
         )}
 
-        {/* Stats */}
         <div className="mb-6">
           <StatsCards stats={stats!} isLoading={statsLoading} />
         </div>
 
-        {/* Filters */}
-        {/* NOTE: Keep your existing FilterBar implementation */}
+        <FilterBar filters={filters} onFiltersChange={setFilters} agencies={agencies} assignees={assignees} />
       </div>
 
       {/* Content */}
@@ -308,6 +299,7 @@ export default function Tickets() {
           <KanbanView
             tickets={filteredTickets}
             onTicketClick={handleTicketClick}
+            onStatusChange={(id, status) => statusMutation.mutate({ ticketId: id, status })}
           />
         ) : viewMode === "table" ? (
           <TableView
@@ -324,12 +316,7 @@ export default function Tickets() {
         )}
       </div>
 
-      {/* Ticket Detail Sheet */}
-      <TicketDetailSheet
-        ticket={selectedTicket}
-        open={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
-      />
+      <TicketDetailSheet ticket={selectedTicket} open={isDetailOpen} onOpenChange={setIsDetailOpen} />
     </div>
   );
 }
