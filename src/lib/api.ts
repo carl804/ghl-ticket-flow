@@ -289,8 +289,3 @@ export async function fetchUsers(): Promise<GHLUser[]> {
     return [];
   }
 }
-
-// ---------- Exports ----------
-export {
-  // nothing else to export here; everything above is exported as a named function already
-};
