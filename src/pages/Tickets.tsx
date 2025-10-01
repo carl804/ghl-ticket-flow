@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchTickets,
@@ -9,29 +9,27 @@ import {
   bulkUpdatePriority,
   initializeFieldMap,
 } from "@/lib/api";
-
 import type { Ticket, TicketStatus, TicketPriority, Stats } from "@/lib/types";
 
 import KanbanView from "@/components/tickets/KanbanView";
-import TableView from "@/components/tickets/TableView";
-import CompactView from "@/components/tickets/CompactView";
-import { TicketDetailSheet } from "@/components/tickets/TicketDetailSheet"; // ✅ fixed
-import { StatsCards } from "@/components/tickets/StatsCards"; // ✅ fixed
+import { TableView } from "@/components/tickets/TableView";
+import { CompactView } from "@/components/tickets/CompactView";
+import { TicketDetailSheet } from "@/components/tickets/TicketDetailSheet";
+import { StatsCards } from "@/components/tickets/StatsCards";
+import { toast } from "sonner";
 
-// Define view modes here instead of importing ViewMode
 type ViewMode = "kanban" | "table" | "compact";
 
 export default function TicketsPage() {
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>("kanban");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
-  // Fetch field map (custom fields) once on load
-  React.useEffect(() => {
+  useEffect(() => {
     initializeFieldMap();
   }, []);
 
-  // Fetch tickets
   const {
     data: tickets = [],
     isLoading,
@@ -40,17 +38,15 @@ export default function TicketsPage() {
   } = useQuery<Ticket[]>({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
-    refetchInterval: 60000, // auto-refresh every 60s
+    refetchInterval: 60000,
   });
 
-  // Fetch stats
   const { data: stats } = useQuery<Stats>({
     queryKey: ["stats"],
     queryFn: fetchStats,
     refetchInterval: 60000,
   });
 
-  // Mutations
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: TicketStatus }) =>
       updateTicketStatus(id, status),
@@ -75,25 +71,25 @@ export default function TicketsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
   });
 
-  // UI handlers
-  const handleTicketClick = (ticket: Ticket) => setSelectedTicket(ticket);
-
-  const handleStatusChange = (ticketId: string, newStatus: string) => {
-    statusMutation.mutate({ id: ticketId, status: newStatus as TicketStatus });
+  const handleTicketClick = (t: Ticket) => {
+    setSelectedTicket(t);
+    setDetailOpen(true);
   };
 
-  const handlePriorityChange = (ticketId: string, newPriority: string) => {
-    priorityMutation.mutate({ id: ticketId, priority: newPriority as TicketPriority });
+  const handleStatusChange = (ticketId: string, status: string) => {
+    statusMutation.mutate({ id: ticketId, status: status as TicketStatus });
+  };
+
+  const handlePriorityChange = (ticketId: string, priority: string) => {
+    priorityMutation.mutate({ id: ticketId, priority: priority as TicketPriority });
   };
 
   return (
     <div className="p-4 space-y-4">
       <h1 className="text-2xl font-bold">Tickets Dashboard</h1>
 
-      {/* Stats */}
       {stats && <StatsCards stats={stats} />}
 
-      {/* Controls */}
       <div className="flex gap-2 items-center">
         <button onClick={() => setViewMode("kanban")}>Kanban</button>
         <button onClick={() => setViewMode("table")}>Table</button>
@@ -101,11 +97,9 @@ export default function TicketsPage() {
         <button onClick={() => refetch()}>Force Refresh</button>
       </div>
 
-      {/* Content */}
       {isLoading && <p>Loading tickets...</p>}
-      {isError && (
-        <p className="text-red-500">Failed to load tickets. Please try again.</p>
-      )}
+      {isError && <p className="text-red-500">Failed to load tickets. Please try again.</p>}
+
       {!isLoading && !isError && (
         <>
           {viewMode === "kanban" && (
@@ -115,23 +109,22 @@ export default function TicketsPage() {
             <TableView
               tickets={tickets}
               onTicketClick={handleTicketClick}
-              onStatusChange={handleStatusChange}
-              onPriorityChange={handlePriorityChange}
             />
           )}
           {viewMode === "compact" && (
-            <CompactView tickets={tickets} onTicketClick={handleTicketClick} />
+            <CompactView
+              tickets={tickets}
+              onTicketClick={handleTicketClick}
+            />
           )}
         </>
       )}
 
-      {/* Ticket Detail Sheet */}
-      {selectedTicket && (
-        <TicketDetailSheet
-          ticket={selectedTicket}
-          onClose={() => setSelectedTicket(null)}
-        />
-      )}
+      <TicketDetailSheet
+        ticket={selectedTicket}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 }
