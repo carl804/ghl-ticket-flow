@@ -5,9 +5,7 @@ import type {
   TicketStatus,
   TicketPriority,
   TicketCategory,
-  GHLUser,
 } from "./types";
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -23,14 +21,8 @@ async function ghlRequest<T>(
   options?: { method?: string; body?: any; queryParams?: Record<string, string> }
 ): Promise<T> {
   const { data, error } = await supabase.functions.invoke("ghl-proxy", {
-    body: {
-      endpoint,
-      method: options?.method || "GET",
-      body: options?.body,
-      queryParams: options?.queryParams,
-    },
+    body: { endpoint, method: options?.method || "GET", body: options?.body, queryParams: options?.queryParams },
   });
-
   if (error) throw new Error(`Proxy Error: ${error.message}`);
   if (data?.error) throw new Error(`GHL API Error: ${data.error}`);
   return data;
@@ -47,6 +39,9 @@ async function getPipelineId(): Promise<string> {
   return PIPELINE_ID;
 }
 
+// ------------------------------
+// Field Map
+// ------------------------------
 export async function initializeFieldMap(): Promise<void> {
   if (USE_MOCK_DATA) return;
   const response = await ghlRequest<{ customFields: any[] }>("/custom-fields");
@@ -63,78 +58,43 @@ function getFieldId(key: keyof FieldMap): string | undefined {
 }
 
 // ------------------------------
-// Normalizers for API → Types
-// ------------------------------
-function toTicketStatus(raw: string): TicketStatus {
-  const map: Record<string, TicketStatus> = {
-    Open: "Open",
-    "In Progress": "In Progress",
-    "Pending Customer": "Pending Customer",
-    Resolved: "Resolved",
-    Closed: "Closed",
-  };
-  return map[raw] || "Open";
-}
-
-function toTicketPriority(raw: string): TicketPriority {
-  const map: Record<string, TicketPriority> = {
-    Low: "Low",
-    Medium: "Medium",
-    High: "High",
-    Urgent: "Urgent",
-  };
-  return map[raw] || "Medium";
-}
-
-function toTicketCategory(raw: string): TicketCategory {
-  const map: Record<string, TicketCategory> = {
-    Billing: "Billing",
-    Technical: "Technical",
-    Sales: "Sales",
-    Support: "Support",
-    Other: "Other",
-    Tech: "Tech",
-    Onboarding: "Onboarding",
-    Outage: "Outage",
-  };
-  return map[raw] || "Other";
-}
-
-// ------------------------------
-// Fetch Tickets
+// Ticket Fetch
 // ------------------------------
 export async function fetchTickets(): Promise<Ticket[]> {
-  const pipelineId = await getPipelineId();
-  const response = await ghlRequest<{ opportunities: any[] }>(
-    `/pipelines/${pipelineId}/opportunities`
-  );
+  try {
+    const pipelineId = await getPipelineId();
+    const response = await ghlRequest<{ opportunities: any[] }>(
+      `/pipelines/${pipelineId}/opportunities`
+    );
 
-  if (!response.opportunities || response.opportunities.length === 0) return [];
-
-  return response.opportunities.map((opp: any) => ({
-    id: opp.id,
-    name: opp.name || `TICKET-${opp.id.slice(0, 8)}`,
-    contact: {
-      id: opp.contactId,
-      name: opp.contactName || "Unknown",
-      email: opp.contactEmail,
-      phone: opp.contactPhone,
-    },
-    agencyName: opp.agencyName || "N/A",
-    status: toTicketStatus(opp.status || "Open"),
-    priority: toTicketPriority(opp.priority || "Medium"),
-    category: toTicketCategory(opp.category || "Other"),
-    resolutionSummary: opp.resolutionSummary || "",
-    assignedTo: opp.assignedTo,
-    assignedToUserId: opp.assignedToUserId,
-    contactId: opp.contactId,
-    createdAt: opp.dateAdded || new Date().toISOString(),
-    updatedAt: opp.updatedAt || new Date().toISOString(),
-    value: opp.monetaryValue || 0,
-    dueDate: opp.dueDate,
-    description: opp.description,
-    tags: opp.tags || [],
-  }));
+    return response.opportunities.map((opp: any) => ({
+      id: opp.id,
+      name: opp.name || `TICKET-${opp.id.slice(0, 8)}`,
+      contact: {
+        id: opp.contactId,
+        name: opp.contactName || "Unknown",
+        email: opp.contactEmail,
+        phone: opp.contactPhone,
+      },
+      agencyName: opp.agencyName || "N/A",
+      status: toTicketStatus(opp.status || "Open"),
+      priority: toTicketPriority(opp.priority || "Medium"),
+      category: (opp.category || "Tech") as TicketCategory,
+      resolutionSummary: opp.resolutionSummary || "",
+      assignedTo: opp.assignedTo,
+      assignedToUserId: opp.assignedToUserId,
+      contactId: opp.contactId,
+      createdAt: opp.dateAdded || new Date().toISOString(),
+      updatedAt: opp.updatedAt || new Date().toISOString(),
+      value: opp.monetaryValue || 0,
+      dueDate: opp.dueDate,
+      description: opp.description,
+      tags: opp.tags || [],
+    }));
+  } catch (error) {
+    toast.error(`Unable to fetch tickets: ${error instanceof Error ? error.message : error}`);
+    throw error;
+  }
 }
 
 // ------------------------------
@@ -146,13 +106,18 @@ export async function fetchStats(): Promise<Stats> {
   const open = tickets.filter((t) => t.status === "Open").length;
   const pendingCustomer = tickets.filter((t) => t.status === "Pending Customer").length;
   const resolvedToday = tickets.filter(
-    (t) => t.status === "Resolved" && new Date(t.updatedAt).getTime() >= new Date().setHours(0, 0, 0, 0)
+    (t) =>
+      t.status === "Resolved" &&
+      new Date(t.updatedAt).getTime() >= new Date().setHours(0, 0, 0, 0)
   ).length;
 
   const resolved = tickets.filter((t) => t.status === "Resolved");
   const avgMs =
-    resolved.reduce((acc, t) => acc + (new Date(t.updatedAt).getTime() - new Date(t.createdAt).getTime()), 0) /
-    (resolved.length || 1);
+    resolved.reduce(
+      (acc, t) => acc + (new Date(t.updatedAt).getTime() - new Date(t.createdAt).getTime()),
+      0
+    ) / (resolved.length || 1);
+
   const avgHours = Math.round(avgMs / (1000 * 60 * 60));
   const avgResolutionTime = avgHours < 24 ? `${avgHours}h` : `${Math.round(avgHours / 24)}d`;
 
@@ -160,9 +125,9 @@ export async function fetchStats(): Promise<Stats> {
     total,
     open,
     pendingCustomer,
-    pending: pendingCustomer,
     resolvedToday,
     avgResolutionTime,
+    pending: pendingCustomer,
     totalTrend: 0,
     openTrend: 0,
     pendingTrend: 0,
@@ -171,12 +136,18 @@ export async function fetchStats(): Promise<Stats> {
 }
 
 // ------------------------------
-// Update helpers
+// Update Helpers
 // ------------------------------
 export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
+  await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body: { status: newStatus } });
+}
+
+export async function updateResolutionSummary(ticketId: string, summary: string): Promise<void> {
+  const fieldId = getFieldId("resolutionSummary");
+  if (!fieldId) throw new Error("Resolution summary field not found");
   await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
-    body: { status: newStatus },
+    body: { customField: [{ id: fieldId, value: summary }] },
   });
 }
 
@@ -189,12 +160,29 @@ export async function updatePriority(ticketId: string, priority: TicketPriority)
   });
 }
 
+export async function updateCategory(ticketId: string, category: TicketCategory): Promise<void> {
+  const fieldId = getFieldId("category");
+  if (!fieldId) throw new Error("Category field not found");
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: { customField: [{ id: fieldId, value: category }] },
+  });
+}
+
+export async function updateOwner(ticketId: string, userId: string): Promise<void> {
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: { assignedToUserId: userId },
+  });
+}
+
 export async function updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<void> {
   const body: any = {};
   const customFields: Array<{ id: string; value: any }> = [];
 
   if (updates.status) body.status = updates.status;
   if (updates.assignedToUserId) body.assignedToUserId = updates.assignedToUserId;
+
   if (updates.priority) {
     const fieldId = getFieldId("priority");
     if (fieldId) customFields.push({ id: fieldId, value: updates.priority });
@@ -207,15 +195,11 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
     const fieldId = getFieldId("resolutionSummary");
     if (fieldId) customFields.push({ id: fieldId, value: updates.resolutionSummary });
   }
-
   if (customFields.length > 0) body.customField = customFields;
 
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body });
 }
 
-// ------------------------------
-// Bulk updates
-// ------------------------------
 export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
   await Promise.all(ids.map((id) => updateTicketStatus(id, status)));
 }
@@ -226,6 +210,12 @@ export async function bulkUpdatePriority(ids: string[], priority: TicketPriority
 // ------------------------------
 // Users
 // ------------------------------
+export interface GHLUser {
+  id: string;
+  name: string;
+  email?: string;
+}
+
 export async function fetchUsers(): Promise<GHLUser[]> {
   const response = await ghlRequest<any>("/users/");
   if (!response.users) return [];
@@ -237,9 +227,13 @@ export async function fetchUsers(): Promise<GHLUser[]> {
 }
 
 // ------------------------------
-// Explicit exports
+// Converters
 // ------------------------------
-export {
-  USE_MOCK_DATA,
-  initializeFieldMap,
-};
+export function toTicketStatus(value: string): TicketStatus {
+  const allowed: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved", "Closed"];
+  return (allowed.includes(value as TicketStatus) ? value : "Open") as TicketStatus;
+}
+export function toTicketPriority(value: string): TicketPriority {
+  const allowed: TicketPriority[] = ["Low", "Medium", "High", "Urgent"];
+  return (allowed.includes(value as TicketPriority) ? value : "Medium") as TicketPriority;
+}
