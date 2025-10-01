@@ -1,6 +1,4 @@
-// ------------------------------
 // Ticket Status
-// ------------------------------
 export type TicketStatus =
   | "Open"
   | "In Progress"
@@ -8,38 +6,30 @@ export type TicketStatus =
   | "Resolved"
   | "Closed";
 
-// ------------------------------
 // Ticket Priority
-// ------------------------------
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
 
-// ------------------------------
-// Ticket Category
-// ------------------------------
+// Ticket Category (extended to match what GHL might return)
 export type TicketCategory =
   | "Billing"
   | "Technical"
   | "Sales"
   | "Support"
-  | "Other";
+  | "Other"
+  | "Tech"
+  | "Onboarding"
+  | "Outage";
 
-// ------------------------------
-// Contact
-// ------------------------------
-export interface Contact {
-  id: string;
-  name?: string; // optional because GHL may not always return it
-  email?: string;
-  phone?: string;
-}
-
-// ------------------------------
-// Ticket
-// ------------------------------
+// Ticket Shape
 export interface Ticket {
   id: string;
   name: string;
-  contact: Contact;
+  contact: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  };
   agencyName?: string;
   status: TicketStatus;
   priority: TicketPriority;
@@ -56,9 +46,7 @@ export interface Ticket {
   tags?: string[];
 }
 
-// ------------------------------
-// Stats (for dashboard)
-// ------------------------------
+// Stats for dashboard
 export interface Stats {
   total: number;
   open: number;
@@ -66,20 +54,26 @@ export interface Stats {
   pending: number;
   resolvedToday: number;
   avgResolutionTime: string;
-
-  // trends (optional, default 0 if not available)
   totalTrend?: number;
   openTrend?: number;
   pendingTrend?: number;
   resolvedTodayTrend?: number;
 }
 
-// ------------------------------
-// Field Map (custom fields)
-// ------------------------------
+// FieldMap for custom fields
 export interface FieldMap {
   priority?: string;
   category?: string;
   resolutionSummary?: string;
   agencyName?: string;
 }
+
+// For AssignedTo dropdown
+export interface GHLUser {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+// View Modes for Tickets
+export type ViewMode = "kanban" | "table";
