@@ -1,4 +1,5 @@
-// src/integrations/ghl/client.ts
+import { logger } from "@/components/ErrorLog";
+
 const GHL_API_BASE = "https://rest.gohighlevel.com/v1";
 const GHL_API_TOKEN = import.meta.env.VITE_GHL_API_TOKEN;
 const GHL_LOCATION_ID = import.meta.env.VITE_GHL_LOCATION_ID;
@@ -12,7 +13,12 @@ export async function ghlRequest<T>(
   }
 ): Promise<T> {
   if (!GHL_API_TOKEN || !GHL_LOCATION_ID) {
-    throw new Error("Missing GoHighLevel credentials in environment variables");
+    const error = "Missing GoHighLevel credentials";
+    logger.error(error, {
+      hasToken: !!GHL_API_TOKEN,
+      hasLocationId: !!GHL_LOCATION_ID,
+    });
+    throw new Error(error);
   }
 
   let url = `${GHL_API_BASE}${endpoint}`;
@@ -28,12 +34,11 @@ export async function ghlRequest<T>(
     "Content-Type": "application/json",
   };
 
-  // Log for debugging
-  console.log(`[GHL] ${options?.method || "GET"} ${url}`);
-  console.log("[GHL] Headers:", {
-    Authorization: `Bearer ${GHL_API_TOKEN.substring(0, 15)}...`,
-    Version: headers.Version,
-    "Content-Type": headers["Content-Type"],
+  logger.info(`API Request: ${options?.method || "GET"} ${endpoint}`, {
+    url,
+    method: options?.method || "GET",
+    authPrefix: GHL_API_TOKEN.substring(0, 15) + "...",
+    locationId: GHL_LOCATION_ID,
   });
 
   const response = await fetch(url, {
@@ -43,18 +48,33 @@ export async function ghlRequest<T>(
   });
 
   const text = await response.text();
-  console.log(`[GHL] Response (${response.status}):`, text.substring(0, 500));
 
   if (!text) {
+    logger.error(`Empty response from GHL API`, {
+      status: response.status,
+      statusText: response.statusText,
+      url,
+    });
     throw new Error(`Empty response (Status: ${response.status})`);
   }
 
   const data = JSON.parse(text);
 
   if (!response.ok) {
-    console.error("[GHL] Full error response:", data);
+    logger.error(`GHL API Error: ${response.status}`, {
+      status: response.status,
+      statusText: response.statusText,
+      url,
+      response: data,
+      headers: Object.fromEntries(response.headers.entries()),
+    });
     throw new Error(data?.message || data?.error || `API Error: ${response.status}`);
   }
+
+  logger.success(`API Success: ${endpoint}`, {
+    status: response.status,
+    dataPreview: JSON.stringify(data).substring(0, 200),
+  });
 
   return data as T;
 }
