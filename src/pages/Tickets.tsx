@@ -27,7 +27,7 @@ import {
 } from "@/lib/api";
 import type { Ticket, ViewMode, TicketStatus, TicketPriority } from "@/lib/types";
 import { toast } from "sonner";
-import { Loader2, LayoutGrid, Table as TableIcon, List, MoreHorizontal } from "lucide-react";
+import { Loader2, LayoutGrid, Table as TableIcon, List, MoreHorizontal, RefreshCw } from "lucide-react";
 
 export default function Tickets() {
   const queryClient = useQueryClient();
@@ -53,17 +53,34 @@ export default function Tickets() {
     data: tickets = [],
     isLoading: ticketsLoading,
     error: ticketsError,
+    refetch: refetchTickets,
+    isFetching: ticketsFetching,
   } = useQuery({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
-    refetchInterval: 30000, // Refetch every 30s
+    refetchInterval: 60000, // Auto-refresh every 60s
   });
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ["stats"],
     queryFn: fetchStats,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
+
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    try {
+      await Promise.all([refetchTickets(), refetchStats()]);
+      toast.success("Tickets refreshed ✅");
+    } catch (error) {
+      toast.error("Failed to refresh tickets", {
+        action: {
+          label: "Retry",
+          onClick: () => handleRefresh(),
+        },
+      });
+    }
+  };
 
   // Mutations
   const statusMutation = useMutation({
@@ -259,6 +276,18 @@ export default function Tickets() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+
+            {/* Refresh Button */}
+            <Button
+              variant="outline"
+              size="default"
+              onClick={handleRefresh}
+              disabled={ticketsFetching}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${ticketsFetching ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
 
             {/* View Switcher */}
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
