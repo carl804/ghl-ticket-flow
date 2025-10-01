@@ -58,12 +58,12 @@ export function CompactView({ tickets, onTicketClick }: CompactViewProps) {
 
                 {/* Right: Status, Priority, Assigned */}
                 <div className="flex items-center gap-2 shrink-0">
-                  <Badge className={`${statusConfig[ticket.status].color} text-xs`}>
+                  <Badge className={`${statusConfig[ticket.status]?.color || "bg-muted text-muted-foreground"} text-xs`}>
                     {ticket.status}
                   </Badge>
                   <Badge
                     variant="outline"
-                    className={`text-xs border ${priorityConfig[ticket.priority].color}`}
+                    className={`text-xs border ${priorityConfig[ticket.priority]?.color || "bg-muted text-muted-foreground border-muted"}`}
                   >
                     {ticket.priority}
                   </Badge>

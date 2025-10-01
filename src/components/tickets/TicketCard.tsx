@@ -79,12 +79,12 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
 
         {/* Status, Priority, Category badges */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge className={`${statusConfig[ticket.status].color} text-xs font-medium px-3 py-1`}>
+          <Badge className={`${statusConfig[ticket.status]?.color || "bg-muted text-muted-foreground"} text-xs font-medium px-3 py-1`}>
             {ticket.status}
           </Badge>
           <Badge 
             variant="outline" 
-            className={`text-xs font-medium border-2 px-3 py-1 ${priorityConfig[ticket.priority].color}`}
+            className={`text-xs font-medium border-2 px-3 py-1 ${priorityConfig[ticket.priority]?.color || "bg-muted text-muted-foreground border-muted"}`}
           >
             {ticket.priority}
           </Badge>
