@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const GHL_API_BASE = "https://services.leadconnectorhq.com";
+const GHL_API_BASE = "https://rest.gohighlevel.com/v1";
 const GHL_API_TOKEN = Deno.env.get("VITE_GHL_API_TOKEN");
+const GHL_LOCATION_ID = Deno.env.get("VITE_GHL_LOCATION_ID");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +21,10 @@ serve(async (req) => {
       throw new Error("GHL API token not configured");
     }
 
+    if (!GHL_LOCATION_ID) {
+      throw new Error("GHL Location ID not configured");
+    }
+
     // Build URL with query parameters
     let url = `${GHL_API_BASE}${endpoint}`;
     if (queryParams) {
@@ -33,6 +38,7 @@ serve(async (req) => {
         "Authorization": `Bearer ${GHL_API_TOKEN}`,
         "Content-Type": "application/json",
         "Version": "2021-07-28",
+        "LocationId": GHL_LOCATION_ID,
       },
       body: body ? JSON.stringify(body) : undefined,
     });

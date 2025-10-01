@@ -1,27 +1,22 @@
-import type { Ticket, Stats, FieldMap, CustomField } from "./types";
+import type { Ticket, Stats, FieldMap, CustomField, TicketStatus, TicketPriority, TicketCategory } from "./types";
 
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const USE_MOCK_DATA = false; // Always use real API through edge function
 const GHL_LOCATION_ID = import.meta.env.VITE_GHL_LOCATION_ID;
 
 let FIELD_MAP: FieldMap = {};
+let PIPELINE_ID: string | null = null;
 
 // Helper to make GHL requests through edge function
 async function ghlRequest<T>(endpoint: string, options?: { method?: string; body?: any; queryParams?: Record<string, string> }): Promise<T> {
-  const queryParams = options?.queryParams || {};
-  
-  // Add location_id to all requests if not already present
-  if (GHL_LOCATION_ID && !queryParams.location_id) {
-    queryParams.location_id = GHL_LOCATION_ID;
-  }
-
   const { data, error } = await supabase.functions.invoke("ghl-proxy", {
     body: {
       endpoint,
       method: options?.method || "GET",
       body: options?.body,
-      queryParams,
+      queryParams: options?.queryParams,
     },
   });
 
@@ -34,6 +29,29 @@ async function ghlRequest<T>(endpoint: string, options?: { method?: string; body
   }
 
   return data;
+}
+
+// Get Pipeline ID by finding "Ticketing System" pipeline
+async function getPipelineId(): Promise<string> {
+  if (PIPELINE_ID) return PIPELINE_ID;
+
+  try {
+    const response = await ghlRequest<{ pipelines: Array<{ id: string; name: string }> }>("/pipelines");
+    
+    const ticketPipeline = response.pipelines?.find(p => 
+      p.name.toLowerCase().includes("ticketing system")
+    );
+
+    if (!ticketPipeline) {
+      throw new Error("Ticketing System pipeline not found. Please create a pipeline with 'Ticketing System' in the name.");
+    }
+
+    PIPELINE_ID = ticketPipeline.id;
+    return PIPELINE_ID;
+  } catch (error) {
+    console.error("Failed to fetch pipeline ID:", error);
+    throw error;
+  }
 }
 
 // Initialize custom field mapping
@@ -171,6 +189,18 @@ const MOCK_TICKETS: Ticket[] = [
   },
 ];
 
+// Map GHL status to our status format
+function mapStatus(ghlStatus: string): TicketStatus {
+  const statusLower = ghlStatus.toLowerCase().replace(/[_\s]/g, "");
+  
+  if (statusLower.includes("open")) return "Open";
+  if (statusLower.includes("inprogress") || statusLower.includes("progress")) return "In Progress";
+  if (statusLower.includes("pending") || statusLower.includes("customer")) return "Pending Customer";
+  if (statusLower.includes("resolved") || statusLower.includes("closed")) return "Resolved";
+  
+  return "Open"; // Default fallback
+}
+
 // Fetch tickets with stitched data
 export async function fetchTickets(): Promise<Ticket[]> {
   if (USE_MOCK_DATA) {
@@ -179,37 +209,49 @@ export async function fetchTickets(): Promise<Ticket[]> {
   }
 
   try {
-    // Fetch opportunities with pagination
-    const opportunities = await ghlRequest<any>("/opportunities/search");
+    // Step 1: Get Pipeline ID
+    const pipelineId = await getPipelineId();
+    
+    // Step 2: Fetch opportunities from the pipeline
+    const response = await ghlRequest<{ opportunities: any[] }>(`/pipelines/${pipelineId}/opportunities`);
+    
+    if (!response.opportunities || response.opportunities.length === 0) {
+      return [];
+    }
     
     // Fetch contacts for each opportunity
-    const ticketsPromises = opportunities.opportunities.map(async (opp: any) => {
+    const ticketsPromises = response.opportunities.map(async (opp: any) => {
       try {
         const contact = await ghlRequest<any>(`/contacts/${opp.contactId}`);
         
+        // Extract custom fields
+        const customFields = opp.customField || [];
+        const getCustomFieldValue = (key: string) => 
+          customFields.find((f: any) => f.id === FIELD_MAP[key as keyof FieldMap])?.value;
+        
         return {
           id: opp.id,
-          name: opp.name,
+          name: opp.name || `TICKET-${opp.id.slice(0, 8)}`,
           contact: {
-            id: contact.id,
-            name: contact.name || contact.firstName + " " + contact.lastName,
-            email: contact.email,
-            phone: contact.phone,
+            id: contact.contact?.id || contact.id,
+            name: contact.contact?.name || contact.name || `${contact.firstName || ""} ${contact.lastName || ""}`.trim(),
+            email: contact.contact?.email || contact.email,
+            phone: contact.contact?.phone || contact.phone,
           },
-          agencyName: opp.customField?.find((f: any) => f.id === FIELD_MAP.agencyName)?.value,
-          status: opp.status || opp.stageName || "Open",
-          priority: opp.customField?.find((f: any) => f.id === FIELD_MAP.priority)?.value || "Medium",
-          category: opp.customField?.find((f: any) => f.id === FIELD_MAP.category)?.value || "Tech",
-          resolutionSummary: opp.customField?.find((f: any) => f.id === FIELD_MAP.resolutionSummary)?.value,
+          agencyName: getCustomFieldValue("agencyName"),
+          status: mapStatus(opp.status || opp.pipelineStageId || "open"),
+          priority: (getCustomFieldValue("priority") || "Medium") as TicketPriority,
+          category: (getCustomFieldValue("category") || "Tech") as TicketCategory,
+          resolutionSummary: getCustomFieldValue("resolutionSummary"),
           assignedTo: opp.assignedTo,
           assignedToUserId: opp.assignedToUserId,
           contactId: opp.contactId,
-          createdAt: opp.createdAt || new Date().toISOString(),
-          updatedAt: opp.updatedAt || new Date().toISOString(),
-          value: opp.value,
+          createdAt: opp.dateAdded || opp.createdAt || new Date().toISOString(),
+          updatedAt: opp.lastStatusChangeAt || opp.updatedAt || new Date().toISOString(),
+          value: opp.monetaryValue || opp.value || 0,
           dueDate: opp.dueDate,
-          description: opp.description,
-          tags: opp.tags,
+          description: opp.description || opp.notes,
+          tags: opp.tags || [],
         } as Ticket;
       } catch (error) {
         console.error(`Failed to fetch contact for opportunity ${opp.id}:`, error);
@@ -223,6 +265,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
       .map(result => result.value);
   } catch (error) {
     console.error("Failed to fetch tickets:", error);
+    toast.error("Unable to fetch tickets. Check API Key or Pipeline.");
     throw error;
   }
 }
