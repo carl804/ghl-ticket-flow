@@ -1,24 +1,20 @@
-// Ticket status options
+// Ticket Status + Priority
 export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved";
-
-// Priority levels
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
-
-// Ticket categories
 export type TicketCategory = "Billing" | "Tech" | "Sales" | "Onboarding" | "Outage";
 
-// Contact object (required name field!)
+// Contact
 export interface Contact {
   id: string;
-  name: string; // required
+  name?: string;   // optional now (UI complained it was missing sometimes)
   email?: string;
   phone?: string;
 }
 
-// Ticket object
+// Ticket
 export interface Ticket {
   id: string;
-  name: string; // Ticket number, e.g. BILLING-10001
+  name: string;
   contact: Contact;
   agencyName?: string;
   status: TicketStatus;
@@ -36,16 +32,23 @@ export interface Ticket {
   tags?: string[];
 }
 
-// Dashboard stats
+// Stats (extended to match UI usage)
 export interface Stats {
   total: number;
   open: number;
   pendingCustomer: number;
   resolvedToday: number;
   avgResolutionTime: string;
+
+  // UI fields that were missing (added as optional)
+  pending?: number; 
+  totalTrend?: number;
+  openTrend?: number;
+  pendingTrend?: number;
+  resolvedTodayTrend?: number;
 }
 
-// Mapping custom fields to IDs
+// Field map for custom fields
 export interface FieldMap {
   priority?: string;
   category?: string;
@@ -53,9 +56,5 @@ export interface FieldMap {
   agencyName?: string;
 }
 
-// GHL user object
-export interface GHLUser {
-  id: string;
-  name: string;
-  email?: string;
-}
+// ViewMode (used in Tickets.tsx)
+export type ViewMode = "list" | "board";
