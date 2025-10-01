@@ -277,6 +277,9 @@ export async function bulkUpdatePriority(ids: string[], priority: TicketPriority
 // ------------------------------
 // Fetch Users (for AssignedTo dropdown)
 // ------------------------------
+// ------------------------------
+// Fetch Users (for AssignedTo dropdown)
+// ------------------------------
 export interface GHLUser {
   id: string;
   name: string;
@@ -288,6 +291,8 @@ export async function fetchUsers(): Promise<GHLUser[]> {
     const response = await ghlRequest<any>("/users/");
     console.log("[api.ts] Users response:", response);
 
+    if (!response.users) return [];
+
     return response.users.map((u: any) => ({
       id: u.id,
       name: u.name || `${u.firstName || ""} ${u.lastName || ""}`.trim(),
@@ -298,6 +303,25 @@ export async function fetchUsers(): Promise<GHLUser[]> {
     return [];
   }
 }
+
+// ------------------------------
+// Explicit Exports
+// ------------------------------
+export {
+  USE_MOCK_DATA,
+  fetchTickets,
+  fetchStats,
+  updateTicket,
+  updateTicketStatus,
+  updateResolutionSummary,
+  updatePriority,
+  updateCategory,
+  updateOwner,
+  bulkUpdateStatus,
+  bulkUpdatePriority,
+  fetchUsers,              // 👈 explicit export here
+  initializeFieldMap,
+};
 
 // ------------------------------
 export { USE_MOCK_DATA };
