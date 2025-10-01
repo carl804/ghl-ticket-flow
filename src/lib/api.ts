@@ -38,18 +38,26 @@ async function getPipelineId(): Promise<string> {
   try {
     const response = await ghlRequest<{ pipelines: Array<{ id: string; name: string }> }>("/pipelines");
     
-    const ticketPipeline = response.pipelines?.find(p => 
+    if (!response.pipelines || response.pipelines.length === 0) {
+      throw new Error("No pipelines found in your GHL account");
+    }
+
+    const ticketPipeline = response.pipelines.find(p => 
       p.name.toLowerCase().includes("ticketing system")
     );
 
     if (!ticketPipeline) {
-      throw new Error("Ticketing System pipeline not found. Please create a pipeline with 'Ticketing System' in the name.");
+      const availablePipelines = response.pipelines.map(p => p.name).join(", ");
+      throw new Error(`Ticketing System pipeline not found. Available pipelines: ${availablePipelines}`);
     }
 
     PIPELINE_ID = ticketPipeline.id;
+    console.log(`Found Ticketing System pipeline: ${ticketPipeline.name} (${PIPELINE_ID})`);
     return PIPELINE_ID;
   } catch (error) {
     console.error("Failed to fetch pipeline ID:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    toast.error(`Pipeline Error: ${errorMessage}`);
     throw error;
   }
 }
@@ -213,15 +221,24 @@ export async function fetchTickets(): Promise<Ticket[]> {
     const pipelineId = await getPipelineId();
     
     // Step 2: Fetch opportunities from the pipeline
+    console.log(`Fetching opportunities from pipeline: ${pipelineId}`);
     const response = await ghlRequest<{ opportunities: any[] }>(`/pipelines/${pipelineId}/opportunities`);
     
     if (!response.opportunities || response.opportunities.length === 0) {
+      console.log("No opportunities found in pipeline");
       return [];
     }
     
-    // Fetch contacts for each opportunity
-    const ticketsPromises = response.opportunities.map(async (opp: any) => {
+    console.log(`Found ${response.opportunities.length} opportunities`);
+    
+    // Fetch contacts for each opportunity with rate limiting
+    const ticketsPromises = response.opportunities.map(async (opp: any, index: number) => {
       try {
+        // Add small delay to avoid rate limiting (stagger requests)
+        if (index > 0) {
+          await new Promise(resolve => setTimeout(resolve, index * 100));
+        }
+        
         const contact = await ghlRequest<any>(`/contacts/${opp.contactId}`);
         
         // Extract custom fields
@@ -255,17 +272,36 @@ export async function fetchTickets(): Promise<Ticket[]> {
         } as Ticket;
       } catch (error) {
         console.error(`Failed to fetch contact for opportunity ${opp.id}:`, error);
-        return null;
+        // Return ticket without full contact details if contact fetch fails
+        return {
+          id: opp.id,
+          name: opp.name || `TICKET-${opp.id.slice(0, 8)}`,
+          contact: {
+            id: opp.contactId,
+            name: "Unknown Contact",
+          },
+          status: mapStatus(opp.status || "open"),
+          priority: "Medium" as TicketPriority,
+          category: "Tech" as TicketCategory,
+          contactId: opp.contactId,
+          createdAt: opp.dateAdded || new Date().toISOString(),
+          updatedAt: opp.lastStatusChangeAt || new Date().toISOString(),
+          value: 0,
+        } as Ticket;
       }
     });
 
     const tickets = await Promise.allSettled(ticketsPromises);
-    return tickets
+    const successfulTickets = tickets
       .filter((result): result is PromiseFulfilledResult<Ticket> => result.status === "fulfilled" && result.value !== null)
       .map(result => result.value);
+    
+    console.log(`Successfully loaded ${successfulTickets.length} tickets`);
+    return successfulTickets;
   } catch (error) {
     console.error("Failed to fetch tickets:", error);
-    toast.error("Unable to fetch tickets. Check API Key or Pipeline.");
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    toast.error(`Unable to fetch tickets: ${errorMessage}`);
     throw error;
   }
 }
