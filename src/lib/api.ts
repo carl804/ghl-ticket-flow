@@ -10,7 +10,7 @@ import type {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const USE_MOCK_DATA = false; // always try real API
+export const USE_MOCK_DATA = false; // always use real API
 let FIELD_MAP: FieldMap = {};
 let PIPELINE_ID: string | null = null;
 
@@ -52,7 +52,6 @@ async function getPipelineId(): Promise<string> {
 
   console.log("[api.ts] Fetching pipelines...");
   const response = await ghlRequest<{ pipelines: Array<{ id: string; name: string }> }>("/pipelines");
-  console.log("[api.ts] Pipelines response:", response);
 
   if (!response.pipelines || response.pipelines.length === 0) {
     throw new Error("No pipelines found in your GHL account");
@@ -120,7 +119,10 @@ export async function fetchTickets(): Promise<Ticket[]> {
     }
 
     const tickets = response.opportunities.map((opp: any) => {
-      const status = (opp.status || "Open") as TicketStatus;
+      const status = (opp.status as TicketStatus) || "Open";
+      const priority = (opp.priority as TicketPriority) || "Medium";
+      const category = (opp.category as TicketCategory) || "Tech";
+
       return {
         id: opp.id,
         name: opp.name || `TICKET-${opp.id.slice(0, 8)}`,
@@ -132,8 +134,8 @@ export async function fetchTickets(): Promise<Ticket[]> {
         },
         agencyName: opp.agencyName || "N/A",
         status,
-        priority: (opp.priority || "Medium") as TicketPriority,
-        category: (opp.category || "Tech") as TicketCategory,
+        priority,
+        category,
         resolutionSummary: opp.resolutionSummary || "",
         assignedTo: opp.assignedTo,
         assignedToUserId: opp.assignedToUserId,
@@ -165,8 +167,11 @@ export async function fetchStats(): Promise<Stats> {
   const total = tickets.length;
   const open = tickets.filter((t) => t.status === "Open").length;
   const pendingCustomer = tickets.filter((t) => t.status === "Pending Customer").length;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const resolvedToday = tickets.filter(
-    (t) => t.status === "Resolved" && new Date(t.updatedAt) >= new Date().setHours(0, 0, 0, 0)
+    (t) => t.status === "Resolved" && new Date(t.updatedAt) >= todayStart
   ).length;
 
   const resolved = tickets.filter((t) => t.status === "Resolved");
@@ -180,7 +185,7 @@ export async function fetchStats(): Promise<Stats> {
     total,
     open,
     pendingCustomer,
-    pending: pendingCustomer,
+    pending: pendingCustomer, // alias
     resolvedToday,
     avgResolutionTime,
     totalTrend: 0,
@@ -270,13 +275,11 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
 export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
   await Promise.all(ids.map((id) => updateTicketStatus(id, status)));
 }
+
 export async function bulkUpdatePriority(ids: string[], priority: TicketPriority): Promise<void> {
   await Promise.all(ids.map((id) => updatePriority(id, priority)));
 }
 
-// ------------------------------
-// Fetch Users (for AssignedTo dropdown)
-// ------------------------------
 // ------------------------------
 // Fetch Users (for AssignedTo dropdown)
 // ------------------------------
@@ -303,22 +306,3 @@ export async function fetchUsers(): Promise<GHLUser[]> {
     return [];
   }
 }
-
-// ------------------------------
-// Explicit Exports
-// ------------------------------
-export {
-  USE_MOCK_DATA,
-  fetchTickets,
-  fetchStats,
-  updateTicket,
-  updateTicketStatus,
-  updateResolutionSummary,
-  updatePriority,
-  updateCategory,
-  updateOwner,
-  bulkUpdateStatus,
-  bulkUpdatePriority,
-  fetchUsers,         // 👈 now always exported
-  initializeFieldMap, // 👈 clean, single export
-};
