@@ -29,7 +29,7 @@ export default function TicketsPage() {
       updateTicket(id, updates),
     onSuccess: () => {
       toast.success("Ticket updated");
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] as const });
     },
     onError: () => toast.error("Failed to update ticket"),
   });

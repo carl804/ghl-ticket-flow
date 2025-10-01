@@ -73,7 +73,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
     mutationFn: (updates: Partial<Ticket>) => updateTicket(ticket!.id, updates),
     onSuccess: () => {
       toast.success("Ticket updated successfully");
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+     queryClient.invalidateQueries({ queryKey: ["tickets"] as const });
     },
     onError: () => toast.error("Failed to update ticket"),
   });
