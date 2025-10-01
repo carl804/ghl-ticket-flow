@@ -1,20 +1,44 @@
-// Ticket status / priority / category
-export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved";
-export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
-export type TicketCategory = "Billing" | "Tech" | "Sales" | "Onboarding" | "Outage" | "General";
+// ------------------------------
+// Ticket Status
+// ------------------------------
+export type TicketStatus =
+  | "Open"
+  | "In Progress"
+  | "Pending Customer"
+  | "Resolved"
+  | "Closed";
 
-// Contact (make name optional to avoid runtime missing-name errors)
+// ------------------------------
+// Ticket Priority
+// ------------------------------
+export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
+
+// ------------------------------
+// Ticket Category
+// ------------------------------
+export type TicketCategory =
+  | "Billing"
+  | "Technical"
+  | "Sales"
+  | "Support"
+  | "Other";
+
+// ------------------------------
+// Contact
+// ------------------------------
 export interface Contact {
   id: string;
-  name?: string;
+  name?: string; // optional because GHL may not always return it
   email?: string;
   phone?: string;
 }
 
+// ------------------------------
 // Ticket
+// ------------------------------
 export interface Ticket {
   id: string;
-  name: string;              // e.g. BILLING-10001
+  name: string;
   contact: Contact;
   agencyName?: string;
   status: TicketStatus;
@@ -32,45 +56,30 @@ export interface Ticket {
   tags?: string[];
 }
 
-// Stats (extend to match UI props used in StatsCards)
+// ------------------------------
+// Stats (for dashboard)
+// ------------------------------
 export interface Stats {
   total: number;
   open: number;
   pendingCustomer: number;
+  pending: number;
   resolvedToday: number;
   avgResolutionTime: string;
 
-  // UI expects these (optional so we don’t force logic right now)
-  pending?: number;            // alias of pendingCustomer
+  // trends (optional, default 0 if not available)
   totalTrend?: number;
   openTrend?: number;
   pendingTrend?: number;
   resolvedTodayTrend?: number;
 }
 
-// Mapping custom fields to IDs
+// ------------------------------
+// Field Map (custom fields)
+// ------------------------------
 export interface FieldMap {
   priority?: string;
   category?: string;
   resolutionSummary?: string;
   agencyName?: string;
-}
-
-// CustomField (for mapping responses)
-export interface CustomField {
-  id: string;
-  fieldKey?: string; // some APIs use fieldKey
-  key?: string;      // some APIs use key
-  name?: string;
-  type?: string;
-}
-
-// Used in Tickets.tsx (your UI compares against "kanban" / "table")
-export type ViewMode = "kanban" | "table";
-
-// GHL user object (for assignees)
-export interface GHLUser {
-  id: string;
-  name: string;
-  email?: string;
 }
