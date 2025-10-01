@@ -1,3 +1,4 @@
+// src/integrations/ghl/client.ts
 const GHL_API_TOKEN = import.meta.env.VITE_GHL_API_TOKEN;
 const GHL_LOCATION_ID = import.meta.env.VITE_GHL_LOCATION_ID;
 const GHL_PROXY_URL = import.meta.env.VITE_GHL_PROXY_URL || "/.netlify/functions/ghl-proxy";
