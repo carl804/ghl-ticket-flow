@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -12,356 +13,132 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
-import { updateTicket, fetchUsers } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from "@/lib/types";
-import { toast } from "sonner";
-import {
-  User,
-  Mail,
-  Phone,
-  Building2,
-  Calendar,
-  Clock,
-  X,
-  Plus,
-  MessageSquare,
-  ExternalLink,
-} from "lucide-react";
-import { format } from "date-fns";
 
-// Display labels (uppercase) for your categories
-const CATEGORY_MAP: Record<TicketCategory, string> = {
-  Billing: "BILLING",
-  "Technical Support": "TECHNICAL SUPPORT",
-  Onboarding: "ONBOARDING",
-  "Sales Inquiry": "SALES INQUIRY",
-  "Report an Outage": "REPORT AN OUTAGE",
-  "General Questions": "GENERAL QUESTIONS",
-  "Cancel Account": "CANCEL ACCOUNT",
-  "Upgrade Plan": "UPGRADE PLAN",
-};
-
-const REVERSE_CATEGORY_MAP = Object.fromEntries(
-  Object.entries(CATEGORY_MAP).map(([k, v]) => [v, k as TicketCategory])
-);
-
-interface TicketDetailSheetProps {
-  ticket: Ticket | null;
+export interface TicketDetailSheetProps {
+  ticket: Ticket;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProps) {
-  const queryClient = useQueryClient();
-  const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
-  const [newTag, setNewTag] = useState("");
-
-  const { data: users = [] } = useQuery({
-    queryKey: ["users"],
-    queryFn: fetchUsers,
-  });
-
-  useEffect(() => {
-    if (ticket) setEditedTicket(ticket);
-  }, [ticket]);
-
-  const updateMutation = useMutation({
-    mutationFn: (updates: Partial<Ticket>) => updateTicket(ticket!.id, updates),
-    onSuccess: () => {
-      toast.success("Ticket updated successfully");
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      queryClient.invalidateQueries({ queryKey: ["stats"] });
-    },
-    onError: () => toast.error("Failed to update ticket"),
-  });
+export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProps) {
+  const [editedTicket, setEditedTicket] = useState<Ticket>(ticket);
 
   const handleSave = () => {
-    const updates: Partial<Ticket> = { ...editedTicket };
-    if (updates.assignedToUserId) {
-      const selectedUser = users.find((u: any) => u.id === updates.assignedToUserId);
-      if (selectedUser) updates.assignedTo = selectedUser.name;
-    }
-    updateMutation.mutate(updates);
+    // Hook this into your HighLevel API update later
+    console.log("Saving ticket:", editedTicket);
+    onOpenChange(false);
   };
-
-  const handleViewConversations = () => {
-    if (ticket?.contactId) {
-      const ghlUrl = `https://app.gohighlevel.com/v2/location/${import.meta.env.VITE_GHL_LOCATION_ID || "YOUR_LOCATION_ID"}/conversations/all/${ticket.contactId}`;
-      window.open(ghlUrl, "_blank");
-    } else {
-      toast.error("Contact ID not available");
-    }
-  };
-
-  const handleAddTag = () => {
-    if (newTag.trim()) {
-      const currentTags = editedTicket.tags || [];
-      setEditedTicket({ ...editedTicket, tags: [...currentTags, newTag.trim()] });
-      setNewTag("");
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setEditedTicket({
-      ...editedTicket,
-      tags: (editedTicket.tags || []).filter((t) => t !== tagToRemove),
-    });
-  };
-
-  if (!ticket) return null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto bg-popover">
+      <SheetContent className="w-[500px] sm:w-[600px]">
         <SheetHeader>
-          <SheetTitle className="text-2xl font-bold">{ticket.name}</SheetTitle>
-          <SheetDescription>View and edit ticket details</SheetDescription>
+          <SheetTitle>Ticket Details</SheetTitle>
         </SheetHeader>
 
-        <div className="py-6 space-y-6">
-          {/* Status, Priority, Category */}
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[150px]">
-              <Label>Status</Label>
-              <Select
-                value={editedTicket.status as TicketStatus}
-                onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, status: value as TicketStatus })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-popover">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Pending Customer">Pending Customer</SelectItem>
-                  <SelectItem value="Resolved">Resolved</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex-1 min-w-[150px]">
-              <Label>Priority</Label>
-              <Select
-                value={editedTicket.priority as TicketPriority}
-                onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, priority: value as TicketPriority })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-popover">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                  <SelectItem value="Urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex-1 min-w-[150px]">
-              <Label>Category</Label>
-              <Select
-                value={CATEGORY_MAP[(editedTicket.category as TicketCategory) || "General Questions"]}
-                onValueChange={(displayValue) =>
-                  setEditedTicket({
-                    ...editedTicket,
-                    category: REVERSE_CATEGORY_MAP[displayValue] as TicketCategory,
-                  })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-popover">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
-                  {Object.values(CATEGORY_MAP).map((label) => (
-                    <SelectItem key={label} value={label}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="space-y-4 mt-4">
+          <div>
+            <Label htmlFor="ticket-name">Ticket ID</Label>
+            <Input id="ticket-name" value={editedTicket.name} disabled />
           </div>
 
-          <Separator />
-
-          {/* Contact */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Contact Information</h3>
-            <div className="grid gap-4">
-              <div className="flex items-center gap-3 text-sm">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Name:</span>
-                <span>{ticket.contact.name}</span>
-              </div>
-              {ticket.contact.email && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Email:</span>
-                  <a href={`mailto:${ticket.contact.email}`} className="text-primary hover:underline">
-                    {ticket.contact.email}
-                  </a>
-                </div>
-              )}
-              {ticket.contact.phone && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Phone:</span>
-                  <a href={`tel:${ticket.contact.phone}`} className="text-primary hover:underline">
-                    {ticket.contact.phone}
-                  </a>
-                </div>
-              )}
-              {ticket.agencyName && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Agency:</span>
-                  <span>{ticket.agencyName}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Assigned To */}
-          <div className="space-y-2">
-            <Label>Assigned To</Label>
+          <div>
+            <Label>Status</Label>
             <Select
-              value={editedTicket.assignedToUserId}
-              onValueChange={(value) =>
-                setEditedTicket({ ...editedTicket, assignedToUserId: value })
+              value={editedTicket.status}
+              onValueChange={(v: TicketStatus) =>
+                setEditedTicket({ ...editedTicket, status: v })
               }
             >
-              <SelectTrigger className="bg-popover">
-                <SelectValue placeholder="Select assignee" />
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
               </SelectTrigger>
-              <SelectContent className="bg-popover z-[100]">
-                {users.map((user: any) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name}
+              <SelectContent>
+                {(["Open", "In Progress", "Pending Customer", "Resolved"] as TicketStatus[]).map(
+                  (s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Priority</Label>
+            <Select
+              value={editedTicket.priority}
+              onValueChange={(v: TicketPriority) =>
+                setEditedTicket({ ...editedTicket, priority: v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                {(["Low", "Medium", "High", "Urgent"] as TicketPriority[]).map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <Label>Description</Label>
-            <Textarea
-              value={editedTicket.description || ""}
-              onChange={(e) =>
-                setEditedTicket({ ...editedTicket, description: e.target.value })
+          <div>
+            <Label>Category</Label>
+            <Select
+              value={editedTicket.category}
+              onValueChange={(v: TicketCategory) =>
+                setEditedTicket({ ...editedTicket, category: v })
               }
-              placeholder="Enter ticket description"
-              rows={4}
-              className="bg-popover"
-            />
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {([
+                  "BILLING",
+                  "TECHNICAL SUPPORT",
+                  "ONBOARDING",
+                  "SALES INQUIRY",
+                  "REPORT AN OUTAGE",
+                  "GENERAL QUESTIONS",
+                  "CANCEL ACCOUNT",
+                  "UPGRADE PLAN",
+                ] as TicketCategory[]).map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Resolution Summary */}
-          <div className="space-y-2">
+          <div>
             <Label>Resolution Summary</Label>
-            <Textarea
+            <Input
               value={editedTicket.resolutionSummary || ""}
               onChange={(e) =>
                 setEditedTicket({ ...editedTicket, resolutionSummary: e.target.value })
               }
-              placeholder="Enter resolution summary"
-              rows={3}
-              className="bg-popover"
+              placeholder="Add summary..."
             />
           </div>
 
-          {/* Tags */}
-          <div className="space-y-2">
-            <Label>Tags</Label>
-            <div className="flex gap-2">
-              <Input
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
-                placeholder="Add a tag"
-                className="bg-popover"
-              />
-              <Button type="button" variant="outline" size="icon" onClick={handleAddTag}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {(editedTicket.tags || []).map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="pr-1 cursor-pointer hover:bg-secondary/80"
-                >
-                  {tag}
-                  <button
-                    onClick={() => handleRemoveTag(tag)}
-                    className="ml-2 hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Metadata */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Created:</span>
-              <span>{format(new Date(ticket.createdAt), "MMM d, yyyy")}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Updated:</span>
-              <span>{format(new Date(ticket.updatedAt), "MMM d, yyyy")}</span>
-            </div>
-          </div>
-
-          {/* Conversations Button */}
-          <Button variant="outline" onClick={handleViewConversations} className="w-full">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            View Conversations
-            <ExternalLink className="h-4 w-4 ml-2" />
-          </Button>
-
-          <Separator />
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-4">
-            <Button onClick={handleSave} disabled={updateMutation.isPending} className="flex-1">
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
+            <Button onClick={handleSave}>Save</Button>
           </div>
         </div>
       </SheetContent>
     </Sheet>
   );
 }
-
-export default TicketDetailSheet;
