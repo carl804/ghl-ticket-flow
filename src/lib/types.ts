@@ -1,12 +1,12 @@
-// Ticket Status + Priority
+// Ticket status / priority / category
 export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
-export type TicketCategory = "Billing" | "Tech" | "Sales" | "Onboarding" | "Outage";
+export type TicketCategory = "Billing" | "Tech" | "Sales" | "Onboarding" | "Outage" | "General";
 
-// Contact
+// Contact (make name optional to avoid runtime missing-name errors)
 export interface Contact {
   id: string;
-  name?: string;   // optional now (UI complained it was missing sometimes)
+  name?: string;
   email?: string;
   phone?: string;
 }
@@ -14,7 +14,7 @@ export interface Contact {
 // Ticket
 export interface Ticket {
   id: string;
-  name: string;
+  name: string;              // e.g. BILLING-10001
   contact: Contact;
   agencyName?: string;
   status: TicketStatus;
@@ -32,7 +32,7 @@ export interface Ticket {
   tags?: string[];
 }
 
-// Stats (extended to match UI usage)
+// Stats (extend to match UI props used in StatsCards)
 export interface Stats {
   total: number;
   open: number;
@@ -40,15 +40,15 @@ export interface Stats {
   resolvedToday: number;
   avgResolutionTime: string;
 
-  // UI fields that were missing (added as optional)
-  pending?: number; 
+  // UI expects these (optional so we don’t force logic right now)
+  pending?: number;            // alias of pendingCustomer
   totalTrend?: number;
   openTrend?: number;
   pendingTrend?: number;
   resolvedTodayTrend?: number;
 }
 
-// Field map for custom fields
+// Mapping custom fields to IDs
 export interface FieldMap {
   priority?: string;
   category?: string;
@@ -56,5 +56,21 @@ export interface FieldMap {
   agencyName?: string;
 }
 
-// ViewMode (used in Tickets.tsx)
-export type ViewMode = "list" | "board";
+// CustomField (for mapping responses)
+export interface CustomField {
+  id: string;
+  fieldKey?: string; // some APIs use fieldKey
+  key?: string;      // some APIs use key
+  name?: string;
+  type?: string;
+}
+
+// Used in Tickets.tsx (your UI compares against "kanban" / "table")
+export type ViewMode = "kanban" | "table";
+
+// GHL user object (for assignees)
+export interface GHLUser {
+  id: string;
+  name: string;
+  email?: string;
+}
