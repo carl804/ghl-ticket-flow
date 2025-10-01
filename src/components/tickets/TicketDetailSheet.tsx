@@ -21,13 +21,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { updateTicket, fetchUsers } from "@/lib/api";
-import type {
-  Ticket,
-  TicketStatus,
-  TicketPriority,
-  TicketCategory,
-  GHLUser,
-} from "@/lib/types";
+import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from "@/lib/types";
 import { toast } from "sonner";
 import {
   User,
@@ -43,14 +37,16 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-// Config
+// ✅ Your exact categories
 const CATEGORIES: TicketCategory[] = [
-  "Billing",
-  "Tech",
-  "Sales",
-  "Onboarding",
-  "Outage",
-  "General",
+  "BILLING",
+  "TECHNICAL SUPPORT",
+  "ONBOARDING",
+  "SALES INQUIRY",
+  "REPORT AN OUTAGE",
+  "GENERAL QUESTIONS",
+  "CANCEL ACCOUNT",
+  "UPGRADE PLAN",
 ];
 
 interface TicketDetailSheetProps {
@@ -64,7 +60,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
   const [newTag, setNewTag] = useState("");
 
-  const { data: users = [] } = useQuery<GHLUser[]>({
+  const { data: users = [] } = useQuery({
     queryKey: ["users"],
     queryFn: fetchUsers,
   });
@@ -89,7 +85,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
   const handleSave = () => {
     const updates: Partial<Ticket> = { ...editedTicket };
     if (updates.assignedToUserId) {
-      const selectedUser = users.find((u) => u.id === updates.assignedToUserId);
+      const selectedUser = users.find((u: any) => u.id === updates.assignedToUserId);
       if (selectedUser) {
         updates.assignedTo = selectedUser.name;
       }
@@ -137,9 +133,8 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
         </SheetHeader>
 
         <div className="py-6 space-y-6">
-          {/* --- Status, Priority, Category --- */}
+          {/* Status, Priority, Category */}
           <div className="flex flex-wrap gap-3">
-            {/* Status */}
             <div className="flex-1 min-w-[150px]">
               <Label>Status</Label>
               <Select
@@ -161,7 +156,6 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
               </Select>
             </div>
 
-            {/* Priority */}
             <div className="flex-1 min-w-[150px]">
               <Label>Priority</Label>
               <Select
@@ -182,7 +176,6 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
               </Select>
             </div>
 
-            {/* Category */}
             <div className="flex-1 min-w-[150px]">
               <Label>Category</Label>
               <Select
@@ -207,7 +200,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
           <Separator />
 
-          {/* --- Contact Information --- */}
+          {/* Contact Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Contact Information</h3>
             <div className="grid gap-4">
@@ -246,7 +239,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
           <Separator />
 
-          {/* --- Assigned To --- */}
+          {/* Assigned To */}
           <div className="space-y-2">
             <Label>Assigned To</Label>
             <Select
@@ -259,7 +252,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
                 <SelectValue placeholder="Select assignee" />
               </SelectTrigger>
               <SelectContent className="bg-popover z-[100]">
-                {users.map((user) => (
+                {users.map((user: any) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.name}
                   </SelectItem>
@@ -268,7 +261,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
             </Select>
           </div>
 
-          {/* --- Description --- */}
+          {/* Description */}
           <div className="space-y-2">
             <Label>Description</Label>
             <Textarea
@@ -282,7 +275,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
             />
           </div>
 
-          {/* --- Resolution Summary --- */}
+          {/* Resolution Summary */}
           <div className="space-y-2">
             <Label>Resolution Summary</Label>
             <Textarea
@@ -296,7 +289,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
             />
           </div>
 
-          {/* --- Tags --- */}
+          {/* Tags */}
           <div className="space-y-2">
             <Label>Tags</Label>
             <div className="flex gap-2">
@@ -337,7 +330,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
           <Separator />
 
-          {/* --- Metadata --- */}
+          {/* Metadata */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -351,9 +344,9 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
             </div>
           </div>
 
-          {/* --- Conversations Button --- */}
-          <Button
-            variant="outline"
+          {/* Conversations Button */}
+          <Button 
+            variant="outline" 
             onClick={handleViewConversations}
             className="w-full"
           >
@@ -364,20 +357,12 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
           <Separator />
 
-          {/* --- Action Buttons --- */}
+          {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
-            <Button
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-              className="flex-1"
-            >
+            <Button onClick={handleSave} disabled={updateMutation.isPending} className="flex-1">
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1"
-            >
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
               Cancel
             </Button>
           </div>
