@@ -1,6 +1,7 @@
 import { logger } from "@/components/ErrorLog";
 
-const GHL_API_BASE = "https://rest.gohighlevel.com/v1";
+// Change this line:
+const GHL_API_BASE = "https://services.leadconnectorhq.com";  // v2 API
 const GHL_API_TOKEN = import.meta.env.VITE_GHL_API_TOKEN;
 const GHL_LOCATION_ID = import.meta.env.VITE_GHL_LOCATION_ID;
 
@@ -38,7 +39,6 @@ export async function ghlRequest<T>(
     url,
     method: options?.method || "GET",
     authPrefix: GHL_API_TOKEN.substring(0, 15) + "...",
-    locationId: GHL_LOCATION_ID,
   });
 
   const response = await fetch(url, {
@@ -52,7 +52,6 @@ export async function ghlRequest<T>(
   if (!text) {
     logger.error(`Empty response from GHL API`, {
       status: response.status,
-      statusText: response.statusText,
       url,
     });
     throw new Error(`Empty response (Status: ${response.status})`);
@@ -63,17 +62,14 @@ export async function ghlRequest<T>(
   if (!response.ok) {
     logger.error(`GHL API Error: ${response.status}`, {
       status: response.status,
-      statusText: response.statusText,
       url,
       response: data,
-      headers: Object.fromEntries(response.headers.entries()),
     });
     throw new Error(data?.message || data?.error || `API Error: ${response.status}`);
   }
 
   logger.success(`API Success: ${endpoint}`, {
     status: response.status,
-    dataPreview: JSON.stringify(data).substring(0, 200),
   });
 
   return data as T;
