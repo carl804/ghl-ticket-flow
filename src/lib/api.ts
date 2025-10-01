@@ -6,31 +6,13 @@ import type {
   TicketPriority,
   TicketCategory,
 } from "./types";
-import { supabase } from "@/integrations/supabase/client";
+import { ghlRequest } from "@/integrations/ghl/client";
 import { toast } from "sonner";
 
 export const USE_MOCK_DATA = false; // ✅ Always GoHighLevel via proxy
 let FIELD_MAP: FieldMap = {};
 let PIPELINE_ID: string | null = null;
 
-/** Call GoHighLevel via Supabase Edge Function proxy */
-async function ghlRequest<T>(
-  endpoint: string,
-  options?: { method?: string; body?: any; queryParams?: Record<string, string> }
-): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("ghl-proxy", {
-    body: {
-      endpoint,
-      method: options?.method || "GET",
-      body: options?.body,
-      queryParams: options?.queryParams,
-    },
-  });
-
-  if (error) throw new Error(`Proxy Error: ${error.message}`);
-  if (data?.error) throw new Error(`GHL API Error: ${data.error}`);
-  return data;
-}
 
 /** Resolve and cache pipeline id */
 async function getPipelineId(): Promise<string> {
