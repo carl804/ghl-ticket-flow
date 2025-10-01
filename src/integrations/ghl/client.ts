@@ -22,21 +22,28 @@ export async function ghlRequest<T>(
     url += `?${params.toString()}`;
   }
 
+  const headers = {
+    Authorization: `Bearer ${GHL_API_TOKEN}`,
+    Version: "2021-07-28",
+    "Content-Type": "application/json",
+  };
+
+  // Log for debugging
   console.log(`[GHL] ${options?.method || "GET"} ${url}`);
+  console.log("[GHL] Headers:", {
+    Authorization: `Bearer ${GHL_API_TOKEN.substring(0, 15)}...`,
+    Version: headers.Version,
+    "Content-Type": headers["Content-Type"],
+  });
 
   const response = await fetch(url, {
     method: options?.method || "GET",
-    headers: {
-      Authorization: `Bearer ${GHL_API_TOKEN}`,
-      Version: "2021-07-28",
-      "Content-Type": "application/json",
-      LocationId: GHL_LOCATION_ID,
-    },
+    headers,
     body: options?.body ? JSON.stringify(options.body) : undefined,
   });
 
   const text = await response.text();
-  console.log(`[GHL] Response:`, text.substring(0, 300));
+  console.log(`[GHL] Response (${response.status}):`, text.substring(0, 500));
 
   if (!text) {
     throw new Error(`Empty response (Status: ${response.status})`);
@@ -45,6 +52,7 @@ export async function ghlRequest<T>(
   const data = JSON.parse(text);
 
   if (!response.ok) {
+    console.error("[GHL] Full error response:", data);
     throw new Error(data?.message || data?.error || `API Error: ${response.status}`);
   }
 
