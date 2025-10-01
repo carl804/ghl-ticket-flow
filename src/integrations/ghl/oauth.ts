@@ -56,6 +56,7 @@ export async function exchangeCodeForToken(code: string): Promise<void> {
         client_secret: GHL_CLIENT_SECRET,
         grant_type: "authorization_code",
         code,
+        user_type: "Location",
         redirect_uri: GHL_REDIRECT_URI,
       }),
     });
@@ -92,7 +93,7 @@ export async function refreshAccessToken(): Promise<string> {
     throw new Error("No refresh token available");
   }
 
-  if (!GHL_CLIENT_ID || !GHL_CLIENT_SECRET) {
+  if (!GHL_CLIENT_ID || !GHL_CLIENT_SECRET || !GHL_REDIRECT_URI) {
     throw new Error("OAuth configuration is incomplete");
   }
 
@@ -107,6 +108,8 @@ export async function refreshAccessToken(): Promise<string> {
         client_secret: GHL_CLIENT_SECRET,
         grant_type: "refresh_token",
         refresh_token: refreshToken,
+        user_type: "Location",
+        redirect_uri: GHL_REDIRECT_URI,
       }),
     });
 
