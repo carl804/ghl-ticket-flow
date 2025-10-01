@@ -9,7 +9,7 @@ import type {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const USE_MOCK_DATA = false;
+export const USE_MOCK_DATA = false;
 let FIELD_MAP: FieldMap = {};
 let PIPELINE_ID: string | null = null;
 
@@ -21,7 +21,12 @@ async function ghlRequest<T>(
   options?: { method?: string; body?: any; queryParams?: Record<string, string> }
 ): Promise<T> {
   const { data, error } = await supabase.functions.invoke("ghl-proxy", {
-    body: { endpoint, method: options?.method || "GET", body: options?.body, queryParams: options?.queryParams },
+    body: {
+      endpoint,
+      method: options?.method || "GET",
+      body: options?.body,
+      queryParams: options?.queryParams,
+    },
   });
   if (error) throw new Error(`Proxy Error: ${error.message}`);
   if (data?.error) throw new Error(`GHL API Error: ${data.error}`);
@@ -79,7 +84,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
       agencyName: opp.agencyName || "N/A",
       status: toTicketStatus(opp.status || "Open"),
       priority: toTicketPriority(opp.priority || "Medium"),
-      category: (opp.category || "Tech") as TicketCategory,
+      category: (opp.category as TicketCategory) || "General Questions",
       resolutionSummary: opp.resolutionSummary || "",
       assignedTo: opp.assignedTo,
       assignedToUserId: opp.assignedToUserId,
@@ -142,15 +147,6 @@ export async function updateTicketStatus(ticketId: string, newStatus: TicketStat
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body: { status: newStatus } });
 }
 
-export async function updateResolutionSummary(ticketId: string, summary: string): Promise<void> {
-  const fieldId = getFieldId("resolutionSummary");
-  if (!fieldId) throw new Error("Resolution summary field not found");
-  await ghlRequest(`/opportunities/${ticketId}`, {
-    method: "PATCH",
-    body: { customField: [{ id: fieldId, value: summary }] },
-  });
-}
-
 export async function updatePriority(ticketId: string, priority: TicketPriority): Promise<void> {
   const fieldId = getFieldId("priority");
   if (!fieldId) throw new Error("Priority field not found");
@@ -166,13 +162,6 @@ export async function updateCategory(ticketId: string, category: TicketCategory)
   await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
     body: { customField: [{ id: fieldId, value: category }] },
-  });
-}
-
-export async function updateOwner(ticketId: string, userId: string): Promise<void> {
-  await ghlRequest(`/opportunities/${ticketId}`, {
-    method: "PATCH",
-    body: { assignedToUserId: userId },
   });
 }
 
@@ -230,7 +219,7 @@ export async function fetchUsers(): Promise<GHLUser[]> {
 // Converters
 // ------------------------------
 export function toTicketStatus(value: string): TicketStatus {
-  const allowed: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved", "Closed"];
+  const allowed: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved"];
   return (allowed.includes(value as TicketStatus) ? value : "Open") as TicketStatus;
 }
 export function toTicketPriority(value: string): TicketPriority {
