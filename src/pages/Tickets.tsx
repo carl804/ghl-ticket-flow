@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 import { fetchTickets } from "@/lib/api";
-import type { Ticket, ViewMode } from "@/lib/types";
+import type { Ticket, ViewMode, TicketStatus, TicketPriority } from "@/lib/types";
 
-import { TableView } from "@/components/tickets/TableView";
+import TableView from "@/components/tickets/TableView";
 import { KanbanView } from "@/components/tickets/KanbanView";
 import CompactView from "@/components/tickets/CompactView";
 import TicketDetailSheet from "@/components/tickets/TicketDetailSheet";
@@ -29,17 +29,15 @@ export default function Tickets() {
     setSheetOpen(true);
   };
 
-  const handleStatusChange = (ticketId: string, status: Ticket["status"]) => {
-    // optimistic update
+  const handleStatusChange = (ticketId: string, status: TicketStatus) => {
     const updated = tickets.map((t) =>
       t.id === ticketId ? { ...t, status } : t
     );
     queryClient.setQueryData(["tickets"], updated);
-    // revalidate from server
     queryClient.invalidateQueries({ queryKey: ["tickets"] as const });
   };
 
-  const handlePriorityChange = (ticketId: string, priority: Ticket["priority"]) => {
+  const handlePriorityChange = (ticketId: string, priority: TicketPriority) => {
     const updated = tickets.map((t) =>
       t.id === ticketId ? { ...t, priority } : t
     );
@@ -100,8 +98,8 @@ export default function Tickets() {
         <CompactView
           tickets={tickets}
           onTicketClick={handleTicketClick}
-          onStatusChange={handleStatusChange}
-          onPriorityChange={handlePriorityChange}
+          onStatusChange={handleStatusChange}   // ✅ now valid once we patch CompactViewProps
+          onPriorityChange={handlePriorityChange} // ✅ same here
         />
       )}
 
