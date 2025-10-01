@@ -47,7 +47,7 @@ const statusConfig = {
   Resolved: { color: "bg-status-resolved text-white" },
 };
 
-export function TableView({
+export default function TableView({
   tickets,
   onTicketClick,
   onStatusChange,
@@ -76,10 +76,9 @@ export function TableView({
         return direction * a.name.localeCompare(b.name);
       case "status":
         return direction * a.status.localeCompare(b.status);
-      case "priority": {
+      case "priority":
         const priorityOrder = { Low: 0, Medium: 1, High: 2, Urgent: 3 };
         return direction * (priorityOrder[a.priority] - priorityOrder[b.priority]);
-      }
       case "createdAt":
         return direction * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       case "assignedTo":
@@ -233,5 +232,3 @@ export function TableView({
     </div>
   );
 }
-
-export default TableView;
