@@ -18,18 +18,17 @@ serve(async (req) => {
     const { endpoint, method = "GET", body, queryParams } = await req.json();
 
     if (!GHL_API_TOKEN || !GHL_LOCATION_ID) {
-      throw new Error("Missing API Key or LocationId");
+      throw new Error("Missing API Key or LocationId — check environment variables");
     }
 
-    // Build URL
+    // Build URL with query parameters
     let url = `${GHL_API_BASE}${endpoint}`;
     if (queryParams) {
       const params = new URLSearchParams(queryParams);
       url += `?${params.toString()}`;
     }
 
-    console.log(`➡️ GHL API Request: ${method} ${url}`);
-
+    // Prepare headers
     const headers: Record<string, string> = {
       "Authorization": `Bearer ${GHL_API_TOKEN}`,
       "Version": "2021-07-28",
@@ -37,45 +36,39 @@ serve(async (req) => {
       "LocationId": GHL_LOCATION_ID,
     };
 
+    console.log(`➡️ GHL API Request:
+      Method: ${method}
+      URL: ${url}
+      Headers: ${JSON.stringify({ ...headers, Authorization: "****MASKED****" })}
+      Body: ${body ? JSON.stringify(body) : "none"}
+    `);
+
+    // Call GHL
     const response = await fetch(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    console.log(`⬅️ GHL API Response Status: ${response.status}`);
+    console.log(`⬅️ GHL API Response: status ${response.status}`);
 
-    const contentType = response.headers.get("content-type");
-    let data: any;
+    const text = await response.text();
+    console.log(`Response raw: ${text.substring(0, 500)}`);
 
-    if (contentType && contentType.includes("application/json")) {
-      const text = await response.text();
-      console.log(`⬅️ GHL API Response Body (first 200 chars): ${text.substring(0, 200)}`);
-
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch (parseError) {
-        console.error(`❌ JSON Parse Error: ${parseError}`);
-        throw new Error(`Invalid JSON from GHL API: ${text.substring(0, 100)}`);
-      }
-    } else {
-      const text = await response.text();
-      throw new Error(`Non-JSON response: ${text.substring(0, 200)}`);
+    let data: any = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (parseError) {
+      console.error("❌ JSON Parse Error:", parseError);
+      throw new Error(`Invalid JSON response from GHL API: ${text.substring(0, 200)}`);
     }
 
     if (!response.ok) {
-      console.error(`❌ GHL API Error Response:`, data);
+      console.error("❌ GHL API Error Response:", data);
+      const errorMsg = data?.message || data?.msg || JSON.stringify(data);
       return new Response(
-        JSON.stringify({
-          error: data,
-          status: response.status,
-          url,
-          headersSent: headers,
-        }),
-        {
-          status: response.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: `GHL API Error (${response.status}): ${errorMsg}` }),
+        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
