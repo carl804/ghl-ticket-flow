@@ -1,15 +1,12 @@
-// Deno Deploy / Supabase Edge Function
-// Path: supabase/functions/ghl-proxy/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const GHL_API_BASE = "https://services.leadconnectorhq.com"; // v2 base
-const GHL_API_TOKEN = Deno.env.get("VITE_GHL_API_TOKEN");     // set in Lovable Cloud Secrets
-const GHL_LOCATION_ID = Deno.env.get("VITE_GHL_LOCATION_ID"); // set in Lovable Cloud Secrets
+const GHL_API_BASE = "https://rest.gohighlevel.com/v1";
+const GHL_API_TOKEN = Deno.env.get("VITE_GHL_API_TOKEN");
+const GHL_LOCATION_ID = Deno.env.get("VITE_GHL_LOCATION_ID");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 };
 
 serve(async (req) => {
@@ -21,58 +18,61 @@ serve(async (req) => {
     const { endpoint, method = "GET", body, queryParams } = await req.json();
 
     if (!GHL_API_TOKEN || !GHL_LOCATION_ID) {
-      return new Response(
-        JSON.stringify({ error: "Missing API credentials: VITE_GHL_API_TOKEN or VITE_GHL_LOCATION_ID" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      throw new Error("Missing API Key or LocationId");
     }
 
-    // Build request URL
-    const url = new URL(`${GHL_API_BASE}${endpoint}`);
-    // Always pass location in query (many endpoints require it), but keep any provided params.
-    const qp = new URLSearchParams(queryParams || {});
-    if (!qp.has("location_id") && !qp.has("locationId")) {
-      qp.set("location_id", GHL_LOCATION_ID);
+    let url = `${GHL_API_BASE}${endpoint}`;
+    if (queryParams) {
+      const params = new URLSearchParams(queryParams);
+      url += `?${params.toString()}`;
     }
-    qp.forEach((v, k) => url.searchParams.set(k, v));
+
+    console.log(`[ghl-proxy] Request → ${method} ${url}`);
+    console.log("[ghl-proxy] Headers →", {
+      Authorization: `Bearer ${GHL_API_TOKEN?.slice(0,6)}...`, // hide full key
+      LocationId: GHL_LOCATION_ID,
+      "Content-Type": "application/json",
+    });
+    if (body) console.log("[ghl-proxy] Body →", body);
 
     const headers: Record<string, string> = {
       "Authorization": `Bearer ${GHL_API_TOKEN}`,
+      "Version": "2021-07-28",
       "Content-Type": "application/json",
-      // Also include LocationId header (some endpoints accept header form)
       "LocationId": GHL_LOCATION_ID,
     };
 
-    const upstream = await fetch(url.toString(), {
+    const response = await fetch(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const text = await upstream.text();
-    const contentType = upstream.headers.get("content-type") || "";
+    console.log(`[ghl-proxy] Response status: ${response.status}`);
+    const text = await response.text();
+    console.log(`[ghl-proxy] Response body: ${text.substring(0,200)}...`);
 
-    // Forward upstream status (don’t collapse everything to 500 — helps you debug in UI)
-    if (!upstream.ok) {
-      return new Response(
-        JSON.stringify({
-          error: `Upstream ${upstream.status}`,
-          details: contentType.includes("application/json") ? safeParse(text) : text.slice(0, 500),
-        }),
-        { status: upstream.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    let data: any = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (parseError) {
+      console.error("[ghl-proxy] JSON parse error:", parseError);
+      throw new Error(`Invalid JSON from GHL: ${text.substring(0,100)}`);
     }
 
-    const json = contentType.includes("application/json") ? safeParse(text) : { raw: text };
-    return new Response(JSON.stringify(json), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
+    if (!response.ok) {
+      console.error("[ghl-proxy] Error response:", data);
+      throw new Error(`GHL API Error (${response.status}): ${data?.message || JSON.stringify(data)}`);
+    }
+
+    return new Response(JSON.stringify(data), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error("[ghl-proxy] Fatal error:", error);
+    return new Response(JSON.stringify({ error: String(error) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
-
-function safeParse(s: string) {
-  try { return s ? JSON.parse(s) : {}; } catch { return { raw: s }; }
-}
