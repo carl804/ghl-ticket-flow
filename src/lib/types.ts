@@ -1,8 +1,9 @@
 // Ticket status / priority / category
 export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved";
+
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
 
-// Your real categories (typed backend values)
+// Your real categories (typed backend values, but properly cased for TS)
 export type TicketCategory =
   | "Billing"
   | "Technical Support"
@@ -68,8 +69,8 @@ export interface FieldMap {
 // CustomField (for robustness to API shapes)
 export interface CustomField {
   id: string;
-  fieldKey?: string;
-  key?: string;
+  fieldKey?: string; // some APIs use fieldKey
+  key?: string;      // some APIs use key
   name?: string;
   type?: string;
 }
