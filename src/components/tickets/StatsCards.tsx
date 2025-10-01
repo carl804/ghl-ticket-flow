@@ -1,91 +1,77 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Ticket, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Stats } from "@/lib/types";
 
 interface StatsCardsProps {
-  stats?: Stats;
+  stats: Stats;
   isLoading?: boolean;
 }
 
-export function StatsCards({ stats, isLoading }: StatsCardsProps) {
-  if (isLoading || !stats) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="border-0 shadow-sm">
-            <CardContent className="p-6">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
+export default function StatsCards({ stats, isLoading }: StatsCardsProps) {
+  if (isLoading) {
+    return <div className="text-center text-muted-foreground">Loading stats...</div>;
   }
 
-  const statCards = [
-    {
-      label: "Total Tickets",
-      value: stats.total,
-      trend: stats.totalTrend ?? 12,
-      icon: Ticket,
-      iconBg: "bg-blue-100 dark:bg-blue-900/20",
-      iconColor: "text-blue-600 dark:text-blue-400",
-    },
-    {
-      label: "Open Tickets",
-      value: stats.open,
-      trend: stats.openTrend ?? -5,
-      icon: Clock,
-      iconBg: "bg-blue-100 dark:bg-blue-900/20",
-      iconColor: "text-blue-600 dark:text-blue-400",
-    },
-    {
-      label: "Pending Customer",
-      value: stats.pending ?? stats.pendingCustomer,
-      trend: stats.pendingTrend,
-      icon: AlertCircle,
-      iconBg: "bg-blue-100 dark:bg-blue-900/20",
-      iconColor: "text-blue-600 dark:text-blue-400",
-    },
-    {
-      label: "Resolved Today",
-      value: stats.resolvedToday,
-      trend: stats.resolvedTodayTrend ?? 8,
-      icon: CheckCircle2,
-      iconBg: "bg-blue-100 dark:bg-blue-900/20",
-      iconColor: "text-blue-600 dark:text-blue-400",
-    },
-  ];
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {statCards.map((card, index) => {
-        const Icon = card.icon;
-        return (
-          <Card key={index} className="border-0 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground mb-3">{card.label}</p>
-                  <h3 className="text-4xl font-bold mb-2">{card.value}</h3>
-                  {card.trend !== undefined && (
-                    <div className="flex items-center text-sm font-medium">
-                      {card.trend > 0 ? (
-                        <span className="text-green-600 dark:text-green-400">+{card.trend}% vs last week</span>
-                      ) : (
-                        <span className="text-red-600 dark:text-red-400">{card.trend}% vs last week</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className={`${card.iconBg} p-3 rounded-full`}>
-                  <Icon className={`h-6 w-6 ${card.iconColor}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* Total Tickets */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{stats.total ?? 0}</div>
+          {stats.totalTrend !== undefined && (
+            <p className="text-xs text-muted-foreground">
+              Trend: {stats.totalTrend >= 0 ? "▲" : "▼"} {stats.totalTrend}%
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Open Tickets */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Open</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{stats.open ?? 0}</div>
+          {stats.openTrend !== undefined && (
+            <p className="text-xs text-muted-foreground">
+              Trend: {stats.openTrend >= 0 ? "▲" : "▼"} {stats.openTrend}%
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pending Customer */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Pending Customer</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {stats.pendingCustomer ?? stats.pending ?? 0}
+          </div>
+          {stats.pendingTrend !== undefined && (
+            <p className="text-xs text-muted-foreground">
+              Trend: {stats.pendingTrend >= 0 ? "▲" : "▼"} {stats.pendingTrend}%
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Resolved Today */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Resolved Today</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{stats.resolvedToday ?? 0}</div>
+          <p className="text-xs text-muted-foreground">
+            Avg Resolution Time: {stats.avgResolutionTime || "N/A"}
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
