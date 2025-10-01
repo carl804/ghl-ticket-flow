@@ -1,3 +1,4 @@
+// src/lib/api.ts
 import type {
   Ticket,
   Stats,
@@ -9,10 +10,8 @@ import type {
 import { ghlRequest } from "@/integrations/ghl/client";
 import { toast } from "sonner";
 
-export const USE_MOCK_DATA = false; // ✅ Always GoHighLevel via proxy
 let FIELD_MAP: FieldMap = {};
 let PIPELINE_ID: string | null = null;
-
 
 /** Resolve and cache pipeline id */
 async function getPipelineId(): Promise<string> {
@@ -30,7 +29,6 @@ async function getPipelineId(): Promise<string> {
 
 /** Load custom field ids once */
 export async function initializeFieldMap(): Promise<void> {
-  if (USE_MOCK_DATA) return;
   const response = await ghlRequest<{ customFields: any[] }>("/custom-fields");
   const fields = response.customFields || [];
 
@@ -46,7 +44,7 @@ function getFieldId(key: keyof FieldMap): string | undefined {
   return FIELD_MAP[key];
 }
 
-/** Fetch stitched tickets from the Ticketing pipeline (GHL only) */
+/** Fetch stitched tickets from the Ticketing pipeline */
 export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const pipelineId = await getPipelineId();
@@ -115,7 +113,6 @@ export async function fetchStats(): Promise<Stats> {
     pendingCustomer,
     resolvedToday,
     avgResolutionTime,
-    // optional fields used by your StatsCards
     pending: pendingCustomer,
     totalTrend: 0,
     openTrend: 0,
@@ -124,7 +121,7 @@ export async function fetchStats(): Promise<Stats> {
   };
 }
 
-/** Updates (GoHighLevel only) */
+/** Updates */
 export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body: { status: newStatus } });
 }
@@ -202,6 +199,7 @@ export function toTicketStatus(value: string): TicketStatus {
   const allowed: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved"];
   return (allowed.includes(value as TicketStatus) ? value : "Open") as TicketStatus;
 }
+
 export function toTicketPriority(value: string): TicketPriority {
   const allowed: TicketPriority[] = ["Low", "Medium", "High", "Urgent"];
   return (allowed.includes(value as TicketPriority) ? value : "Medium") as TicketPriority;
