@@ -21,7 +21,13 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { updateTicket, fetchUsers } from "@/lib/api";
-import type { Ticket, TicketStatus, TicketPriority, TicketCategory, GHLUser } from "@/lib/types";
+import type {
+  Ticket,
+  TicketStatus,
+  TicketPriority,
+  TicketCategory,
+  GHLUser,
+} from "@/lib/types";
 import { toast } from "sonner";
 import {
   User,
@@ -37,16 +43,14 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-// ✅ configs
+// Categories must match your TicketCategory union exactly
 const CATEGORIES: TicketCategory[] = [
-  "BILLING",
-  "TECHNICAL SUPPORT",
-  "ONBOARDING",
-  "SALES INQUIRY",
-  "REPORT AN OUTAGE",
-  "GENERAL QUESTIONS",
-  "CANCEL ACCOUNT",
-  "UPGRADE PLAN",
+  "Billing",
+  "Tech",
+  "Sales",
+  "Onboarding",
+  "Outage",
+  "General",
 ];
 
 interface TicketDetailSheetProps {
@@ -60,7 +64,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
   const [newTag, setNewTag] = useState("");
 
-  // ✅ Users for assignment
+  // Assigned-to users
   const { data: users = [] } = useQuery<GHLUser[]>({
     queryKey: ["users"],
     queryFn: fetchUsers,
@@ -84,7 +88,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
   const handleSave = () => {
     const updates: Partial<Ticket> = { ...editedTicket };
 
-    // ensure assignedTo label matches assigned user
+    // keep assignedTo name in sync with assignedToUserId
     if (updates.assignedToUserId) {
       const selectedUser = users.find((u) => u.id === updates.assignedToUserId);
       if (selectedUser) updates.assignedTo = selectedUser.name;
@@ -95,10 +99,9 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
   const handleViewConversations = () => {
     if (ticket?.contactId) {
-      const ghlUrl = `https://app.gohighlevel.com/v2/location/${
-        import.meta.env.VITE_GHL_LOCATION_ID || "YOUR_LOCATION_ID"
-      }/conversations/all/${ticket.contactId}`;
-      window.open(ghlUrl, "_blank");
+      const loc = import.meta.env.VITE_GHL_LOCATION_ID || "YOUR_LOCATION_ID";
+      const url = `https://app.gohighlevel.com/v2/location/${loc}/conversations/all/${ticket.contactId}`;
+      window.open(url, "_blank");
     } else {
       toast.error("Contact ID not available");
     }
@@ -132,7 +135,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
         </SheetHeader>
 
         <div className="py-6 space-y-6">
-          {/* Status, Priority, Category */}
+          {/* Status / Priority / Category */}
           <div className="flex flex-wrap gap-3">
             {/* Status */}
             <div className="flex-1 min-w-[150px]">
@@ -151,7 +154,6 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
                   <SelectItem value="In Progress">In Progress</SelectItem>
                   <SelectItem value="Pending Customer">Pending Customer</SelectItem>
                   <SelectItem value="Resolved">Resolved</SelectItem>
-                  <SelectItem value="Closed">Closed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -202,7 +204,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
           <Separator />
 
-          {/* Contact Information */}
+          {/* Contact Info */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Contact Information</h3>
             <div className="grid gap-4">
@@ -355,7 +357,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
           <Separator />
 
-          {/* Action Buttons */}
+          {/* Actions */}
           <div className="flex gap-3 pt-4">
             <Button
               onClick={handleSave}
