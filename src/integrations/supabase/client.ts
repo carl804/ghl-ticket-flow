@@ -1,14 +1,9 @@
-// src/integrations/supabase/client.ts
 import { createClient } from "@supabase/supabase-js";
 
-// If you don't have a Database type generated from Supabase yet,
-// you can leave this untyped or add your own placeholder type.
-// import type { Database } from "./types"; ❌ REMOVE THIS
+// Instead of importing Database type (not defined in ./types), we’ll just use `any`
+// If later you generate supabase types, reintroduce them here.
 
-// Instead, we’ll just let Supabase infer (or you can add a placeholder)
-type Database = any;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-export const supabase = createClient<Database>(
-  import.meta.env.VITE_SUPABASE_URL!,
-  import.meta.env.VITE_SUPABASE_ANON_KEY!
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
