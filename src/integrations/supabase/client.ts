@@ -1,9 +1,38 @@
-import { createClient } from "@supabase/supabase-js";
+// src/integrations/ghl/client.ts
+const GHL_API_TOKEN = import.meta.env.VITE_GHL_API_TOKEN;
+const GHL_LOCATION_ID = import.meta.env.VITE_GHL_LOCATION_ID;
+const GHL_PROXY_URL = import.meta.env.VITE_GHL_PROXY_URL || "/.netlify/functions/ghl-proxy";
 
-// Instead of importing Database type (not defined in ./types), we’ll just use `any`
-// If later you generate supabase types, reintroduce them here.
+export async function ghlRequest<T>(
+  endpoint: string,
+  options?: {
+    method?: string;
+    body?: any;
+    queryParams?: Record<string, string>;
+  }
+): Promise<T> {
+  const response = await fetch(GHL_PROXY_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      endpoint,
+      method: options?.method || "GET",
+      body: options?.body,
+      queryParams: options?.queryParams,
+    }),
+  });
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+  }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const data = await response.json();
+  if (data?.error) {
+    throw new Error(`GHL API Error: ${data.error}`);
+  }
+
+  return data as T;
+}
