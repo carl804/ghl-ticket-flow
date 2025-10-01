@@ -319,9 +319,6 @@ export {
   updateOwner,
   bulkUpdateStatus,
   bulkUpdatePriority,
-  fetchUsers,              // 👈 explicit export here
-  initializeFieldMap,
+  fetchUsers,         // 👈 now always exported
+  initializeFieldMap, // 👈 clean, single export
 };
-
-// ------------------------------
-export { USE_MOCK_DATA };
