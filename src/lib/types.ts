@@ -1,4 +1,4 @@
-// Ticket status / priority / category
+// Ticket Status
 export type TicketStatus =
   | "Open"
   | "In Progress"
@@ -6,32 +6,30 @@ export type TicketStatus =
   | "Resolved"
   | "Closed";
 
+// Ticket Priority
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
 
-// ✅ Use your exact real categories
+// Ticket Category (extended to match what GHL might return)
 export type TicketCategory =
-  | "BILLING"
-  | "TECHNICAL SUPPORT"
-  | "ONBOARDING"
-  | "SALES INQUIRY"
-  | "REPORT AN OUTAGE"
-  | "GENERAL QUESTIONS"
-  | "CANCEL ACCOUNT"
-  | "UPGRADE PLAN";
+  | "Billing"
+  | "Technical"
+  | "Sales"
+  | "Support"
+  | "Other"
+  | "Tech"
+  | "Onboarding"
+  | "Outage";
 
-// Contact
-export interface Contact {
-  id: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-}
-
-// Ticket
+// Ticket Shape
 export interface Ticket {
   id: string;
-  name: string; // e.g. BILLING-10001
-  contact: Contact;
+  name: string;
+  contact: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  };
   agencyName?: string;
   status: TicketStatus;
   priority: TicketPriority;
@@ -48,23 +46,21 @@ export interface Ticket {
   tags?: string[];
 }
 
-// Stats (extend to match UI props used in StatsCards)
+// Stats for dashboard
 export interface Stats {
   total: number;
   open: number;
   pendingCustomer: number;
+  pending: number;
   resolvedToday: number;
   avgResolutionTime: string;
-
-  // optional UI helpers
-  pending?: number;
   totalTrend?: number;
   openTrend?: number;
   pendingTrend?: number;
   resolvedTodayTrend?: number;
 }
 
-// Mapping custom fields to IDs
+// FieldMap for custom fields
 export interface FieldMap {
   priority?: string;
   category?: string;
@@ -72,21 +68,12 @@ export interface FieldMap {
   agencyName?: string;
 }
 
-// CustomField (for mapping responses)
-export interface CustomField {
-  id: string;
-  fieldKey?: string;
-  key?: string;
-  name?: string;
-  type?: string;
-}
-
-// Used in Tickets.tsx (UI compares against "kanban" / "table")
-export type ViewMode = "kanban" | "table";
-
-// GHL user object (for assignees)
+// For AssignedTo dropdown
 export interface GHLUser {
   id: string;
   name: string;
   email?: string;
 }
+
+// View Modes for Tickets
+export type ViewMode = "kanban" | "table";
