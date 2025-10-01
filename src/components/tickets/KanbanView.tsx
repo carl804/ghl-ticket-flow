@@ -9,16 +9,11 @@ import {
   useSensors,
   DragStartEvent,
   DragEndEvent,
-  DragOverEvent,
 } from "@dnd-kit/core";
-import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { useSortable } from "@dnd-kit/sortable";
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Ticket, TicketStatus } from "@/lib/types";
 import { TicketCard } from "./TicketCard";
-
-// Our available columns match TicketStatus
-const COLUMNS: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved"];
 
 interface KanbanViewProps {
   tickets: Ticket[];
@@ -26,15 +21,10 @@ interface KanbanViewProps {
   onTicketClick: (ticket: Ticket) => void;
 }
 
-function SortableTicketCard({
-  ticket,
-  onClick,
-}: {
-  ticket: Ticket;
-  onClick: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: ticket.id });
+const COLUMNS: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved"];
+
+function SortableTicketCard({ ticket, onClick }: { ticket: Ticket; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ticket.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -43,12 +33,7 @@ function SortableTicketCard({
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
-      <TicketCard
-        ticket={ticket}
-        onClick={onClick}
-        isDragging={isDragging}
-        dragHandleProps={listeners}
-      />
+      <TicketCard ticket={ticket} onClick={onClick} isDragging={isDragging} dragHandleProps={listeners} />
     </div>
   );
 }
@@ -65,12 +50,7 @@ function KanbanColumn({
   isOver?: boolean;
 }) {
   return (
-    <div
-      className={`flex flex-col h-full transition-all duration-200 rounded-lg ${
-        isOver ? "ring-2 ring-primary" : ""
-      }`}
-      data-column={status}
-    >
+    <div className={`flex flex-col h-full transition-all duration-200 rounded-lg ${isOver ? "ring-2 ring-primary" : ""}`}>
       <div className="bg-primary/10 px-4 py-3 rounded-t-lg">
         <h3 className="font-semibold text-foreground">
           {status} ({tickets.length})
@@ -79,11 +59,7 @@ function KanbanColumn({
       <div className="flex-1 overflow-y-auto space-y-3 p-3 bg-muted/5">
         <SortableContext items={tickets.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {tickets.map((ticket) => (
-            <SortableTicketCard
-              key={ticket.id}
-              ticket={ticket}
-              onClick={() => onTicketClick(ticket)}
-            />
+            <SortableTicketCard key={ticket.id} ticket={ticket} onClick={() => onTicketClick(ticket)} />
           ))}
         </SortableContext>
         {tickets.length === 0 && (
@@ -96,6 +72,7 @@ function KanbanColumn({
 
 export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanViewProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
@@ -104,46 +81,39 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
     return acc;
   }, {} as Record<TicketStatus, Ticket[]>);
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
+  const handleDragStart = (event: DragStartEvent) => setActiveId(event.active.id as string);
 
-  const handleDragOver = (event: DragOverEvent) => {
-    // Highlight column on hover if needed later
-  };
+  const handleDragOver = (event: any) => setOverId(event.over?.id || null);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) {
       setActiveId(null);
+      setOverId(null);
       return;
     }
 
     const activeTicket = tickets.find((t) => t.id === active.id);
     if (!activeTicket) {
       setActiveId(null);
+      setOverId(null);
       return;
     }
 
-    // If dropped on a column
-    const overColumn = over.data?.current?.column as TicketStatus | undefined;
-    if (overColumn && activeTicket.status !== overColumn) {
-      onStatusChange(activeTicket.id, overColumn);
+    const overStatus = COLUMNS.find((status) => ticketsByStatus[status].some((t) => t.id === over.id));
+
+    if (overStatus && activeTicket.status !== overStatus) {
+      onStatusChange(activeTicket.id, overStatus);
     }
 
     setActiveId(null);
+    setOverId(null);
   };
 
   const activeTicket = tickets.find((t) => t.id === activeId);
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
+    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 h-[calc(100vh-280px)]">
         {COLUMNS.map((status) => (
           <KanbanColumn
@@ -151,6 +121,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
             status={status}
             tickets={ticketsByStatus[status]}
             onTicketClick={onTicketClick}
+            isOver={overId !== null && ticketsByStatus[status].some((t) => t.id === overId)}
           />
         ))}
       </div>
