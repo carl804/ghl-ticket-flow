@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { updateTicket, fetchUsers } from "@/lib/api";
-import type { Ticket, TicketStatus, TicketPriority } from "@/lib/types";
+import type { Ticket, TicketStatus, TicketPriority, TicketCategory, GHLUser } from "@/lib/types";
 import { toast } from "sonner";
 import {
   User,
@@ -37,21 +37,8 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-const priorityConfig = {
-  Low: { color: "border-green-500/50 text-green-600 bg-background dark:text-green-400" },
-  Medium: { color: "border-yellow-500/50 text-yellow-600 bg-background dark:text-yellow-400" },
-  High: { color: "border-orange-500/50 text-orange-600 bg-background dark:text-orange-400" },
-  Urgent: { color: "border-red-500/50 text-red-600 bg-background dark:text-red-400" },
-};
-
-const statusConfig = {
-  Open: { color: "bg-primary text-primary-foreground" },
-  "In Progress": { color: "bg-primary text-primary-foreground" },
-  "Pending Customer": { color: "bg-warning text-warning-foreground" },
-  Resolved: { color: "bg-success text-success-foreground" },
-};
-
-const CATEGORIES = [
+// ✅ configs
+const CATEGORIES: TicketCategory[] = [
   "BILLING",
   "TECHNICAL SUPPORT",
   "ONBOARDING",
@@ -73,15 +60,14 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
   const [newTag, setNewTag] = useState("");
 
-  const { data: users = [] } = useQuery({
+  // ✅ Users for assignment
+  const { data: users = [] } = useQuery<GHLUser[]>({
     queryKey: ["users"],
     queryFn: fetchUsers,
   });
 
   useEffect(() => {
-    if (ticket) {
-      setEditedTicket(ticket);
-    }
+    if (ticket) setEditedTicket(ticket);
   }, [ticket]);
 
   const updateMutation = useMutation({
@@ -97,22 +83,22 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
   const handleSave = () => {
     const updates: Partial<Ticket> = { ...editedTicket };
-    
-    // If assignedToUserId changed, find the user's name
+
+    // ensure assignedTo label matches assigned user
     if (updates.assignedToUserId) {
-      const selectedUser = users.find(u => u.id === updates.assignedToUserId);
-      if (selectedUser) {
-        updates.assignedTo = selectedUser.name;
-      }
+      const selectedUser = users.find((u) => u.id === updates.assignedToUserId);
+      if (selectedUser) updates.assignedTo = selectedUser.name;
     }
-    
+
     updateMutation.mutate(updates);
   };
 
   const handleViewConversations = () => {
     if (ticket?.contactId) {
-      const ghlUrl = `https://app.gohighlevel.com/v2/location/${import.meta.env.VITE_GHL_LOCATION_ID || 'YOUR_LOCATION_ID'}/conversations/all/${ticket.contactId}`;
-      window.open(ghlUrl, '_blank');
+      const ghlUrl = `https://app.gohighlevel.com/v2/location/${
+        import.meta.env.VITE_GHL_LOCATION_ID || "YOUR_LOCATION_ID"
+      }/conversations/all/${ticket.contactId}`;
+      window.open(ghlUrl, "_blank");
     } else {
       toast.error("Contact ID not available");
     }
@@ -120,10 +106,9 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
   const handleAddTag = () => {
     if (newTag.trim()) {
-      const currentTags = editedTicket.tags || [];
       setEditedTicket({
         ...editedTicket,
-        tags: [...currentTags, newTag.trim()],
+        tags: [...(editedTicket.tags || []), newTag.trim()],
       });
       setNewTag("");
     }
@@ -149,6 +134,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
         <div className="py-6 space-y-6">
           {/* Status, Priority, Category */}
           <div className="flex flex-wrap gap-3">
+            {/* Status */}
             <div className="flex-1 min-w-[150px]">
               <Label>Status</Label>
               <Select
@@ -165,10 +151,12 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
                   <SelectItem value="In Progress">In Progress</SelectItem>
                   <SelectItem value="Pending Customer">Pending Customer</SelectItem>
                   <SelectItem value="Resolved">Resolved</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Priority */}
             <div className="flex-1 min-w-[150px]">
               <Label>Priority</Label>
               <Select
@@ -189,12 +177,13 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
               </Select>
             </div>
 
+            {/* Category */}
             <div className="flex-1 min-w-[150px]">
               <Label>Category</Label>
               <Select
                 value={editedTicket.category}
                 onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, category: value as any })
+                  setEditedTicket({ ...editedTicket, category: value as TicketCategory })
                 }
               >
                 <SelectTrigger className="mt-1 bg-popover">
@@ -309,7 +298,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
               <Input
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     handleAddTag();
@@ -358,11 +347,7 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
           </div>
 
           {/* Conversations Button */}
-          <Button 
-            variant="outline" 
-            onClick={handleViewConversations}
-            className="w-full"
-          >
+          <Button variant="outline" onClick={handleViewConversations} className="w-full">
             <MessageSquare className="h-4 w-4 mr-2" />
             View Conversations
             <ExternalLink className="h-4 w-4 ml-2" />
@@ -372,7 +357,11 @@ export function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSh
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
-            <Button onClick={handleSave} disabled={updateMutation.isPending} className="flex-1">
+            <Button
+              onClick={handleSave}
+              disabled={updateMutation.isPending}
+              className="flex-1"
+            >
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
