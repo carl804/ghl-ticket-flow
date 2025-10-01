@@ -1,30 +1,24 @@
+// Ticket status options
 export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved";
-export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
-export type TicketCategory = 
-  | "BILLING" 
-  | "TECHNICAL SUPPORT" 
-  | "ONBOARDING" 
-  | "SALES INQUIRY" 
-  | "REPORT AN OUTAGE" 
-  | "GENERAL QUESTIONS" 
-  | "CANCEL ACCOUNT" 
-  | "UPGRADE PLAN"
-  | "Billing" // Legacy support
-  | "Tech" 
-  | "Sales" 
-  | "Onboarding" 
-  | "Outage";
 
+// Priority levels
+export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
+
+// Ticket categories
+export type TicketCategory = "Billing" | "Tech" | "Sales" | "Onboarding" | "Outage";
+
+// Contact object (required name field!)
 export interface Contact {
   id: string;
-  name: string;
+  name: string; // required
   email?: string;
   phone?: string;
 }
 
+// Ticket object
 export interface Ticket {
   id: string;
-  name: string; // e.g., BILLING-10001
+  name: string; // Ticket number, e.g. BILLING-10001
   contact: Contact;
   agencyName?: string;
   status: TicketStatus;
@@ -42,25 +36,16 @@ export interface Ticket {
   tags?: string[];
 }
 
+// Dashboard stats
 export interface Stats {
   total: number;
   open: number;
   pendingCustomer: number;
   resolvedToday: number;
   avgResolutionTime: string;
-  totalTrend?: number;
-  openTrend?: number;
-  pending?: number;
-  pendingTrend?: number;
-  resolvedTodayTrend?: number;
 }
 
-export interface CustomField {
-  id: string;
-  name: string;
-  fieldKey: string;
-}
-
+// Mapping custom fields to IDs
 export interface FieldMap {
   priority?: string;
   category?: string;
@@ -68,4 +53,9 @@ export interface FieldMap {
   agencyName?: string;
 }
 
-export type ViewMode = "kanban" | "table" | "compact";
+// GHL user object
+export interface GHLUser {
+  id: string;
+  name: string;
+  email?: string;
+}
