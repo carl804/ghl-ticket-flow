@@ -2,28 +2,26 @@ import type {
   Ticket,
   Stats,
   FieldMap,
-  CustomField,
   TicketStatus,
   TicketPriority,
   TicketCategory,
-  GHLUser,
 } from "./types";
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export const USE_MOCK_DATA = false;
-
+const USE_MOCK_DATA = false; // always try real API
 let FIELD_MAP: FieldMap = {};
 let PIPELINE_ID: string | null = null;
 
-/** -------------------------------
- * Generic Proxy Request
- -------------------------------- */
+// ------------------------------
+// Helper: Proxy GHL API through Supabase Edge Function
+// ------------------------------
 async function ghlRequest<T>(
   endpoint: string,
   options?: { method?: string; body?: any; queryParams?: Record<string, string> }
 ): Promise<T> {
+  console.log("[api.ts] Calling endpoint:", endpoint, options || {});
   const { data, error } = await supabase.functions.invoke("ghl-proxy", {
     body: {
       endpoint,
@@ -32,140 +30,159 @@ async function ghlRequest<T>(
       queryParams: options?.queryParams,
     },
   });
-  if (error) throw new Error(`GHL API Error: ${error.message}`);
-  if (data?.error) throw new Error(`GHL API Error: ${data.error}`);
-  return data as T;
+
+  if (error) {
+    console.error("[api.ts] Proxy error:", error);
+    throw new Error(`Proxy Error: ${error.message}`);
+  }
+
+  if (data?.error) {
+    console.error("[api.ts] GHL error:", data.error);
+    throw new Error(`GHL API Error: ${data.error}`);
+  }
+
+  return data;
 }
 
-/** -------------------------------
- * Pipeline Helpers
- -------------------------------- */
+// ------------------------------
+// Get Pipeline ID (cached)
+// ------------------------------
 async function getPipelineId(): Promise<string> {
   if (PIPELINE_ID) return PIPELINE_ID;
-  const res = await ghlRequest<{ pipelines: Array<{ id: string; name: string }> }>("/pipelines");
-  const ticketPipe = res.pipelines.find(p =>
+
+  console.log("[api.ts] Fetching pipelines...");
+  const response = await ghlRequest<{ pipelines: Array<{ id: string; name: string }> }>("/pipelines");
+  console.log("[api.ts] Pipelines response:", response);
+
+  if (!response.pipelines || response.pipelines.length === 0) {
+    throw new Error("No pipelines found in your GHL account");
+  }
+
+  const ticketPipeline = response.pipelines.find((p) =>
     p.name.toLowerCase().includes("ticketing system")
   );
-  if (!ticketPipe) {
-    const names = res.pipelines.map(p => p.name).join(", ");
-    throw new Error(`Ticketing System pipeline not found. Available: ${names}`);
+
+  if (!ticketPipeline) {
+    const available = response.pipelines.map((p) => p.name).join(", ");
+    throw new Error(`Ticketing System pipeline not found. Available: ${available}`);
   }
-  PIPELINE_ID = ticketPipe.id;
+
+  PIPELINE_ID = ticketPipeline.id;
+  console.log(`[api.ts] Using Ticketing pipeline: ${ticketPipeline.name} (${PIPELINE_ID})`);
   return PIPELINE_ID;
 }
 
-/** -------------------------------
- * Field Map
- -------------------------------- */
+// ------------------------------
+// Custom Fields mapping
+// ------------------------------
 export async function initializeFieldMap(): Promise<void> {
   if (USE_MOCK_DATA) return;
+
   try {
-    const res = await ghlRequest<{ customFields: CustomField[] }>("/custom-fields");
-    const fields = res.customFields || [];
+    const response = await ghlRequest<{ customFields: any[] }>("/custom-fields");
+    console.log("[api.ts] Custom fields response:", response);
+
+    const fields = response.customFields || [];
     FIELD_MAP = {
-      priority: fields.find(f => f.fieldKey === "priority" || f.key === "priority")?.id,
-      category: fields.find(f => f.fieldKey === "category" || f.key === "category")?.id,
-      resolutionSummary: fields.find(f => f.fieldKey === "resolutionSummary" || f.key === "resolutionSummary")?.id,
-      agencyName: fields.find(f => f.fieldKey === "agencyName" || f.key === "agencyName")?.id,
+      priority: fields.find((f) => f.fieldKey === "priority")?.id,
+      category: fields.find((f) => f.fieldKey === "category")?.id,
+      resolutionSummary: fields.find((f) => f.fieldKey === "resolutionSummary")?.id,
+      agencyName: fields.find((f) => f.fieldKey === "agencyName")?.id,
     };
-  } catch (e) {
-    console.error("initializeFieldMap failed:", e);
+
+    console.log("[api.ts] FIELD_MAP initialized:", FIELD_MAP);
+  } catch (err) {
+    console.error("[api.ts] Failed to init field map:", err);
   }
 }
+
 function getFieldId(key: keyof FieldMap): string | undefined {
   return FIELD_MAP[key];
 }
 
-/** -------------------------------
- * Status Normalization
- -------------------------------- */
-function mapStatus(raw: string | undefined): TicketStatus {
-  const s = (raw || "").toLowerCase().replace(/[_\s]/g, "");
-  if (s.includes("inprogress") || s.includes("progress")) return "In Progress";
-  if (s.includes("pending") || s.includes("customer")) return "Pending Customer";
-  if (s.includes("resolved") || s.includes("closed")) return "Resolved";
-  return "Open";
-}
-
-/** -------------------------------
- * Fetch Tickets
- -------------------------------- */
+// ------------------------------
+// Fetch Tickets
+// ------------------------------
 export async function fetchTickets(): Promise<Ticket[]> {
-  if (USE_MOCK_DATA) return [];
+  console.log("[api.ts] Fetching tickets...");
+  try {
+    const pipelineId = await getPipelineId();
+    console.log("[api.ts] Using pipelineId:", pipelineId);
 
-  const [pipelineId] = await Promise.all([getPipelineId(), initializeFieldMap()]);
+    const response = await ghlRequest<{ opportunities: any[] }>(
+      `/pipelines/${pipelineId}/opportunities`
+    );
+    console.log("[api.ts] Opportunities response:", response);
 
-  const res = await ghlRequest<any>(`/pipelines/${pipelineId}/opportunities`);
-  const opps: any[] = res.opportunities || res.data || [];
-  if (!opps.length) return [];
+    if (!response.opportunities || response.opportunities.length === 0) {
+      console.warn("[api.ts] No opportunities found");
+      return [];
+    }
 
-  return Promise.all(
-    opps.map(async (opp: any) => {
-      try {
-        const contact = opp.contactId
-          ? await ghlRequest<any>(`/contacts/${opp.contactId}`)
-          : {};
+    const tickets = response.opportunities.map((opp: any) => {
+      const status = (opp.status || "Open") as TicketStatus;
+      return {
+        id: opp.id,
+        name: opp.name || `TICKET-${opp.id.slice(0, 8)}`,
+        contact: {
+          id: opp.contactId,
+          name: opp.contactName || "Unknown",
+          email: opp.contactEmail,
+          phone: opp.contactPhone,
+        },
+        agencyName: opp.agencyName || "N/A",
+        status,
+        priority: (opp.priority || "Medium") as TicketPriority,
+        category: (opp.category || "Tech") as TicketCategory,
+        resolutionSummary: opp.resolutionSummary || "",
+        assignedTo: opp.assignedTo,
+        assignedToUserId: opp.assignedToUserId,
+        contactId: opp.contactId,
+        createdAt: opp.dateAdded || new Date().toISOString(),
+        updatedAt: opp.updatedAt || new Date().toISOString(),
+        value: opp.monetaryValue || 0,
+        dueDate: opp.dueDate,
+        description: opp.description,
+        tags: opp.tags || [],
+      } as Ticket;
+    });
 
-        const cf = opp.customField || opp.customFields || [];
-        const getCF = (k: keyof FieldMap) => {
-          const id = FIELD_MAP[k];
-          if (!id) return undefined;
-          const hit = cf.find((f: any) => f?.id === id);
-          return hit?.value ?? hit?.field_value ?? hit?.fieldValue;
-        };
-
-        return {
-          id: String(opp.id),
-          name: opp.name || `TICKET-${String(opp.id).slice(0, 8)}`,
-          contact: {
-            id: contact?.contact?.id || contact?.id || opp.contactId || "unknown",
-            name: contact?.contact?.name || contact?.name,
-            email: contact?.contact?.email || contact?.email,
-            phone: contact?.contact?.phone || contact?.phone,
-          },
-          agencyName: getCF("agencyName") as string | undefined,
-          status: mapStatus(opp.status || opp.pipelineStageId),
-          priority: (getCF("priority") as TicketPriority) || "Medium",
-          category: (getCF("category") as TicketCategory) || "General",
-          resolutionSummary: getCF("resolutionSummary") as string | undefined,
-          assignedTo: opp.assignedTo,
-          assignedToUserId: opp.assignedToUserId,
-          contactId: opp.contactId,
-          createdAt: opp.createdAt || opp.dateAdded || new Date().toISOString(),
-          updatedAt: opp.updatedAt || opp.lastStatusChangeAt || new Date().toISOString(),
-          value: opp.monetaryValue ?? opp.value ?? 0,
-          dueDate: opp.dueDate,
-          description: opp.description || opp.notes,
-          tags: opp.tags || [],
-        } as Ticket;
-      } catch {
-        return {
-          id: String(opp.id),
-          name: opp.name || `TICKET-${String(opp.id).slice(0, 8)}`,
-          contact: { id: String(opp.contactId || "unknown") },
-          status: mapStatus(opp.status),
-          priority: "Medium",
-          category: "General",
-          createdAt: opp.createdAt || new Date().toISOString(),
-          updatedAt: opp.updatedAt || new Date().toISOString(),
-        } as Ticket;
-      }
-    })
-  );
+    console.log(`[api.ts] Loaded ${tickets.length} tickets`);
+    return tickets;
+  } catch (error) {
+    console.error("[api.ts] Failed to fetch tickets:", error);
+    toast.error(`Unable to fetch tickets: ${error instanceof Error ? error.message : error}`);
+    throw error;
+  }
 }
 
-/** -------------------------------
- * Stats
- -------------------------------- */
+// ------------------------------
+// Stats
+// ------------------------------
 export async function fetchStats(): Promise<Stats> {
-  const t = await fetchTickets();
+  const tickets = await fetchTickets();
+
+  const total = tickets.length;
+  const open = tickets.filter((t) => t.status === "Open").length;
+  const pendingCustomer = tickets.filter((t) => t.status === "Pending Customer").length;
+  const resolvedToday = tickets.filter(
+    (t) => t.status === "Resolved" && new Date(t.updatedAt) >= new Date().setHours(0, 0, 0, 0)
+  ).length;
+
+  const resolved = tickets.filter((t) => t.status === "Resolved");
+  const avgMs =
+    resolved.reduce((acc, t) => acc + (new Date(t.updatedAt).getTime() - new Date(t.createdAt).getTime()), 0) /
+    (resolved.length || 1);
+  const avgHours = Math.round(avgMs / (1000 * 60 * 60));
+  const avgResolutionTime = avgHours < 24 ? `${avgHours}h` : `${Math.round(avgHours / 24)}d`;
+
   return {
-    total: t.length,
-    open: t.filter(x => x.status === "Open").length,
-    pendingCustomer: t.filter(x => x.status === "Pending Customer").length,
-    pending: t.filter(x => x.status === "Pending Customer").length,
-    resolvedToday: t.filter(x => x.status === "Resolved").length,
-    avgResolutionTime: "0h",
+    total,
+    open,
+    pendingCustomer,
+    pending: pendingCustomer,
+    resolvedToday,
+    avgResolutionTime,
     totalTrend: 0,
     openTrend: 0,
     pendingTrend: 0,
@@ -173,72 +190,114 @@ export async function fetchStats(): Promise<Stats> {
   };
 }
 
-/** -------------------------------
- * Mutations
- -------------------------------- */
-export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus | string): Promise<void> {
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body: { status: newStatus } });
+// ------------------------------
+// Update helpers
+// ------------------------------
+export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: { status: newStatus },
+  });
 }
+
 export async function updateResolutionSummary(ticketId: string, summary: string): Promise<void> {
   const fieldId = getFieldId("resolutionSummary");
-  if (!fieldId) throw new Error("Resolution Summary field not found");
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body: { customField: [{ id: fieldId, value: summary }] } });
+  if (!fieldId) throw new Error("Resolution summary field not found");
+
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: { customField: [{ id: fieldId, value: summary }] },
+  });
 }
-export async function updatePriority(ticketId: string, priority: TicketPriority | string): Promise<void> {
+
+export async function updatePriority(ticketId: string, priority: TicketPriority): Promise<void> {
   const fieldId = getFieldId("priority");
   if (!fieldId) throw new Error("Priority field not found");
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body: { customField: [{ id: fieldId, value: priority }] } });
+
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: { customField: [{ id: fieldId, value: priority }] },
+  });
 }
-export async function updateCategory(ticketId: string, category: TicketCategory | string): Promise<void> {
+
+export async function updateCategory(ticketId: string, category: TicketCategory): Promise<void> {
   const fieldId = getFieldId("category");
   if (!fieldId) throw new Error("Category field not found");
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body: { customField: [{ id: fieldId, value: category }] } });
+
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: { customField: [{ id: fieldId, value: category }] },
+  });
 }
+
 export async function updateOwner(ticketId: string, userId: string): Promise<void> {
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body: { assignedToUserId: userId } });
+  await ghlRequest(`/opportunities/${ticketId}`, {
+    method: "PATCH",
+    body: { assignedToUserId: userId },
+  });
 }
+
 export async function updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<void> {
   const body: any = {};
-  const cf: Array<{ id: string; value: any }> = [];
+  const customFields: Array<{ id: string; value: any }> = [];
 
   if (updates.status) body.status = updates.status;
   if (updates.assignedToUserId) body.assignedToUserId = updates.assignedToUserId;
-  if (updates.description !== undefined) body.description = updates.description;
-  if (updates.value !== undefined) body.value = updates.value;
-  if (updates.dueDate !== undefined) body.dueDate = updates.dueDate;
 
   if (updates.priority) {
-    const id = getFieldId("priority");
-    if (id) cf.push({ id, value: updates.priority });
+    const fieldId = getFieldId("priority");
+    if (fieldId) customFields.push({ id: fieldId, value: updates.priority });
   }
   if (updates.category) {
-    const id = getFieldId("category");
-    if (id) cf.push({ id, value: updates.category });
+    const fieldId = getFieldId("category");
+    if (fieldId) customFields.push({ id: fieldId, value: updates.category });
   }
-  if (updates.resolutionSummary !== undefined) {
-    const id = getFieldId("resolutionSummary");
-    if (id) cf.push({ id, value: updates.resolutionSummary });
+  if (updates.resolutionSummary) {
+    const fieldId = getFieldId("resolutionSummary");
+    if (fieldId) customFields.push({ id: fieldId, value: updates.resolutionSummary });
   }
 
-  if (cf.length) body.customField = cf;
+  if (customFields.length > 0) {
+    body.customField = customFields;
+  }
+
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body });
 }
-export async function bulkUpdateStatus(ids: string[], status: TicketStatus | string): Promise<void> {
-  await Promise.all(ids.map(id => updateTicketStatus(id, status)));
+
+// ------------------------------
+// Bulk updates
+// ------------------------------
+export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
+  await Promise.all(ids.map((id) => updateTicketStatus(id, status)));
 }
-export async function bulkUpdatePriority(ids: string[], priority: TicketPriority | string): Promise<void> {
-  await Promise.all(ids.map(id => updatePriority(id, priority)));
+export async function bulkUpdatePriority(ids: string[], priority: TicketPriority): Promise<void> {
+  await Promise.all(ids.map((id) => updatePriority(id, priority)));
 }
 
-/** -------------------------------
- * Users
- -------------------------------- */
-export async function fetchUsers(): Promise<GHLUser[]> {
-  const res = await ghlRequest<any>("/users");
-  const arr = res.users || res.data || [];
-  return arr.map((u: any) => ({
-    id: String(u.id),
-    name: u.name || [u.firstName, u.lastName].filter(Boolean).join(" "),
-    email: u.email,
-  }));
+// ------------------------------
+// Fetch Users (for AssignedTo dropdown)
+// ------------------------------
+export interface GHLUser {
+  id: string;
+  name: string;
+  email?: string;
 }
+
+export async function fetchUsers(): Promise<GHLUser[]> {
+  try {
+    const response = await ghlRequest<any>("/users/");
+    console.log("[api.ts] Users response:", response);
+
+    return response.users.map((u: any) => ({
+      id: u.id,
+      name: u.name || `${u.firstName || ""} ${u.lastName || ""}`.trim(),
+      email: u.email,
+    }));
+  } catch (err) {
+    console.error("[api.ts] Failed to fetch users:", err);
+    return [];
+  }
+}
+
+// ------------------------------
+export { USE_MOCK_DATA };
