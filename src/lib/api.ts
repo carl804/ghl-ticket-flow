@@ -12,15 +12,31 @@ import { toast } from "sonner";
 let FIELD_MAP: FieldMap = {};
 let PIPELINE_ID: string | null = null;
 
+/** Get location ID from stored tokens */
+function getLocationId(): string {
+  const tokens = JSON.parse(localStorage.getItem('ghl_tokens') || '{}');
+  if (!tokens.locationId) {
+    throw new Error("Location ID not found. Please re-authenticate.");
+  }
+  return tokens.locationId;
+}
+
 /** Resolve and cache pipeline id */
 async function getPipelineId(): Promise<string> {
   if (PIPELINE_ID) return PIPELINE_ID;
 
-  const response = await ghlRequest<{ pipelines: Array<{ id: string; name: string }> }>("/pipelines");
+  const locationId = getLocationId();
+  const response = await ghlRequest<{ pipelines: Array<{ id: string; name: string }> }>(
+    `/locations/${locationId}/pipelines`
+  );
+  
   const ticketPipeline = response.pipelines.find((p) =>
     p.name.toLowerCase().includes("ticketing system")
   );
-  if (!ticketPipeline) throw new Error("Ticketing System pipeline not found");
+  
+  if (!ticketPipeline) {
+    throw new Error("Ticketing System pipeline not found");
+  }
 
   PIPELINE_ID = ticketPipeline.id;
   return PIPELINE_ID;
@@ -28,7 +44,10 @@ async function getPipelineId(): Promise<string> {
 
 /** Load custom field ids once */
 export async function initializeFieldMap(): Promise<void> {
-  const response = await ghlRequest<{ customFields: any[] }>("/custom-fields");
+  const locationId = getLocationId();
+  const response = await ghlRequest<{ customFields: any[] }>(
+    `/locations/${locationId}/custom-fields`
+  );
   const fields = response.customFields || [];
 
   FIELD_MAP = {
@@ -47,8 +66,16 @@ function getFieldId(key: keyof FieldMap): string | undefined {
 export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const pipelineId = await getPipelineId();
+    const locationId = getLocationId();
+    
     const response = await ghlRequest<{ opportunities: any[] }>(
-      `/pipelines/${pipelineId}/opportunities`
+      `/opportunities/pipelines/${pipelineId}`,
+      { 
+        queryParams: { 
+          locationId,
+          limit: "100" 
+        } 
+      }
     );
 
     return (response.opportunities || []).map((opp: any) => {
@@ -122,29 +149,47 @@ export async function fetchStats(): Promise<Stats> {
 
 /** Updates */
 export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body: { status: newStatus } });
+  const locationId = getLocationId();
+  await ghlRequest(`/opportunities/${ticketId}`, { 
+    method: "PATCH", 
+    body: { 
+      status: newStatus,
+      locationId 
+    } 
+  });
 }
 
 export async function updatePriority(ticketId: string, priority: TicketPriority): Promise<void> {
   const fieldId = getFieldId("priority");
   if (!fieldId) throw new Error("Priority field not found");
+  
+  const locationId = getLocationId();
   await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
-    body: { customField: [{ id: fieldId, value: priority }] },
+    body: { 
+      customField: [{ id: fieldId, value: priority }],
+      locationId 
+    },
   });
 }
 
 export async function updateCategory(ticketId: string, category: TicketCategory): Promise<void> {
   const fieldId = getFieldId("category");
   if (!fieldId) throw new Error("Category field not found");
+  
+  const locationId = getLocationId();
   await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
-    body: { customField: [{ id: fieldId, value: category }] },
+    body: { 
+      customField: [{ id: fieldId, value: category }],
+      locationId 
+    },
   });
 }
 
 export async function updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<void> {
-  const body: any = {};
+  const locationId = getLocationId();
+  const body: any = { locationId };
   const customFields: Array<{ id: string; value: any }> = [];
 
   if (updates.status) body.status = updates.status;
@@ -184,8 +229,11 @@ export interface GHLUser {
 }
 
 export async function fetchUsers(): Promise<GHLUser[]> {
-  const response = await ghlRequest<any>("/users/");
+  const locationId = getLocationId();
+  const response = await ghlRequest<any>(`/locations/${locationId}/users`);
+  
   if (!response.users) return [];
+  
   return response.users.map((u: any) => ({
     id: u.id,
     name: u.name || `${u.firstName || ""} ${u.lastName || ""}`.trim(),
