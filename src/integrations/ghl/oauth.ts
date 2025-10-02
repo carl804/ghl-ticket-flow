@@ -1,23 +1,23 @@
 import { logger } from "@/components/ErrorLog";
 
-const TOKEN_STORAGE_KEY = "ghl_tokens";
+const TOKEN_STORAGE_KEY = "ghl_access_token";
+const REFRESH_TOKEN_STORAGE_KEY = "ghl_refresh_token";
+const TOKEN_EXPIRY_KEY = "ghl_token_expiry";
 
-// Hardcoded since Lovable env vars aren't loading properly
-const GHL_CLIENT_ID = "68dda331ac147343e4d453";
+// Hardcoded for now since Lovable env vars aren't loading
+const GHL_CLIENT_ID = "68dda331ac14797343e4d453-mg8ksgjb";
 const GHL_CLIENT_SECRET = "c8eb75c1-21ce-41ca-a33c-a22f739cf07f";
 const GHL_REDIRECT_URI = "https://778488dc-df0f-4268-a6a9-814145836889.lovableproject.com/oauth/callback";
 
-export interface OAuthTokens {
+interface TokenResponse {
   access_token: string;
   refresh_token: string;
   expires_in: number;
-  scope: string;
   token_type: string;
-  obtained_at?: number;
+  scope: string;
   locationId?: string;
+  error?: string;
 }
-
-const TOKEN_API_URL = "https://services.leadconnectorhq.com/oauth/token";
 
 export function getAuthUrl(): string {
   const params = new URLSearchParams({
@@ -27,8 +27,7 @@ export function getAuthUrl(): string {
     scope: "conversations.readonly conversations.write contacts.readonly contacts.write opportunities.readonly opportunities.write users.readonly",
   });
 
-  // Correct authorization endpoint from GHL OAuth docs
-  const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?${params.toString()}`;
+  const authUrl = `https://app.gohighlevel.com/oauth/chooselocation?${params.toString()}`;
   logger.info("Generated OAuth URL", { authUrl });
   
   return authUrl;
@@ -38,7 +37,7 @@ export async function exchangeCodeForToken(code: string): Promise<void> {
   logger.info("Exchanging code for token");
 
   try {
-    const res = await fetch(TOKEN_API_URL, {
+    const response = await fetch("https://services.leadconnectorhq.com/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -51,14 +50,19 @@ export async function exchangeCodeForToken(code: string): Promise<void> {
       }),
     });
 
-    const data = await res.json();
+    const data: TokenResponse = await response.json();
 
-    if (!res.ok || data.error) {
+    if (!response.ok || data.error) {
       logger.error("Token exchange failed", data);
-      throw new Error(data.error_description || data.error || "OAuth token exchange failed");
+      throw new Error(data.error || "Failed to exchange code for token");
     }
 
-    saveTokens(data);
+    localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, data.refresh_token);
+    
+    const expiryTime = Date.now() + (data.expires_in - 300) * 1000;
+    localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
+
     logger.success("OAuth tokens stored successfully", {
       expiresIn: data.expires_in,
       locationId: data.locationId,
@@ -70,37 +74,42 @@ export async function exchangeCodeForToken(code: string): Promise<void> {
 }
 
 export async function refreshAccessToken(): Promise<string> {
-  const tokens = getSavedTokens();
-  
-  if (!tokens?.refresh_token) {
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+
+  if (!refreshToken) {
     throw new Error("No refresh token available");
   }
 
   logger.info("Refreshing access token");
 
   try {
-    const res = await fetch(TOKEN_API_URL, {
+    const response = await fetch("https://services.leadconnectorhq.com/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         client_id: GHL_CLIENT_ID,
         client_secret: GHL_CLIENT_SECRET,
         grant_type: "refresh_token",
-        refresh_token: tokens.refresh_token,
+        refresh_token: refreshToken,
         user_type: "Location",
         redirect_uri: GHL_REDIRECT_URI,
       }),
     });
 
-    const data = await res.json();
+    const data: TokenResponse = await response.json();
 
-    if (!res.ok || data.error) {
+    if (!response.ok || data.error) {
       logger.error("Token refresh failed", data);
       clearTokens();
-      throw new Error(data.error_description || data.error || "OAuth token refresh failed");
+      throw new Error(data.error || "Failed to refresh token");
     }
 
-    saveTokens(data);
+    localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, data.refresh_token);
+    
+    const expiryTime = Date.now() + (data.expires_in - 300) * 1000;
+    localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
+
     logger.success("Access token refreshed successfully");
     
     return data.access_token;
@@ -111,15 +120,14 @@ export async function refreshAccessToken(): Promise<string> {
 }
 
 export async function getAccessToken(): Promise<string | null> {
-  const tokens = getSavedTokens();
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const expiryTime = localStorage.getItem(TOKEN_EXPIRY_KEY);
 
-  if (!tokens) {
+  if (!token) {
     return null;
   }
 
-  // Check if token is expired (with 5 min buffer)
-  const expiresAt = (tokens.obtained_at || 0) + (tokens.expires_in - 300) * 1000;
-  if (Date.now() >= expiresAt) {
+  if (expiryTime && Date.now() >= parseInt(expiryTime)) {
     logger.info("Token expired, attempting refresh");
     try {
       return await refreshAccessToken();
@@ -129,27 +137,17 @@ export async function getAccessToken(): Promise<string | null> {
     }
   }
 
-  return tokens.access_token;
-}
-
-function saveTokens(tokens: OAuthTokens): void {
-  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
-    ...tokens,
-    obtained_at: Date.now(),
-  }));
-}
-
-export function getSavedTokens(): OAuthTokens | null {
-  const raw = localStorage.getItem(TOKEN_STORAGE_KEY);
-  return raw ? JSON.parse(raw) : null;
+  return token;
 }
 
 export function isAuthenticated(): boolean {
-  return !!getSavedTokens();
+  return !!localStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
 export function clearTokens(): void {
   localStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(TOKEN_EXPIRY_KEY);
   logger.info("OAuth tokens cleared");
 }
 
