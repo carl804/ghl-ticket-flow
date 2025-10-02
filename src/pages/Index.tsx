@@ -1,4 +1,3 @@
-// src/pages/Index.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -32,27 +31,50 @@ export default function Index() {
         }
         console.log("=====================");
 
-        // Check if already authenticated
+        // Check if already authenticated (from previous OAuth)
         if (isAuthenticated()) {
           logger.info("Already authenticated, redirecting to tickets");
           navigate("/tickets");
           return;
         }
 
-        // Check if we're in GHL iframe with SSO token
-        const ssoParams = getSSOParams();
-        
-        if (ssoParams?.token) {
-          logger.info("SSO token detected, exchanging for access token");
-          await exchangeSSOToken(ssoParams.token);
-          navigate("/tickets");
-          return;
-        }
-
-        // Check if we're in iframe but no token (error state)
+        // Check if we're in GHL iframe
         if (isInGHLIframe()) {
-          logger.warn("Running in iframe but no SSO token provided");
-          setError("Please open this app from your GoHighLevel dashboard");
+          // In iframe - check for SSO token
+          const ssoParams = getSSOParams();
+          
+          if (ssoParams?.token) {
+            logger.info("SSO token detected, exchanging for access token");
+            await exchangeSSOToken(ssoParams.token);
+            navigate("/tickets");
+            return;
+          }
+          
+          // In iframe but no token - this is expected for custom menu links
+          // Try to use stored auth from previous OAuth
+          const storedToken = localStorage.getItem("ghl_access_token");
+          const storedLocation = localStorage.getItem("ghl_location_id");
+          
+          if (storedToken && storedLocation) {
+            logger.info("Using stored authentication from previous session");
+            navigate("/tickets");
+            return;
+          }
+          
+          // No stored auth - show instructions
+          logger.warn("Running in iframe but no authentication found");
+          setError("Please complete the app installation first, then access from your GoHighLevel dashboard");
+        } else {
+          // Not in iframe - standalone access
+          // Check for stored auth first
+          const storedToken = localStorage.getItem("ghl_access_token");
+          const storedLocation = localStorage.getItem("ghl_location_id");
+          
+          if (storedToken && storedLocation) {
+            logger.info("Using stored authentication");
+            navigate("/tickets");
+            return;
+          }
         }
 
         setIsLoading(false);
@@ -83,7 +105,7 @@ export default function Index() {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center space-y-4">
           <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-          <p className="text-muted-foreground">Authenticating...</p>
+          <p className="text-muted-foreground">Checking authentication...</p>
         </div>
       </div>
     );
@@ -95,11 +117,11 @@ export default function Index() {
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className="text-center space-y-4 max-w-md">
           <Shield className="h-16 w-16 mx-auto text-destructive" />
-          <h2 className="text-2xl font-bold">Authentication Error</h2>
+          <h2 className="text-2xl font-bold">Authentication Required</h2>
           <p className="text-muted-foreground">{error}</p>
           {!isInGHLIframe() && (
-            <Button onClick={handleConnect} variant="outline">
-              Try OAuth Instead
+            <Button onClick={handleConnect} size="lg">
+              Install App via OAuth
             </Button>
           )}
         </div>
@@ -116,7 +138,7 @@ export default function Index() {
           <h1 className="text-4xl font-bold">GoHighLevel Ticketing</h1>
           <p className="text-muted-foreground text-lg">
             {isInGHLIframe() 
-              ? "Please open this app from your GoHighLevel dashboard"
+              ? "Complete the app installation to continue"
               : "Connect your GoHighLevel account to manage support tickets"
             }
           </p>
