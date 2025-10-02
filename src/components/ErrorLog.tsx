@@ -8,7 +8,7 @@ import { X, AlertCircle, Info, CheckCircle } from "lucide-react";
 export interface LogEntry {
   id: string;
   timestamp: Date;
-  type: "error" | "info" | "success";
+  type: "error" | "info" | "success" | "warning";
   message: string;
   details?: any;
 }
@@ -34,6 +34,7 @@ class Logger {
     // Also log to console
     const prefix = `[${type.toUpperCase()}]`;
     if (type === "error") console.error(prefix, message, details);
+    else if (type === "warning") console.warn(prefix, message, details);
     else if (type === "info") console.log(prefix, message, details);
     else console.log(prefix, message, details);
   }
@@ -48,6 +49,10 @@ class Logger {
 
   success(message: string, details?: any) {
     this.log("success", message, details);
+  }
+
+  warn(message: string, details?: any) {
+    this.log("warning", message, details);
   }
 
   subscribe(listener: (logs: LogEntry[]) => void) {
@@ -126,6 +131,8 @@ export default function ErrorLog() {
                               ? "destructive"
                               : log.type === "success"
                               ? "default"
+                              : log.type === "warning"
+                              ? "outline"
                               : "secondary"
                           }
                           className="text-xs"
@@ -138,6 +145,9 @@ export default function ErrorLog() {
                           )}
                           {log.type === "success" && (
                             <CheckCircle className="h-3 w-3 mr-1" />
+                          )}
+                          {log.type === "warning" && (
+                            <AlertCircle className="h-3 w-3 mr-1" />
                           )}
                           {log.type}
                         </Badge>
