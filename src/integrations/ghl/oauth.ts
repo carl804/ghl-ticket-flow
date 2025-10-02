@@ -27,7 +27,7 @@ export function getAuthUrl(): string {
     scope: "conversations.readonly conversations.write contacts.readonly contacts.write opportunities.readonly opportunities.write users.readonly",
   });
 
-  const authUrl = const authUrl = `https://services.leadconnectorhq.com/oauth/chooselocation?${params.toString()}`;
+const authUrl = `https://services.leadconnectorhq.com/oauth/chooselocation?${params.toString()}`;
   logger.info("Generated OAuth URL", { authUrl });
   
   return authUrl;
