@@ -1,5 +1,6 @@
 // src/integrations/ghl/oauth.ts
 import { logger } from "@/components/ErrorLog";
+import { toast } from "@/components/ui/use-toast";
 
 const TOKEN_STORAGE_KEY = "ghl_tokens";
 const AUTH_URL = "https://marketplace.gohighlevel.com/oauth/chooselocation";
@@ -123,6 +124,11 @@ export async function refreshAccessToken(): Promise<string> {
   if (data.error || !response.ok) {
     logger.error("Token refresh failed", data);
     clearTokens();
+    toast({
+      title: "Session expired",
+      description: "Please log in again to continue.",
+      variant: "destructive",
+    });
     throw new Error(data.error || "Failed to refresh token");
   }
 
@@ -144,23 +150,27 @@ export async function refreshAccessToken(): Promise<string> {
  */
 export async function getAccessToken(): Promise<string | null> {
   const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (!stored) {
+  if (!stored) return null;
+
+  try {
+    const tokens: StoredTokens = JSON.parse(stored);
+
+    // Check expiry with 5-minute buffer
+    if (Date.now() >= tokens.expiresAt - 5 * 60 * 1000) {
+      try {
+        return await refreshAccessToken();
+      } catch (error) {
+        clearTokens();
+        return null;
+      }
+    }
+
+    return tokens.accessToken;
+  } catch (err) {
+    logger.error("Corrupted token storage", err);
+    clearTokens();
     return null;
   }
-
-  const tokens: StoredTokens = JSON.parse(stored);
-  
-  // Check expiry with 5-minute buffer
-  if (Date.now() >= tokens.expiresAt - 5 * 60 * 1000) {
-    try {
-      return await refreshAccessToken();
-    } catch (error) {
-      logger.error("Failed to refresh expired token", error);
-      return null;
-    }
-  }
-
-  return tokens.accessToken;
 }
 
 /**
@@ -172,7 +182,7 @@ export function isAuthenticated(): boolean {
 
   try {
     const tokens: StoredTokens = JSON.parse(stored);
-    return Date.now() < tokens.expiresAt - 5 * 60 * 1000; // must still be valid
+    return Date.now() < tokens.expiresAt - 5 * 60 * 1000;
   } catch {
     return false;
   }
