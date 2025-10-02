@@ -1,3 +1,4 @@
+// src/integrations/ghl/oauth.ts
 import { logger } from "@/components/ErrorLog";
 
 const TOKEN_STORAGE_KEY = "ghl_tokens";
@@ -22,6 +23,9 @@ interface StoredTokens {
   locationId?: string;
 }
 
+/**
+ * Build the OAuth login URL
+ */
 export function getAuthUrl(): string {
   const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
   const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI;
@@ -40,6 +44,9 @@ export function getAuthUrl(): string {
   return `${AUTH_URL}?${params.toString()}`;
 }
 
+/**
+ * Exchange authorization code for access + refresh tokens
+ */
 export async function exchangeCodeForToken(code: string): Promise<void> {
   const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
   const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
@@ -81,6 +88,9 @@ export async function exchangeCodeForToken(code: string): Promise<void> {
   logger.success("OAuth tokens stored successfully");
 }
 
+/**
+ * Refresh the access token if expired
+ */
 export async function refreshAccessToken(): Promise<string> {
   const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!stored) {
@@ -129,6 +139,9 @@ export async function refreshAccessToken(): Promise<string> {
   return newTokens.accessToken;
 }
 
+/**
+ * Get a valid access token (refreshes if expired)
+ */
 export async function getAccessToken(): Promise<string | null> {
   const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!stored) {
@@ -137,7 +150,7 @@ export async function getAccessToken(): Promise<string | null> {
 
   const tokens: StoredTokens = JSON.parse(stored);
   
-  // Check if token is expired (with 5 minute buffer)
+  // Check expiry with 5-minute buffer
   if (Date.now() >= tokens.expiresAt - 5 * 60 * 1000) {
     try {
       return await refreshAccessToken();
@@ -150,15 +163,31 @@ export async function getAccessToken(): Promise<string | null> {
   return tokens.accessToken;
 }
 
+/**
+ * Check if user is authenticated (valid token + not expired)
+ */
 export function isAuthenticated(): boolean {
   const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
-  return !!stored;
+  if (!stored) return false;
+
+  try {
+    const tokens: StoredTokens = JSON.parse(stored);
+    return Date.now() < tokens.expiresAt - 5 * 60 * 1000; // must still be valid
+  } catch {
+    return false;
+  }
 }
 
+/**
+ * Clear tokens from storage
+ */
 export function clearTokens(): void {
   localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
+/**
+ * Logout and redirect to home
+ */
 export function logout(): void {
   clearTokens();
   logger.info("User logged out");
