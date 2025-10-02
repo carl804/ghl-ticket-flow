@@ -1,8 +1,7 @@
 import { logger } from "@/components/ErrorLog";
 import { getAccessToken, refreshAccessToken, logout } from "./oauth";
 
-const GHL_API_BASE = "https://services.leadconnectorhq.com";  // v2 API
-const GHL_LOCATION_ID = import.meta.env.VITE_GHL_LOCATION_ID;
+const GHL_API_BASE = "https://services.leadconnectorhq.com";
 
 export async function ghlRequest<T>(
   endpoint: string,
@@ -14,17 +13,11 @@ export async function ghlRequest<T>(
   retryCount = 0
 ): Promise<T> {
   const token = await getAccessToken();
-
+  
   if (!token) {
     const error = "Not authenticated with GoHighLevel";
     logger.error(error);
     logout();
-    throw new Error(error);
-  }
-
-  if (!GHL_LOCATION_ID) {
-    const error = "Missing GoHighLevel Location ID";
-    logger.error(error);
     throw new Error(error);
   }
 
@@ -44,7 +37,6 @@ export async function ghlRequest<T>(
   logger.info(`API Request: ${options?.method || "GET"} ${endpoint}`, {
     url,
     method: options?.method || "GET",
-    authPrefix: token.substring(0, 15) + "...",
   });
 
   const response = await fetch(url, {
@@ -58,7 +50,6 @@ export async function ghlRequest<T>(
     logger.info("Received 401, attempting token refresh");
     try {
       await refreshAccessToken();
-      // Retry the request once with new token
       return await ghlRequest<T>(endpoint, options, retryCount + 1);
     } catch (error) {
       logger.error("Token refresh failed, logging out", error);
@@ -68,7 +59,7 @@ export async function ghlRequest<T>(
   }
 
   const text = await response.text();
-
+  
   if (!text) {
     logger.error(`Empty response from GHL API`, {
       status: response.status,
@@ -88,9 +79,6 @@ export async function ghlRequest<T>(
     throw new Error(data?.message || data?.error || `API Error: ${response.status}`);
   }
 
-  logger.success(`API Success: ${endpoint}`, {
-    status: response.status,
-  });
-
+  logger.success(`API Success: ${endpoint}`);
   return data as T;
 }
