@@ -1,12 +1,14 @@
-// netlify/functions/proxy.ts
+// netlify/functions/ghl-proxy.ts
 import type { Handler } from "@netlify/functions";
+import jwt from "jsonwebtoken";
 
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
-const GHL_API_TOKEN = process.env.VITE_GHL_API_TOKEN;
-const GHL_LOCATION_ID = process.env.VITE_GHL_LOCATION_ID;
+
 const CLIENT_ID = process.env.VITE_GHL_CLIENT_ID;
 const CLIENT_SECRET = process.env.VITE_GHL_CLIENT_SECRET;
 const REDIRECT_URI = process.env.VITE_GHL_REDIRECT_URI;
+const STATIC_API_TOKEN = process.env.VITE_GHL_API_TOKEN; // fallback if testing outside iframe
+const STATIC_LOCATION_ID = process.env.VITE_GHL_LOCATION_ID;
 
 export const handler: Handler = async (event) => {
   const headers = {
@@ -28,24 +30,42 @@ export const handler: Handler = async (event) => {
       url += `?${params.toString()}`;
     }
 
-    // Build headers
-    const reqHeaders: Record<string, string> = {
-      Version: "2021-07-28",
-    };
+    // --- 🔑 Step 1: Check for JWT (iframe installs)
+    const jwtToken =
+      event.queryStringParameters?.jwt ||
+      event.headers["authorization"]?.replace("Bearer ", "");
 
-    // If OAuth, no static API token required
+    let useToken = STATIC_API_TOKEN;
+    let useLocation = STATIC_LOCATION_ID;
+
+    if (jwtToken) {
+      try {
+        const decoded: any = jwt.verify(jwtToken, CLIENT_SECRET || "");
+        if (!decoded.locationId) {
+          return { statusCode: 401, headers, body: JSON.stringify({ error: "JWT missing locationId" }) };
+        }
+        useToken = jwtToken; // reuse the same JWT as API bearer
+        useLocation = decoded.locationId;
+      } catch (err: any) {
+        return { statusCode: 401, headers, body: JSON.stringify({ error: "Invalid JWT", details: err.message }) };
+      }
+    }
+
+    // --- 🔑 Step 2: Build request headers
+    const reqHeaders: Record<string, string> = { Version: "2021-07-28" };
+
     if (!endpoint.startsWith("/oauth")) {
-      if (!GHL_API_TOKEN || !GHL_LOCATION_ID) {
+      if (!useToken || !useLocation) {
         return { statusCode: 500, headers, body: JSON.stringify({ error: "Missing API credentials" }) };
       }
-      reqHeaders["Authorization"] = `Bearer ${GHL_API_TOKEN}`;
-      reqHeaders["LocationId"] = GHL_LOCATION_ID;
+      reqHeaders["Authorization"] = `Bearer ${useToken}`;
+      reqHeaders["LocationId"] = useLocation;
       reqHeaders["Content-Type"] = "application/json";
     } else {
       reqHeaders["Content-Type"] = formEncoded ? "application/x-www-form-urlencoded" : "application/json";
     }
 
-    // Handle OAuth special case
+    // --- 🔑 Step 3: Handle OAuth special case
     let requestBody: any = undefined;
     if (endpoint === "/oauth/token") {
       const params = new URLSearchParams({
@@ -59,6 +79,7 @@ export const handler: Handler = async (event) => {
       requestBody = JSON.stringify(body);
     }
 
+    // --- 🔑 Step 4: Call GHL API
     const response = await fetch(url, {
       method,
       headers: reqHeaders,
