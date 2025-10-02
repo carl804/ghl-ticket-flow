@@ -2,6 +2,7 @@
   "compilerOptions": {
     "allowJs": false,
     "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": true,  // Added this to fix the .tsx import error
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
@@ -33,10 +34,4 @@
   "include": [
     "./src"
   ]
-  // Commented out to fix TS6310 error
-  // "references": [
-  //   {
-  //     "path": "./tsconfig.node.json"
-  //   }
-  // ]
 }
