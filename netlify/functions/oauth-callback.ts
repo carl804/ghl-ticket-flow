@@ -1,6 +1,8 @@
 // netlify/functions/oauth-callback.ts
 import type { Handler } from "@netlify/functions";
 
+const TOKEN_URL = "https://services.leadconnectorhq.com/oauth/token";
+
 export const handler: Handler = async (event) => {
   const headers = {
     "Access-Control-Allow-Origin": "*",
@@ -32,23 +34,21 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const params = new URLSearchParams({
-      client_id: process.env.VITE_GHL_CLIENT_ID!,
-      client_secret: process.env.VITE_GHL_CLIENT_SECRET!,
-      grant_type: "authorization_code",
-      code,
-      redirect_uri: process.env.VITE_GHL_REDIRECT_URI!,
-    });
-
-    const tokenResponse = await fetch("https://services.leadconnectorhq.com/oauth/token", {
+    const response = await fetch(TOKEN_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: process.env.VITE_GHL_CLIENT_ID,
+        client_secret: process.env.VITE_GHL_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: process.env.VITE_GHL_REDIRECT_URI,
+      }),
     });
 
-    const tokens = await tokenResponse.json();
+    const tokens = await response.json();
 
-    if (tokens.error) {
+    if (!response.ok || tokens.error) {
       console.error("OAuth token exchange error:", tokens);
       return {
         statusCode: 400,
@@ -57,19 +57,23 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    console.log("🔑 Access Token:", tokens.access_token);
-    console.log("🔄 Refresh Token:", tokens.refresh_token);
-    console.log("📍 Location ID:", locationId);
+    // Redirect to frontend success page with tokens as query params
+    const redirectUrl = new URL(
+      `${process.env.VITE_FRONTEND_URL || "https://778488dc-df0f-4268-a6a9-814145836889.lovableproject.com"}/oauth/success`
+    );
+    redirectUrl.searchParams.set("access_token", tokens.access_token);
+    redirectUrl.searchParams.set("refresh_token", tokens.refresh_token);
+    redirectUrl.searchParams.set("expires_in", tokens.expires_in?.toString() || "0");
+    if (locationId) redirectUrl.searchParams.set("locationId", locationId);
 
-    // ✅ Redirect user back to frontend with success flag
     return {
       statusCode: 302,
       headers: {
-        Location: `/oauth/success?locationId=${locationId || ""}`,
+        ...headers,
+        Location: redirectUrl.toString(),
       },
       body: "",
     };
-
   } catch (error) {
     console.error("OAuth callback error:", error);
     return {
