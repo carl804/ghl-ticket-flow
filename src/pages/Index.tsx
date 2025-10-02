@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { getAccessToken, getAuthUrl } from "@/integrations/ghl/oauth";
+import { getAccessToken, getAuthUrl, clearTokens } from "@/integrations/ghl/oauth";
 import { Button } from "@/components/ui/button";
 
 export default function Index() {
@@ -42,6 +42,8 @@ export default function Index() {
         <p className="text-muted-foreground">Sign in with your GHL account to continue</p>
         <Button
           onClick={() => {
+            // 🚀 Always clear stale session before new login
+            clearTokens();
             window.location.href = getAuthUrl();
           }}
         >
