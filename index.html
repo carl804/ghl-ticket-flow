@@ -19,35 +19,30 @@
       // Critical: Fix iframe compatibility for GHL and Lovable.dev
       (function() {
         if (typeof window !== 'undefined') {
-          // Fix for GHL custom menu iframe (we.warn error)
-          window.we = window.we || {};
-          window.we.warn = function() { 
+          // Create a universal warn function
+          var universalWarn = function() { 
             if (console && console.warn) console.warn.apply(console, arguments);
           };
-          window.we.log = function() { 
+          var universalLog = function() { 
             if (console && console.log) console.log.apply(console, arguments);
           };
-          window.we.error = function() { 
+          var universalError = function() { 
             if (console && console.error) console.error.apply(console, arguments);
           };
-          window.we.debug = function() { 
+          var universalDebug = function() { 
             if (console && console.debug) console.debug.apply(console, arguments);
           };
           
-          // Fix for Lovable.dev iframe (logger.warn error)
-          window.logger = window.logger || {};
-          window.logger.warn = function() { 
-            if (console && console.warn) console.warn.apply(console, arguments);
-          };
-          window.logger.log = function() { 
-            if (console && console.log) console.log.apply(console, arguments);
-          };
-          window.logger.error = function() { 
-            if (console && console.error) console.error.apply(console, arguments);
-          };
-          window.logger.debug = function() { 
-            if (console && console.debug) console.debug.apply(console, arguments);
-          };
+          // Fix for all possible minified variable names
+          var possibleNames = ['we', 'ye', 'logger', 'log', 'l', 'w', 'e', 'd'];
+          
+          possibleNames.forEach(function(name) {
+            window[name] = window[name] || {};
+            window[name].warn = window[name].warn || universalWarn;
+            window[name].log = window[name].log || universalLog;
+            window[name].error = window[name].error || universalError;
+            window[name].debug = window[name].debug || universalDebug;
+          });
           
           // Ensure console exists in all contexts
           window.console = window.console || {};
@@ -55,6 +50,21 @@
           window.console.warn = window.console.warn || function() {};
           window.console.error = window.console.error || function() {};
           window.console.debug = window.console.debug || function() {};
+          
+          // Override Object.defineProperty to catch any attempts to create loggers
+          var originalDefineProperty = Object.defineProperty;
+          Object.defineProperty = function(obj, prop, descriptor) {
+            // If trying to define a property on window that might be a logger
+            if (obj === window && typeof descriptor.value === 'object') {
+              // Ensure it has logging methods
+              descriptor.value = descriptor.value || {};
+              descriptor.value.warn = descriptor.value.warn || universalWarn;
+              descriptor.value.log = descriptor.value.log || universalLog;
+              descriptor.value.error = descriptor.value.error || universalError;
+              descriptor.value.debug = descriptor.value.debug || universalDebug;
+            }
+            return originalDefineProperty.call(this, obj, prop, descriptor);
+          };
         }
       })();
     </script>
