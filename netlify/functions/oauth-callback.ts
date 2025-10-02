@@ -1,4 +1,5 @@
-import { Handler } from "@netlify/functions";
+// netlify/functions/oauth-callback.ts
+import type { Handler } from "@netlify/functions";
 
 export const handler: Handler = async (event) => {
   const headers = {
@@ -31,16 +32,18 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    const params = new URLSearchParams({
+      client_id: process.env.VITE_GHL_CLIENT_ID!,
+      client_secret: process.env.VITE_GHL_CLIENT_SECRET!,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: process.env.VITE_GHL_REDIRECT_URI!,
+    });
+
     const tokenResponse = await fetch("https://services.leadconnectorhq.com/oauth/token", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client_id: process.env.VITE_GHL_CLIENT_ID,
-        client_secret: process.env.VITE_GHL_CLIENT_SECRET,
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: process.env.VITE_GHL_REDIRECT_URI,
-      }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
     });
 
     const tokens = await tokenResponse.json();
@@ -54,36 +57,19 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // TODO: Save tokens (and locationId) to DB for later use
     console.log("🔑 Access Token:", tokens.access_token);
     console.log("🔄 Refresh Token:", tokens.refresh_token);
     console.log("📍 Location ID:", locationId);
 
+    // ✅ Redirect user back to frontend with success flag
     return {
-      statusCode: 200,
+      statusCode: 302,
       headers: {
-        ...headers,
-        "Content-Type": "text/html",
+        Location: `/oauth/success?locationId=${locationId || ""}`,
       },
-      body: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>OAuth Success</title>
-            <style>
-              body { font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-              .message { text-align: center; }
-            </style>
-          </head>
-          <body>
-            <div class="message">
-              <h1>✅ OAuth Success!</h1>
-              <p>You can close this window.</p>
-            </div>
-          </body>
-        </html>
-      `,
+      body: "",
     };
+
   } catch (error) {
     console.error("OAuth callback error:", error);
     return {
