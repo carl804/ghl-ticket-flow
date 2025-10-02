@@ -34,15 +34,15 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    // ✅ Form-encoded params (OAuth spec requirement)
+    // ✅ Always use your Netlify callback as redirect_uri
+    const redirectUri = "https://hotprospectorticketing.netlify.app/callback";
+
     const params = new URLSearchParams({
       client_id: process.env.VITE_GHL_CLIENT_ID || "",
       client_secret: process.env.VITE_GHL_CLIENT_SECRET || "",
       grant_type: "authorization_code",
       code,
-      redirect_uri:
-        process.env.VITE_GHL_REDIRECT_URI ||
-        "https://hotprospectorticketing.netlify.app/callback",
+      redirect_uri: redirectUri,
     });
 
     const response = await fetch(TOKEN_URL, {
@@ -66,19 +66,19 @@ export const handler: Handler = async (event) => {
     }
 
     // ✅ Redirect to frontend with tokens
-    const redirectUrl = new URL(
+    const successUrl = new URL(
       `${process.env.VITE_FRONTEND_URL || "https://778488dc-df0f-4268-a6a9-814145836889.lovableproject.com"}/oauth/success`
     );
-    redirectUrl.searchParams.set("access_token", tokens.access_token);
-    redirectUrl.searchParams.set("refresh_token", tokens.refresh_token);
-    redirectUrl.searchParams.set("expires_in", tokens.expires_in?.toString() || "0");
-    if (locationId) redirectUrl.searchParams.set("locationId", locationId);
+    successUrl.searchParams.set("access_token", tokens.access_token);
+    successUrl.searchParams.set("refresh_token", tokens.refresh_token);
+    successUrl.searchParams.set("expires_in", tokens.expires_in?.toString() || "0");
+    if (locationId) successUrl.searchParams.set("locationId", locationId);
 
     return {
       statusCode: 302,
       headers: {
         ...headers,
-        Location: redirectUrl.toString(),
+        Location: successUrl.toString(),
       },
       body: "",
     };
