@@ -1,8 +1,12 @@
+// netlify/functions/proxy.ts
 import type { Handler } from "@netlify/functions";
 
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
 const GHL_API_TOKEN = process.env.VITE_GHL_API_TOKEN;
 const GHL_LOCATION_ID = process.env.VITE_GHL_LOCATION_ID;
+const CLIENT_ID = process.env.VITE_GHL_CLIENT_ID;
+const CLIENT_SECRET = process.env.VITE_GHL_CLIENT_SECRET;
+const REDIRECT_URI = process.env.VITE_GHL_REDIRECT_URI;
 
 export const handler: Handler = async (event) => {
   const headers = {
@@ -16,11 +20,7 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const { endpoint, method = "GET", body, queryParams } = JSON.parse(event.body || "{}");
-
-    if (!GHL_API_TOKEN || !GHL_LOCATION_ID) {
-      return { statusCode: 500, headers, body: JSON.stringify({ error: "Missing API credentials" }) };
-    }
+    const { endpoint, method = "GET", body, queryParams, formEncoded } = JSON.parse(event.body || "{}");
 
     let url = `${GHL_API_BASE}${endpoint}`;
     if (queryParams) {
@@ -28,15 +28,41 @@ export const handler: Handler = async (event) => {
       url += `?${params.toString()}`;
     }
 
+    // Build headers
+    const reqHeaders: Record<string, string> = {
+      Version: "2021-07-28",
+    };
+
+    // If OAuth, no static API token required
+    if (!endpoint.startsWith("/oauth")) {
+      if (!GHL_API_TOKEN || !GHL_LOCATION_ID) {
+        return { statusCode: 500, headers, body: JSON.stringify({ error: "Missing API credentials" }) };
+      }
+      reqHeaders["Authorization"] = `Bearer ${GHL_API_TOKEN}`;
+      reqHeaders["LocationId"] = GHL_LOCATION_ID;
+      reqHeaders["Content-Type"] = "application/json";
+    } else {
+      reqHeaders["Content-Type"] = formEncoded ? "application/x-www-form-urlencoded" : "application/json";
+    }
+
+    // Handle OAuth special case
+    let requestBody: any = undefined;
+    if (endpoint === "/oauth/token") {
+      const params = new URLSearchParams({
+        client_id: CLIENT_ID || "",
+        client_secret: CLIENT_SECRET || "",
+        redirect_uri: REDIRECT_URI || "",
+        ...body,
+      });
+      requestBody = formEncoded ? params.toString() : JSON.stringify(params);
+    } else if (body) {
+      requestBody = JSON.stringify(body);
+    }
+
     const response = await fetch(url, {
       method,
-      headers: {
-        Authorization: `Bearer ${GHL_API_TOKEN}`,
-        Version: "2021-07-28",
-        "Content-Type": "application/json",
-        LocationId: GHL_LOCATION_ID,
-      },
-      body: body ? JSON.stringify(body) : undefined,
+      headers: reqHeaders,
+      body: requestBody,
     });
 
     const text = await response.text();

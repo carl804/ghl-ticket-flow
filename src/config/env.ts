@@ -1,9 +1,19 @@
 function requireEnv(key: string): string {
-  const value = import.meta.env[key as keyof ImportMetaEnv];
-  if (!value) {
-    throw new Error(`❌ Missing environment variable: ${key}`);
+  // On frontend builds, use import.meta.env
+  if (typeof import.meta !== "undefined" && import.meta.env) {
+    const value = import.meta.env[key as keyof ImportMetaEnv];
+    if (!value) throw new Error(`❌ Missing env var (frontend): ${key}`);
+    return value;
   }
-  return value;
+
+  // On Netlify/Vercel functions, use process.env
+  if (typeof process !== "undefined" && process.env) {
+    const value = process.env[key];
+    if (!value) throw new Error(`❌ Missing env var (server): ${key}`);
+    return value;
+  }
+
+  throw new Error(`❌ Env lookup failed for ${key}`);
 }
 
 export const GHL_ENV = {
