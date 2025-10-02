@@ -1,87 +1,70 @@
-// src/integrations/ghl/oauth.ts
-export interface OAuthTokens {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  scope: string;
-  token_type: string;
-}
+// src/pages/OAuthCallback.tsx
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { exchangeCodeForToken } from "@/integrations/ghl/oauth";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
-const API_URL = "https://services.leadconnectorhq.com/oauth/token";
+const OAuthCallback = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
 
-/**
- * Exchange authorization code for access + refresh tokens
- */
-export async function exchangeCodeForToken(code: string): Promise<OAuthTokens> {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: import.meta.env.VITE_GHL_CLIENT_ID,
-      client_secret: import.meta.env.VITE_GHL_CLIENT_SECRET,
-      grant_type: "authorization_code",
-      code,
-      redirect_uri: import.meta.env.VITE_GHL_REDIRECT_URI,
-    }),
-  });
+  useEffect(() => {
+    const handleCallback = async () => {
+      const code = searchParams.get("code");
+      const errorParam = searchParams.get("error");
 
-  const data = await res.json();
+      if (errorParam) {
+        setError(`OAuth error: ${errorParam}`);
+        return;
+      }
 
-  if (!res.ok || data.error) {
-    throw new Error(data.error_description || data.error || "OAuth token exchange failed");
+      if (!code) {
+        setError("No authorization code received");
+        return;
+      }
+
+      try {
+        await exchangeCodeForToken(code);
+        navigate("/tickets");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to authenticate");
+      }
+    };
+
+    handleCallback();
+  }, [searchParams, navigate]);
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md space-y-4">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Authentication Failed</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <Button onClick={() => navigate("/")} className="w-full">
+            Return Home
+          </Button>
+        </div>
+      </div>
+    );
   }
 
-  saveTokens(data);
-  return data;
-}
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="text-center space-y-4">
+        <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+        <div>
+          <h2 className="text-2xl font-semibold">Completing authentication...</h2>
+          <p className="text-muted-foreground mt-2">Please wait while we verify your credentials</p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-/**
- * Refresh tokens when access token expires
- */
-export async function refreshAccessToken(refreshToken: string): Promise<OAuthTokens> {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: import.meta.env.VITE_GHL_CLIENT_ID,
-      client_secret: import.meta.env.VITE_GHL_CLIENT_SECRET,
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-      redirect_uri: import.meta.env.VITE_GHL_REDIRECT_URI,
-    }),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok || data.error) {
-    throw new Error(data.error_description || data.error || "OAuth token refresh failed");
-  }
-
-  saveTokens(data);
-  return data;
-}
-
-/**
- * Save tokens to localStorage
- */
-function saveTokens(tokens: OAuthTokens) {
-  localStorage.setItem("ghl_tokens", JSON.stringify({
-    ...tokens,
-    obtained_at: Date.now(),
-  }));
-}
-
-/**
- * Get saved tokens
- */
-export function getSavedTokens(): OAuthTokens | null {
-  const raw = localStorage.getItem("ghl_tokens");
-  return raw ? JSON.parse(raw) : null;
-}
-
-/**
- * Clear saved tokens (logout)
- */
-export function clearTokens() {
-  localStorage.removeItem("ghl_tokens");
-}
+export default OAuthCallback;
