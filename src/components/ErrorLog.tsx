@@ -25,12 +25,12 @@ class Logger {
       message,
       details,
     };
-    
+
     this.logs.unshift(entry);
     if (this.logs.length > 50) this.logs = this.logs.slice(0, 50);
-    
+
     this.notifyListeners();
-    
+
     // Also log to console
     const prefix = `[${type.toUpperCase()}]`;
     if (type === "error") console.error(prefix, message, details);
@@ -71,7 +71,7 @@ class Logger {
 
 export const logger = new Logger();
 
-export function ErrorLog() {
+export default function ErrorLog() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -101,18 +101,10 @@ export function ErrorLog() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">API Logs</CardTitle>
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => logger.clear()}
-              >
+              <Button variant="ghost" size="sm" onClick={() => logger.clear()}>
                 Clear
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsOpen(false)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -126,10 +118,7 @@ export function ErrorLog() {
               ) : (
                 <div className="space-y-2">
                   {logs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="border rounded p-2 text-sm"
-                    >
+                    <div key={log.id} className="border rounded p-2 text-sm">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <Badge
                           variant={
@@ -141,9 +130,15 @@ export function ErrorLog() {
                           }
                           className="text-xs"
                         >
-                          {log.type === "error" && <AlertCircle className="h-3 w-3 mr-1" />}
-                          {log.type === "info" && <Info className="h-3 w-3 mr-1" />}
-                          {log.type === "success" && <CheckCircle className="h-3 w-3 mr-1" />}
+                          {log.type === "error" && (
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                          )}
+                          {log.type === "info" && (
+                            <Info className="h-3 w-3 mr-1" />
+                          )}
+                          {log.type === "success" && (
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                          )}
                           {log.type}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
