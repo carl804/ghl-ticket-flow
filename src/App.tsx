@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Tickets from "./pages/Tickets";
 import TicketDetail from "./pages/TicketDetail";
 import OAuthCallback from "./pages/OAuthCallback";
+import OAuthSuccess from "./pages/OAuthSuccess";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,8 +33,9 @@ const App = () => {
           <ErrorLog />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/oauth/callback" element={<OAuthCallback />} />
+            <Route path="/" element={<Index />} />
+            <Route path="/oauth/callback" element={<OAuthCallback />} />
+            <Route path="/oauth/success" element={<OAuthSuccess />} />
               <Route
                 path="/tickets"
                 element={
