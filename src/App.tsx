@@ -1,11 +1,10 @@
-import { Toaster } from "@/components/ui/toaster";   // src/components/ui/toaster.tsx
-import { Toaster as Sonner } from "@/components/ui/sonner"; // src/components/ui/sonner.tsx
-import { TooltipProvider } from "@/components/ui/tooltip"; // src/components/ui/tooltip.tsx
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import ErrorLog from "@/components/ErrorLog";   // must be default export from ErrorLog.tsx
+import ErrorLog from "@/components/ErrorLog";
 import { isAuthenticated } from "@/integrations/ghl/oauth";
-
 import Index from "./pages/Index";
 import Tickets from "./pages/Tickets";
 import TicketDetail from "./pages/TicketDetail";
@@ -33,10 +32,10 @@ const App = () => {
           <Toaster />
           <Sonner />
           <ErrorLog />
-
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/callback" element={<OAuthCallback />} />
               <Route path="/oauth/callback" element={<OAuthCallback />} />
               <Route path="/oauth/success" element={<OAuthSuccess />} />
               <Route
