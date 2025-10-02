@@ -34,16 +34,24 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    // ✅ Form-encoded params (OAuth spec requirement)
+    const params = new URLSearchParams({
+      client_id: process.env.VITE_GHL_CLIENT_ID || "",
+      client_secret: process.env.VITE_GHL_CLIENT_SECRET || "",
+      grant_type: "authorization_code",
+      code,
+      redirect_uri:
+        process.env.VITE_GHL_REDIRECT_URI ||
+        "https://hotprospectorticketing.netlify.app/callback",
+    });
+
     const response = await fetch(TOKEN_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client_id: process.env.VITE_GHL_CLIENT_ID,
-        client_secret: process.env.VITE_GHL_CLIENT_SECRET,
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: process.env.VITE_GHL_REDIRECT_URI,
-      }),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: params.toString(),
     });
 
     const tokens = await response.json();
@@ -57,7 +65,7 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Redirect to frontend success page with tokens as query params
+    // ✅ Redirect to frontend with tokens
     const redirectUrl = new URL(
       `${process.env.VITE_FRONTEND_URL || "https://778488dc-df0f-4268-a6a9-814145836889.lovableproject.com"}/oauth/success`
     );
@@ -74,12 +82,15 @@ export const handler: Handler = async (event) => {
       },
       body: "",
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("OAuth callback error:", error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: "OAuth failed", details: String(error) }),
+      body: JSON.stringify({
+        error: "OAuth failed",
+        details: String(error.message || error),
+      }),
     };
   }
 };
