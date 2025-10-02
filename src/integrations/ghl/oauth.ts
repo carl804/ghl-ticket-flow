@@ -4,7 +4,6 @@ const TOKEN_STORAGE_KEY = "ghl_access_token";
 const REFRESH_TOKEN_STORAGE_KEY = "ghl_refresh_token";
 const TOKEN_EXPIRY_KEY = "ghl_token_expiry";
 
-// Hardcoded for now since Lovable env vars aren't loading
 const GHL_CLIENT_ID = "68dda331ac14797343e4d453-mg8ksgjb";
 const GHL_CLIENT_SECRET = "c8eb75c1-21ce-41ca-a33c-a22f739cf07f";
 const GHL_REDIRECT_URI = "https://778488dc-df0f-4268-a6a9-814145836889.lovableproject.com/oauth/callback";
@@ -27,7 +26,7 @@ export function getAuthUrl(): string {
     scope: "conversations.readonly conversations.write contacts.readonly contacts.write opportunities.readonly opportunities.write users.readonly",
   });
 
-  const authUrl = `https://app.gohighlevel.com/oauth/chooselocation?${params.toString()}`;
+  const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?${params.toString()}`;
   logger.info("Generated OAuth URL", { authUrl });
   
   return authUrl;
