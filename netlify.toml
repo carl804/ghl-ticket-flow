@@ -7,3 +7,9 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[functions]
+  # Ensure Netlify doesn’t try to bundle jsonwebtoken (native dependency)
+  external_node_modules = ["jsonwebtoken"]
+  # Include all your serverless functions
+  included_files = ["netlify/functions/**"]
