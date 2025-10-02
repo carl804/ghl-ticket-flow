@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { useToast } from "@/components/ui/use-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -18,6 +19,7 @@ const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<"checking" | "ok" | "unauth">("checking");
+  const { toast } = useToast();
 
   useEffect(() => {
     let mounted = true;
@@ -27,18 +29,33 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         const token = await getAccessToken();
         if (!mounted) return;
 
-        if (token) setStatus("ok");
-        else setStatus("unauth");
+        if (token) {
+          setStatus("ok");
+        } else {
+          toast({
+            title: "Session expired",
+            description: "Please sign in again.",
+            variant: "destructive",
+          });
+          setStatus("unauth");
+        }
       } catch (error) {
         console.error("Auth check failed:", error);
-        if (mounted) setStatus("unauth");
+        if (mounted) {
+          toast({
+            title: "Authentication error",
+            description: "Your session could not be verified. Please log in again.",
+            variant: "destructive",
+          });
+          setStatus("unauth");
+        }
       }
     })();
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [toast]);
 
   if (status === "checking") {
     return (
