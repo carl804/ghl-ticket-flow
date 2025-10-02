@@ -1,47 +1,166 @@
-import type { Handler } from "@netlify/functions";
+import { logger } from "@/components/ErrorLog";
 
-const GHL_API_BASE = "https://services.leadconnectorhq.com";
-const GHL_API_TOKEN = process.env.VITE_GHL_API_TOKEN;
-const GHL_LOCATION_ID = process.env.VITE_GHL_LOCATION_ID;
+const TOKEN_STORAGE_KEY = "ghl_tokens";
+const AUTH_URL = "https://marketplace.gohighlevel.com/oauth/chooselocation";
+const TOKEN_URL = "https://services.leadconnectorhq.com/oauth/token";
 
-export const handler: Handler = async (event) => {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, LocationId, Version",
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
+interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  token_type: string;
+  scope: string;
+  userType: string;
+  locationId?: string;
+  error?: string;
+}
+
+interface StoredTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  locationId?: string;
+}
+
+export function getAuthUrl(): string {
+  const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+  const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI;
+
+  if (!clientId || !redirectUri) {
+    throw new Error("Missing GHL OAuth configuration");
+  }
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: "contacts.readonly opportunities.readonly opportunities.write users.readonly locations.readonly",
+  });
+
+  return `${AUTH_URL}?${params.toString()}`;
+}
+
+export async function exchangeCodeForToken(code: string): Promise<void> {
+  const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+  const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
+  const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI;
+
+  if (!clientId || !clientSecret || !redirectUri) {
+    throw new Error("Missing GHL OAuth configuration");
+  }
+
+  logger.info("Exchanging OAuth code for tokens");
+
+  const response = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: redirectUri,
+    }),
+  });
+
+  const data: TokenResponse = await response.json();
+
+  if (data.error || !response.ok) {
+    logger.error("OAuth token exchange failed", data);
+    throw new Error(data.error || "Failed to exchange code for token");
+  }
+
+  const tokens: StoredTokens = {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt: Date.now() + data.expires_in * 1000,
+    locationId: data.locationId,
   };
 
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
+  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
+  logger.success("OAuth tokens stored successfully");
+}
+
+export async function refreshAccessToken(): Promise<string> {
+  const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!stored) {
+    throw new Error("No refresh token available");
   }
 
-  try {
-    const { endpoint, method = "GET", body, queryParams } = JSON.parse(event.body || "{}");
+  const tokens: StoredTokens = JSON.parse(stored);
+  const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+  const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
 
-    if (!GHL_API_TOKEN || !GHL_LOCATION_ID) {
-      return { statusCode: 500, headers, body: JSON.stringify({ error: "Missing API credentials" }) };
-    }
-
-    let url = `${GHL_API_BASE}${endpoint}`;
-    if (queryParams) {
-      const params = new URLSearchParams(queryParams);
-      url += `?${params.toString()}`;
-    }
-
-    const response = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${GHL_API_TOKEN}`,
-        Version: "2021-07-28",
-        "Content-Type": "application/json",
-        LocationId: GHL_LOCATION_ID,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    const text = await response.text();
-    return { statusCode: response.status, headers, body: text };
-  } catch (err: any) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+  if (!clientId || !clientSecret) {
+    throw new Error("Missing GHL OAuth configuration");
   }
-};
+
+  logger.info("Refreshing access token");
+
+  const response = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "refresh_token",
+      refresh_token: tokens.refreshToken,
+    }),
+  });
+
+  const data: TokenResponse = await response.json();
+
+  if (data.error || !response.ok) {
+    logger.error("Token refresh failed", data);
+    clearTokens();
+    throw new Error(data.error || "Failed to refresh token");
+  }
+
+  const newTokens: StoredTokens = {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt: Date.now() + data.expires_in * 1000,
+    locationId: tokens.locationId || data.locationId,
+  };
+
+  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(newTokens));
+  logger.success("Access token refreshed");
+
+  return newTokens.accessToken;
+}
+
+export async function getAccessToken(): Promise<string | null> {
+  const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!stored) {
+    return null;
+  }
+
+  const tokens: StoredTokens = JSON.parse(stored);
+  
+  // Check if token is expired (with 5 minute buffer)
+  if (Date.now() >= tokens.expiresAt - 5 * 60 * 1000) {
+    try {
+      return await refreshAccessToken();
+    } catch (error) {
+      logger.error("Failed to refresh expired token", error);
+      return null;
+    }
+  }
+
+  return tokens.accessToken;
+}
+
+export function isAuthenticated(): boolean {
+  const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
+  return !!stored;
+}
+
+export function clearTokens(): void {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+}
+
+export function logout(): void {
+  clearTokens();
+  logger.info("User logged out");
+  window.location.href = "/";
+}
