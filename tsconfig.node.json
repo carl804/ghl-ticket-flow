@@ -1,22 +1,19 @@
 {
   "compilerOptions": {
-    "composite": true,                        // ✅ required for project references
+    "composite": true,
     "target": "ES2022",
     "lib": ["ES2023"],
     "module": "ESNext",
     "skipLibCheck": true,
-    /* Bundler mode (for Vite) */
-    "moduleResolution": "bundler",            // ✅ keep bundler mode
+    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "noEmit": false,                          // ← Changed from true to false
-    /* Linting */
+    "noEmit": false,
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    /* Compatibility */
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
   },
