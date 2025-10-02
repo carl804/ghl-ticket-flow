@@ -4,7 +4,7 @@ const TOKEN_STORAGE_KEY = "ghl_access_token";
 const REFRESH_TOKEN_STORAGE_KEY = "ghl_refresh_token";
 const TOKEN_EXPIRY_KEY = "ghl_token_expiry";
 
-// Hardcoded since Lovable env vars aren't loading properly
+// Hardcoded for now since Lovable env vars aren't loading
 const GHL_CLIENT_ID = "68dda331ac147343e4d453";
 const GHL_CLIENT_SECRET = "c8eb75c1-21ce-41ca-a33c-a22f739cf07f";
 const GHL_REDIRECT_URI = "https://778488dc-df0f-4268-a6a9-814145836889.lovableproject.com/oauth/callback";
@@ -27,8 +27,7 @@ export function getAuthUrl(): string {
     scope: "conversations.readonly conversations.write contacts.readonly contacts.write opportunities.readonly opportunities.write users.readonly",
   });
 
-  // Correct endpoint according to GHL API docs
-  const authUrl = `https://services.leadconnectorhq.com/oauth/chooselocation?${params.toString()}`;
+  const authUrl = const authUrl = `https://services.leadconnectorhq.com/oauth/chooselocation?${params.toString()}`;
   logger.info("Generated OAuth URL", { authUrl });
   
   return authUrl;
