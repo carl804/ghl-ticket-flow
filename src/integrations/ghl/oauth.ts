@@ -19,6 +19,8 @@ interface TokenResponse {
   userType: string;
   locationId?: string;
   companyId?: string;
+  error?: string;
+  error_description?: string;
 }
 
 export async function exchangeCodeForToken(code: string): Promise<void> {
@@ -45,12 +47,22 @@ export async function exchangeCodeForToken(code: string): Promise<void> {
 
     const data: TokenResponse = await response.json();
 
+    logger.info("Token exchange response", { 
+      status: response.status, 
+      hasAccessToken: !!data.access_token,
+      error: data.error 
+    });
+
     if (!response.ok || data.error) {
-      logger.error("Token exchange failed", { 
+      const errorDetails = {
         status: response.status, 
         error: data.error,
-        redirectUri: REDIRECT_URI 
-      });
+        error_description: data.error_description,
+        redirectUri: REDIRECT_URI,
+        clientId: CLIENT_ID.substring(0, 10) + "...", // Log partial for debugging
+      };
+      
+      logger.error("Token exchange failed", errorDetails);
       
       // Provide helpful error messages
       if (data.error === "invalid_request") {
@@ -59,9 +71,11 @@ export async function exchangeCodeForToken(code: string): Promise<void> {
         throw new Error("Authorization code has expired or been used. Please try authenticating again.");
       } else if (data.error === "invalid_client") {
         throw new Error("Invalid client credentials. Check your GHL app configuration.");
+      } else if (data.error === "redirect_uri_mismatch") {
+        throw new Error(`Redirect URI mismatch. Expected: ${REDIRECT_URI}`);
       }
       
-      throw new Error(data.error || "Failed to exchange code for token");
+      throw new Error(data.error_description || data.error || "Failed to exchange code for token");
     }
 
     // Store tokens
