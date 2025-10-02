@@ -4,9 +4,10 @@ const TOKEN_STORAGE_KEY = "ghl_access_token";
 const REFRESH_TOKEN_STORAGE_KEY = "ghl_refresh_token";
 const TOKEN_EXPIRY_KEY = "ghl_token_expiry";
 
-const GHL_CLIENT_ID = import.meta.env.VITE_GHL_CLIENT_ID;
-const GHL_CLIENT_SECRET = import.meta.env.VITE_GHL_CLIENT_SECRET;
-const GHL_REDIRECT_URI = import.meta.env.VITE_GHL_REDIRECT_URI;
+// Hardcoded for now since Lovable env vars aren't loading
+const GHL_CLIENT_ID = "68dda331ac147343e4d453";
+const GHL_CLIENT_SECRET = "c8eb75c1-21ce-41ca-a33c-a22f739cf07f";
+const GHL_REDIRECT_URI = "https://778488dc-df0f-4268-a6a9-814145836889.lovableproject.com/oauth/callback";
 
 interface TokenResponse {
   access_token: string;
@@ -19,14 +20,6 @@ interface TokenResponse {
 }
 
 export function getAuthUrl(): string {
-  if (!GHL_CLIENT_ID || !GHL_REDIRECT_URI) {
-    logger.error("Missing OAuth configuration", {
-      hasClientId: !!GHL_CLIENT_ID,
-      hasRedirectUri: !!GHL_REDIRECT_URI,
-    });
-    throw new Error("OAuth configuration is incomplete");
-  }
-
   const params = new URLSearchParams({
     client_id: GHL_CLIENT_ID,
     redirect_uri: GHL_REDIRECT_URI,
@@ -34,7 +27,6 @@ export function getAuthUrl(): string {
     scope: "conversations.readonly conversations.write contacts.readonly contacts.write opportunities.readonly opportunities.write users.readonly",
   });
 
-  // Changed from marketplace.gohighlevel.com to app.gohighlevel.com
   const authUrl = `https://app.gohighlevel.com/oauth/chooselocation?${params.toString()}`;
   logger.info("Generated OAuth URL", { authUrl });
   
@@ -42,10 +34,6 @@ export function getAuthUrl(): string {
 }
 
 export async function exchangeCodeForToken(code: string): Promise<void> {
-  if (!GHL_CLIENT_ID || !GHL_CLIENT_SECRET || !GHL_REDIRECT_URI) {
-    throw new Error("OAuth configuration is incomplete");
-  }
-
   logger.info("Exchanging code for token");
 
   try {
@@ -69,11 +57,9 @@ export async function exchangeCodeForToken(code: string): Promise<void> {
       throw new Error(data.error || "Failed to exchange code for token");
     }
 
-    // Store tokens
     localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
     localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, data.refresh_token);
     
-    // Calculate expiry time (current time + expires_in - 5 min buffer)
     const expiryTime = Date.now() + (data.expires_in - 300) * 1000;
     localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
 
@@ -92,10 +78,6 @@ export async function refreshAccessToken(): Promise<string> {
 
   if (!refreshToken) {
     throw new Error("No refresh token available");
-  }
-
-  if (!GHL_CLIENT_ID || !GHL_CLIENT_SECRET || !GHL_REDIRECT_URI) {
-    throw new Error("OAuth configuration is incomplete");
   }
 
   logger.info("Refreshing access token");
@@ -118,12 +100,10 @@ export async function refreshAccessToken(): Promise<string> {
 
     if (!response.ok || data.error) {
       logger.error("Token refresh failed", data);
-      // Clear invalid tokens
       clearTokens();
       throw new Error(data.error || "Failed to refresh token");
     }
 
-    // Store new tokens
     localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
     localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, data.refresh_token);
     
@@ -147,7 +127,6 @@ export async function getAccessToken(): Promise<string | null> {
     return null;
   }
 
-  // Check if token is expired
   if (expiryTime && Date.now() >= parseInt(expiryTime)) {
     logger.info("Token expired, attempting refresh");
     try {
