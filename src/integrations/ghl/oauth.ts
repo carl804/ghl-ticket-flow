@@ -34,7 +34,8 @@ export function getAuthUrl(): string {
     scope: "conversations.readonly conversations.write contacts.readonly contacts.write opportunities.readonly opportunities.write users.readonly",
   });
 
-  const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?${params.toString()}`;
+  // Changed from marketplace.gohighlevel.com to app.gohighlevel.com
+  const authUrl = `https://app.gohighlevel.com/oauth/chooselocation?${params.toString()}`;
   logger.info("Generated OAuth URL", { authUrl });
   
   return authUrl;
