@@ -1,32 +1,18 @@
-// Ticket status / priority / category
+// src/lib/types.ts
+
 export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved";
-
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
+export type TicketCategory = string;
 
-// Your real categories (typed backend values, but properly cased for TS)
-export type TicketCategory =
-  | "Billing"
-  | "Technical Support"
-  | "Onboarding"
-  | "Sales Inquiry"
-  | "Report an Outage"
-  | "General Questions"
-  | "Cancel Account"
-  | "Upgrade Plan";
-
-// Contact (name optional for safety)
-export interface Contact {
-  id: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-}
-
-// Ticket
 export interface Ticket {
   id: string;
-  name: string;           // e.g. BILLING-10001
-  contact: Contact;
+  name: string;
+  contact: {
+    id?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
   agencyName?: string;
   status: TicketStatus;
   priority: TicketPriority;
@@ -43,44 +29,22 @@ export interface Ticket {
   tags?: string[];
 }
 
-// Stats (kept to match your UI)
 export interface Stats {
   total: number;
   open: number;
   pendingCustomer: number;
   resolvedToday: number;
   avgResolutionTime: string;
-
-  pending?: number;
-  totalTrend?: number;
-  openTrend?: number;
-  pendingTrend?: number;
-  resolvedTodayTrend?: number;
+  pending: number;
+  totalTrend: number;
+  openTrend: number;
+  pendingTrend: number;
+  resolvedTodayTrend: number;
 }
 
-// Mapping custom fields to IDs
 export interface FieldMap {
   priority?: string;
   category?: string;
   resolutionSummary?: string;
   agencyName?: string;
-}
-
-// CustomField (for robustness to API shapes)
-export interface CustomField {
-  id: string;
-  fieldKey?: string; // some APIs use fieldKey
-  key?: string;      // some APIs use key
-  name?: string;
-  type?: string;
-}
-
-// Views
-export type ViewMode = "kanban" | "table" | "compact";
-
-// GHL user object (assignees)
-export interface GHLUser {
-  id: string;
-  name: string;
-  email?: string;
 }
