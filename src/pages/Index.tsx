@@ -15,6 +15,23 @@ export default function Index() {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        // Debug: Log all URL parameters and environment info
+        const params = new URLSearchParams(window.location.search);
+        console.log("=== SSO Debug Info ===");
+        console.log("Full URL:", window.location.href);
+        console.log("Search params:", window.location.search);
+        console.log("Is in iframe:", window.self !== window.top);
+        
+        // Log all parameters
+        if (params.toString()) {
+          params.forEach((value, key) => {
+            console.log(`Param: ${key} = ${value.substring(0, 50)}${value.length > 50 ? '...' : ''}`);
+          });
+        } else {
+          console.log("No URL parameters found");
+        }
+        console.log("=====================");
+
         // Check if already authenticated
         if (isAuthenticated()) {
           logger.info("Already authenticated, redirecting to tickets");
