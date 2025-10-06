@@ -51,9 +51,9 @@ export async function fetchTickets(): Promise<Ticket[]> {
       { 
         queryParams: { 
           location_id: locationId,
-          limit: 100  // NUMBER not string
+          limit: 100
         },
-        skipLocationId: true  // Don't add locationId to request body
+        skipLocationId: true
       }
     );
 
@@ -202,7 +202,7 @@ export async function bulkUpdatePriority(ids: string[], priority: TicketPriority
   await Promise.all(ids.map((id) => updatePriority(id, priority)));
 }
 
-/** Users - temporarily disabled, endpoint not available in OAuth v2 */
+/** Users for assignee dropdown */
 export interface GHLUser {
   id: string;
   name: string;
@@ -210,8 +210,23 @@ export interface GHLUser {
 }
 
 export async function fetchUsers(): Promise<GHLUser[]> {
-  // OAuth v2 doesn't support this endpoint yet
-  return [];
+  try {
+    const locationId = getLocationId();
+    const response = await ghlRequest<{ users: any[] }>(
+      `/users/location/${locationId}`
+    );
+    
+    if (!response.users) return [];
+    
+    return response.users.map((u: any) => ({
+      id: u.id,
+      name: u.name || `${u.firstName || ""} ${u.lastName || ""}`.trim(),
+      email: u.email,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch users:", error);
+    return [];
+  }
 }
 
 /** Converters to keep UI types safe */
