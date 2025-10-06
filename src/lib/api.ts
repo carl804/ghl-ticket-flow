@@ -228,7 +228,8 @@ export interface GHLUser {
 }
 
 export async function fetchUsers(): Promise<GHLUser[]> {
-  const response = await ghlRequest<any>(`/users/`);
+  const locationId = getLocationId();
+  const response = await ghlRequest<any>(`/locations/${locationId}/users`);
   
   if (!response.users) return [];
   
