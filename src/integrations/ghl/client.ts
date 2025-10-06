@@ -9,7 +9,8 @@ export async function ghlRequest<T>(
   options?: {
     method?: string;
     body?: any;
-    queryParams?: Record<string, string>;
+    queryParams?: Record<string, any>;
+    skipLocationId?: boolean;
   },
   retryCount = 0
 ): Promise<T> {
@@ -22,18 +23,21 @@ export async function ghlRequest<T>(
     throw new Error(error);
   }
   
-  // Get location ID from stored tokens
   const tokens = JSON.parse(localStorage.getItem('ghl_tokens') || '{}');
   const locationId = tokens.locationId;
   
-  // Prepare request payload for Netlify proxy
-  const proxyBody = {
+  // Prepare request payload for proxy
+  const proxyBody: any = {
     endpoint,
     method: options?.method || "GET",
     body: options?.body,
     queryParams: options?.queryParams,
-    locationId, // Add location ID to proxy body
   };
+  
+  // Only add locationId if not explicitly skipped
+  if (!options?.skipLocationId) {
+    proxyBody.locationId = locationId;
+  }
   
   logger.info(`API Request → Proxy: ${options?.method || "GET"} ${endpoint}`, proxyBody);
   
@@ -41,7 +45,7 @@ export async function ghlRequest<T>(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`, // ← THIS WAS MISSING!
+      "Authorization": `Bearer ${token}`,
     },
     body: JSON.stringify(proxyBody),
   });
@@ -65,12 +69,10 @@ export async function ghlRequest<T>(
   }
   
   if (!response.ok) {
-    // Handle 401 specifically - token might be expired
     if (response.status === 401 && retryCount === 0) {
       logger.info("Token expired, attempting refresh...");
       const newToken = await refreshAccessToken();
       if (newToken) {
-        // Retry with new token
         return ghlRequest(endpoint, options, retryCount + 1);
       }
     }

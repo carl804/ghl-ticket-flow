@@ -45,19 +45,19 @@ export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const locationId = getLocationId();
     
-    // Use search endpoint - this actually works in OAuth v2
-    // Note: Don't pass locationId in options, only in queryParams
+    // Use search endpoint with proper parameters
     const response = await ghlRequest<{ opportunities: any[] }>(
-      `/opportunities/search?location_id=${locationId}&limit=100`
+      `/opportunities/search`,
+      { 
+        queryParams: { 
+          location_id: locationId,
+          limit: 100  // NUMBER not string
+        },
+        skipLocationId: true  // Don't add locationId to request body
+      }
     );
 
-    // Filter for ticketing system pipeline if needed
     const allOpportunities = response.opportunities || [];
-    
-    // If you want to filter by pipeline name, do it here
-    // const ticketOpportunities = allOpportunities.filter((opp: any) => 
-    //   opp.pipelineName?.toLowerCase().includes("ticketing system")
-    // );
 
     return allOpportunities.map((opp: any) => {
       const category = (opp.category as TicketCategory) || "General Questions";
@@ -211,7 +211,6 @@ export interface GHLUser {
 
 export async function fetchUsers(): Promise<GHLUser[]> {
   // OAuth v2 doesn't support this endpoint yet
-  // Return empty array so assignee dropdown is just empty
   return [];
 }
 
