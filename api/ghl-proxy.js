@@ -15,13 +15,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { endpoint, method = "GET", body, queryParams, formEncoded, locationId } = req.body || {};
+    const { endpoint, method = "GET", body, queryParams, locationId } = req.body || {};
 
-    // Build URL
+    // Build URL with query parameters
     let url = `${GHL_API_BASE}${endpoint}`;
-    if (queryParams) {
-      const params = new URLSearchParams(queryParams);
-      url += `?${params.toString()}`;
+    const urlParams = new URLSearchParams(queryParams || {});
+    
+    // Add locationId to query params if provided
+    if (locationId) {
+      urlParams.set('locationId', locationId);
+    }
+    
+    if (urlParams.toString()) {
+      url += `?${urlParams.toString()}`;
     }
 
     // Build request headers
@@ -63,11 +69,6 @@ export default async function handler(req, res) {
     
     // Set authorization header with OAuth token
     reqHeaders["Authorization"] = `Bearer ${accessToken}`;
-    
-    // Add location ID if provided
-    if (locationId) {
-      reqHeaders["LocationId"] = locationId;
-    }
 
     // Make the request to GHL API
     const response = await fetch(url, {
