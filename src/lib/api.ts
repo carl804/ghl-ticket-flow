@@ -25,9 +25,8 @@ function getLocationId(): string {
 async function getPipelineId(): Promise<string> {
   if (PIPELINE_ID) return PIPELINE_ID;
 
-  const locationId = getLocationId();
   const response = await ghlRequest<{ pipelines: Array<{ id: string; name: string }> }>(
-    `/locations/${locationId}/pipelines`
+    `/opportunities/pipelines`
   );
   
   const ticketPipeline = response.pipelines.find((p) =>
@@ -46,7 +45,7 @@ async function getPipelineId(): Promise<string> {
 export async function initializeFieldMap(): Promise<void> {
   const locationId = getLocationId();
   const response = await ghlRequest<{ customFields: any[] }>(
-    `/locations/${locationId}/custom-fields`
+    `/locations/${locationId}/customFields`
   );
   const fields = response.customFields || [];
 
@@ -229,8 +228,7 @@ export interface GHLUser {
 }
 
 export async function fetchUsers(): Promise<GHLUser[]> {
-  const locationId = getLocationId();
-  const response = await ghlRequest<any>(`/locations/${locationId}/users`);
+  const response = await ghlRequest<any>(`/users/`);
   
   if (!response.users) return [];
   
