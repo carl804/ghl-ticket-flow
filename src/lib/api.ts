@@ -45,7 +45,6 @@ export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const locationId = getLocationId();
     
-    // Use search endpoint with proper parameters
     const response = await ghlRequest<{ opportunities: any[] }>(
       `/opportunities/search`,
       { 
@@ -202,7 +201,7 @@ export async function bulkUpdatePriority(ids: string[], priority: TicketPriority
   await Promise.all(ids.map((id) => updatePriority(id, priority)));
 }
 
-/** Users for assignee dropdown */
+/** Users - endpoint doesn't exist in OAuth v2 */
 export interface GHLUser {
   id: string;
   name: string;
@@ -213,7 +212,10 @@ export async function fetchUsers(): Promise<GHLUser[]> {
   try {
     const locationId = getLocationId();
     const response = await ghlRequest<{ users: any[] }>(
-      `/users/location/${locationId}`
+      `/users/location/${locationId}`,
+      {
+        skipLocationId: true
+      }
     );
     
     if (!response.users) return [];
