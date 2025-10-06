@@ -1,24 +1,23 @@
-// netlify/functions/ghl-proxy.ts
-import type { Handler } from "@netlify/functions";
+// api/ghl-proxy.ts
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
 const CLIENT_ID = process.env.VITE_GHL_CLIENT_ID;
 const CLIENT_SECRET = process.env.VITE_GHL_CLIENT_SECRET;
 const REDIRECT_URI = process.env.VITE_GHL_REDIRECT_URI;
 
-export const handler: Handler = async (event) => {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, LocationId, Version",
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
-  };
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, LocationId, Version");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
 
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
   }
 
   try {
-    const { endpoint, method = "GET", body, queryParams, formEncoded, locationId } = JSON.parse(event.body || "{}");
+    const { endpoint, method = "GET", body, queryParams, formEncoded, locationId } = req.body || {};
 
     // Build URL
     let url = `${GHL_API_BASE}${endpoint}`;
@@ -51,22 +50,14 @@ export const handler: Handler = async (event) => {
       });
 
       const text = await response.text();
-      return { 
-        statusCode: response.status, 
-        headers, 
-        body: text 
-      };
+      return res.status(response.status).send(text);
     }
 
     // For all other requests, use the OAuth Bearer token
-    const authHeader = event.headers["authorization"];
+    const authHeader = req.headers["authorization"] as string;
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return { 
-        statusCode: 401, 
-        headers, 
-        body: JSON.stringify({ error: "No authorization token provided" }) 
-      };
+      return res.status(401).json({ error: "No authorization token provided" });
     }
 
     // Extract the OAuth access token
@@ -98,21 +89,13 @@ export const handler: Handler = async (event) => {
       });
     }
 
-    return { 
-      statusCode: response.status, 
-      headers, 
-      body: responseText 
-    };
+    return res.status(response.status).send(responseText);
     
   } catch (err: any) {
     console.error("Proxy error:", err);
-    return { 
-      statusCode: 500, 
-      headers, 
-      body: JSON.stringify({ 
-        error: err.message,
-        stack: process.env.NODE_ENV === "development" ? err.stack : undefined
-      }) 
-    };
+    return res.status(500).json({ 
+      error: err.message,
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
+    });
   }
-};
+}

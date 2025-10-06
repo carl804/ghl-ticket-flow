@@ -2,7 +2,7 @@
 import { logger } from "@/components/ErrorLog";
 import { getAccessToken, refreshAccessToken, logout } from "./oauth";
 
-const PROXY_URL = "/.netlify/functions/ghl-proxy";
+const PROXY_URL = "/api/ghl-proxy";
 
 export async function ghlRequest<T>(
   endpoint: string,
