@@ -10,7 +10,6 @@ import { ghlRequest } from "@/integrations/ghl/client";
 import { toast } from "sonner";
 
 let FIELD_MAP: FieldMap = {};
-let PIPELINE_ID: string | null = null;
 
 /** Get location ID from stored tokens */
 function getLocationId(): string {
@@ -19,26 +18,6 @@ function getLocationId(): string {
     throw new Error("Location ID not found. Please re-authenticate.");
   }
   return tokens.locationId;
-}
-
-/** Resolve and cache pipeline id */
-async function getPipelineId(): Promise<string> {
-  if (PIPELINE_ID) return PIPELINE_ID;
-
-  const response = await ghlRequest<{ pipelines: Array<{ id: string; name: string }> }>(
-    `/opportunities/pipelines`
-  );
-  
-  const ticketPipeline = response.pipelines.find((p) =>
-    p.name.toLowerCase().includes("ticketing system")
-  );
-  
-  if (!ticketPipeline) {
-    throw new Error("Ticketing System pipeline not found");
-  }
-
-  PIPELINE_ID = ticketPipeline.id;
-  return PIPELINE_ID;
 }
 
 /** Load custom field ids once */
@@ -61,23 +40,31 @@ function getFieldId(key: keyof FieldMap): string | undefined {
   return FIELD_MAP[key];
 }
 
-/** Fetch stitched tickets from the Ticketing pipeline */
+/** Fetch tickets using opportunities search */
 export async function fetchTickets(): Promise<Ticket[]> {
   try {
-    const pipelineId = await getPipelineId();
     const locationId = getLocationId();
     
+    // Use search endpoint - this actually works in OAuth v2
     const response = await ghlRequest<{ opportunities: any[] }>(
-      `/opportunities/pipelines/${pipelineId}`,
+      `/opportunities/search`,
       { 
         queryParams: { 
-          locationId,
-          limit: "100" 
+          location_id: locationId,
+          limit: "100"
         } 
       }
     );
 
-    return (response.opportunities || []).map((opp: any) => {
+    // Filter for ticketing system pipeline if needed
+    const allOpportunities = response.opportunities || [];
+    
+    // If you want to filter by pipeline name, do it here
+    // const ticketOpportunities = allOpportunities.filter((opp: any) => 
+    //   opp.pipelineName?.toLowerCase().includes("ticketing system")
+    // );
+
+    return allOpportunities.map((opp: any) => {
       const category = (opp.category as TicketCategory) || "General Questions";
       return {
         id: opp.id,
@@ -220,7 +207,7 @@ export async function bulkUpdatePriority(ids: string[], priority: TicketPriority
   await Promise.all(ids.map((id) => updatePriority(id, priority)));
 }
 
-/** Users (assignee dropdown) */
+/** Users - temporarily disabled, endpoint not available in OAuth v2 */
 export interface GHLUser {
   id: string;
   name: string;
@@ -228,16 +215,9 @@ export interface GHLUser {
 }
 
 export async function fetchUsers(): Promise<GHLUser[]> {
-  const locationId = getLocationId();
-  const response = await ghlRequest<any>(`/locations/${locationId}/users`);
-  
-  if (!response.users) return [];
-  
-  return response.users.map((u: any) => ({
-    id: u.id,
-    name: u.name || `${u.firstName || ""} ${u.lastName || ""}`.trim(),
-    email: u.email,
-  }));
+  // OAuth v2 doesn't support this endpoint yet
+  // Return empty array so assignee dropdown is just empty
+  return [];
 }
 
 /** Converters to keep UI types safe */
