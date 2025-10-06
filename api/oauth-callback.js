@@ -1,9 +1,7 @@
-// api/oauth-callback.ts
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
+// api/oauth-callback.js
 const TOKEN_URL = "https://services.leadconnectorhq.com/oauth/token";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req, res) {
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -62,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return res.redirect(302, successUrl.toString());
-  } catch (error: any) {
+  } catch (error) {
     console.error("OAuth callback error:", error);
     return res.status(500).json({
       error: "OAuth failed",

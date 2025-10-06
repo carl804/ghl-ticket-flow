@@ -1,12 +1,10 @@
-// api/ghl-proxy.ts
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
+// api/ghl-proxy.js
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
 const CLIENT_ID = process.env.VITE_GHL_CLIENT_ID;
 const CLIENT_SECRET = process.env.VITE_GHL_CLIENT_SECRET;
 const REDIRECT_URI = process.env.VITE_GHL_REDIRECT_URI;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req, res) {
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, LocationId, Version");
@@ -27,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Build request headers
-    const reqHeaders: Record<string, string> = {
+    const reqHeaders = {
       "Version": "2021-07-28",
       "Content-Type": "application/json",
     };
@@ -54,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // For all other requests, use the OAuth Bearer token
-    const authHeader = req.headers["authorization"] as string;
+    const authHeader = req.headers["authorization"];
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ error: "No authorization token provided" });
@@ -84,14 +82,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!response.ok) {
       console.error("GHL API Error:", {
         status: response.status,
-        url,
-        response: responseText.substring(0, 200)
+        url        response: responseText.substring(0, 200)
       });
     }
 
     return res.status(response.status).send(responseText);
     
-  } catch (err: any) {
+  } catch (err) {
     console.error("Proxy error:", err);
     return res.status(500).json({ 
       error: err.message,
@@ -99,3 +96,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
+
