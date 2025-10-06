@@ -46,14 +46,9 @@ export async function fetchTickets(): Promise<Ticket[]> {
     const locationId = getLocationId();
     
     // Use search endpoint - this actually works in OAuth v2
+    // Note: Don't pass locationId in options, only in queryParams
     const response = await ghlRequest<{ opportunities: any[] }>(
-      `/opportunities/search`,
-      { 
-        queryParams: { 
-          location_id: locationId,
-          limit: "100"
-        } 
-      }
+      `/opportunities/search?location_id=${locationId}&limit=100`
     );
 
     // Filter for ticketing system pipeline if needed
