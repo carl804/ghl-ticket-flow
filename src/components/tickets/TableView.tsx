@@ -41,10 +41,11 @@ const priorityConfig = {
 };
 
 const statusConfig = {
-  Open: { color: "bg-status-open text-white" },
-  "In Progress": { color: "bg-status-in-progress text-white" },
-  "Pending Customer": { color: "bg-status-pending text-white" },
-  Resolved: { color: "bg-status-resolved text-white" },
+  Open: { color: "bg-blue-600 text-white" },
+  "In Progress": { color: "bg-yellow-600 text-white" },
+  Resolved: { color: "bg-green-600 text-white" },
+  Closed: { color: "bg-gray-600 text-white" },
+  Deleted: { color: "bg-red-600 text-white" },
 };
 
 export default function TableView({
@@ -167,7 +168,7 @@ export default function TableView({
                       </Badge>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
-                      {(["Open", "In Progress", "Pending Customer", "Resolved"] as TicketStatus[]).map((status) => (
+                      {(["Open", "In Progress", "Resolved", "Closed", "Deleted"] as TicketStatus[]).map((status) => (
                         <DropdownMenuItem
                           key={status}
                           onClick={() => onStatusChange(ticket.id, status)}

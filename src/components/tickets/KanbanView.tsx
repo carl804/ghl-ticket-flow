@@ -10,7 +10,7 @@ import {
   DragStartEvent,
   DragEndEvent,
 } from "@dnd-kit/core";
-import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Ticket, TicketStatus } from "@/lib/types";
@@ -22,7 +22,7 @@ interface KanbanViewProps {
   onTicketClick: (ticket: Ticket) => void;
 }
 
-const COLUMNS: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved"];
+const COLUMNS: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed", "Deleted"];
 
 function SortableTicketCard({ 
   ticket, 
@@ -62,13 +62,16 @@ function KanbanColumn({
   isOver?: boolean;
 }) {
   return (
-    <div className={`flex flex-col h-full transition-all duration-200 rounded-lg ${
-      isOver ? "ring-2 ring-primary" : ""
-    }`}>
-      <div className="bg-primary/10 px-4 py-3 rounded-t-lg">
+    <div 
+      className={`flex flex-col h-full transition-all duration-200 rounded-lg flex-shrink-0 ${
+        isOver ? "ring-2 ring-primary" : ""
+      }`}
+      style={{ width: '320px' }}
+    >
+      <div className="bg-primary/10 px-4 py-3 rounded-t-lg flex-shrink-0">
         <h3 className="font-semibold text-foreground">{status} ({tickets.length})</h3>
       </div>
-      <div className="flex-1 overflow-y-auto space-y-3 p-3 bg-muted/5">
+      <div className="flex-1 overflow-y-auto space-y-3 p-3 bg-muted/5 rounded-b-lg">
         <SortableContext items={tickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tickets.map((ticket) => (
             <SortableTicketCard
@@ -129,8 +132,14 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   const activeTicket = tickets.find((t) => t.id === activeId);
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 h-[calc(100vh-280px)]">
+    <DndContext 
+      sensors={sensors} 
+      collisionDetection={closestCorners} 
+      onDragStart={handleDragStart} 
+      onDragOver={handleDragOver} 
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)]">
         {COLUMNS.map((status) => (
           <KanbanColumn
             key={status}

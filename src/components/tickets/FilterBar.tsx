@@ -69,8 +69,9 @@ export function FilterBar({ filters, onFiltersChange, agencies, assignees }: Fil
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="Open">Open</SelectItem>
             <SelectItem value="In Progress">In Progress</SelectItem>
-            <SelectItem value="Pending Customer">Pending Customer</SelectItem>
             <SelectItem value="Resolved">Resolved</SelectItem>
+            <SelectItem value="Closed">Closed</SelectItem>
+            <SelectItem value="Deleted">Deleted</SelectItem>
           </SelectContent>
         </Select>
 
