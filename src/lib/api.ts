@@ -50,7 +50,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
       { 
         queryParams: { 
           location_id: locationId,
-          pipelineId: "p14Is7nXjiqS6MVI0cCk",
+          pipeline_id: "p14Is7nXjiqS6MVI0cCk",  // Use pipeline_id not pipelineId
           limit: 100
         },
         skipLocationId: true
@@ -60,6 +60,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
     const allOpportunities = response.opportunities || [];
 
     return allOpportunities.map((opp: any) => {
+   
       const category = (opp.category as TicketCategory) || "General Questions";
       return {
         id: opp.id,
