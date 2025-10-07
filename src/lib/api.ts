@@ -40,7 +40,7 @@ function getFieldId(key: keyof FieldMap): string | undefined {
   return FIELD_MAP[key];
 }
 
-/** Fetch tickets using opportunities search */
+/** Fetch tickets from Ticketing System pipeline only */
 export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const locationId = getLocationId();
@@ -50,6 +50,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
       { 
         queryParams: { 
           location_id: locationId,
+          pipelineId: "p14Is7nXjiqS6MVI0cCk",
           limit: 100
         },
         skipLocationId: true
@@ -209,26 +210,8 @@ export interface GHLUser {
 }
 
 export async function fetchUsers(): Promise<GHLUser[]> {
-  try {
-    const locationId = getLocationId();
-    const response = await ghlRequest<{ users: any[] }>(
-      `/users/location/${locationId}`,
-      {
-        skipLocationId: true
-      }
-    );
-    
-    if (!response.users) return [];
-    
-    return response.users.map((u: any) => ({
-      id: u.id,
-      name: u.name || `${u.firstName || ""} ${u.lastName || ""}`.trim(),
-      email: u.email,
-    }));
-  } catch (error) {
-    console.error("Failed to fetch users:", error);
-    return [];
-  }
+  // Endpoint doesn't exist in OAuth v2 API
+  return [];
 }
 
 /** Converters to keep UI types safe */
