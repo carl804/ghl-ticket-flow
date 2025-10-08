@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
-import { updateTicket, fetchUsers, fetchTags, updateContactTags } from "@/lib/api";
+import { updateTicket, fetchUsers, fetchTags, updateContactTags, type GHLTag } from "@/lib/api";
 import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from "@/lib/types";
 import { toast } from "sonner";
 import {
@@ -73,9 +73,9 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
     queryFn: fetchUsers,
   });
 
-  const { data: availableTags = [] } = useQuery({
+  const { data: availableTags = [] as GHLTag[] } = useQuery({
     queryKey: ["tags"],
-    queryFn: fetchTags,
+    queryFn: async () => [], // fetchTags,
   });
 
   useEffect(() => {
@@ -299,7 +299,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
                 <SelectValue placeholder="Select assignee" />
               </SelectTrigger>
               <SelectContent className="bg-popover z-[100]">
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
                 {users.map((user: any) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.name}
