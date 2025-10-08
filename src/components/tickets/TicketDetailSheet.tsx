@@ -109,7 +109,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
         await updateContactTags(ticket.contactId, updates.tags);
       } catch (error) {
         toast.error("Failed to update tags");
-        return;
+        // Continue even if tags fail
       }
     }
     
