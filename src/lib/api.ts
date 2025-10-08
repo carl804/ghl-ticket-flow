@@ -11,6 +11,17 @@ import { toast } from "sonner";
 
 let FIELD_MAP: FieldMap = {};
 
+// Custom field IDs
+const CUSTOM_FIELD_IDS = {
+  description: 'y9aYiEln1CpSuz6u3rtE',
+  priority: 'QMiATAEcjFjQc9q8FxW6',
+  resolved: 'UiGPQzYy7u1xVixtCvld',
+  resolutionSummary: 'ZzsDH7pErVhwLqJt1NjA',
+  ticketOwner: 'VYv1QpVAAgns13227Pii',
+  agencyName: '32NhsYp2R2zpExXr8TO1',
+  category: 'eCjK3IHuhErwlkyWJ4Wx'
+};
+
 /** Get location ID from stored tokens */
 function getLocationId(): string {
   const tokens = JSON.parse(localStorage.getItem('ghl_tokens') || '{}');
@@ -18,6 +29,13 @@ function getLocationId(): string {
     throw new Error("Location ID not found. Please re-authenticate.");
   }
   return tokens.locationId;
+}
+
+/** Helper to get custom field value from opportunity */
+function getCustomFieldValue(opp: any, fieldId: string): any {
+  const customFields = opp.customFields || [];
+  const field = customFields.find((f: any) => f.id === fieldId);
+  return field?.fieldValue || field?.value || field?.field_value || '';
 }
 
 /** Load custom field ids once */
@@ -77,14 +95,16 @@ export async function fetchTickets(): Promise<Ticket[]> {
       .map(response => response.opportunity);
 
     return validOpportunities.map((opp: any) => {
-      const category = (opp.category as TicketCategory) || "General Questions";
+      // Extract custom fields
+      const description = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.description);
+      const priority = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.priority) || "Medium";
+      const resolutionSummary = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.resolutionSummary);
+      const ticketOwner = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketOwner);
+      const agencyName = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.agencyName);
+      const category = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.category) || "General Questions";
       
-      // DEBUG: Log to verify tags are being fetched
-      console.log("🚀🚀🚀 NEW CODE RUNNING - BUILD $(date +%s) 🚀🚀🚀");
-      console.log('Opportunity:', opp.id);
-      console.log('Full opportunity object:', opp);
-      console.log('Contact object:', opp.contact);
-      console.log('Contact tags for opportunity', opp.id, ':', opp.contact?.tags);
+      console.log('🎫 Mapping opportunity:', opp.id);
+      console.log('📋 Extracted custom fields:', { description, priority, resolutionSummary, ticketOwner, agencyName, category });
       
       return {
         id: opp.id,
@@ -95,19 +115,19 @@ export async function fetchTickets(): Promise<Ticket[]> {
           email: opp.contact?.email || opp.contactEmail,
           phone: opp.contact?.phone || opp.contactPhone,
         },
-        agencyName: opp.agencyName || "N/A",
+        agencyName: agencyName || "N/A",
         status: toTicketStatus(opp.status || "Open"),
-        priority: toTicketPriority(opp.priority || "Medium"),
-        category,
-        resolutionSummary: opp.resolutionSummary || "",
-        assignedTo: opp.assignedTo,
-        assignedToUserId: opp.assignedToUserId,
+        priority: toTicketPriority(priority),
+        category: category as TicketCategory,
+        resolutionSummary: resolutionSummary || "",
+        assignedTo: ticketOwner || "",
+        assignedToUserId: opp.assignedTo || "",
         contactId: opp.contact?.id || opp.contactId,
-        createdAt: opp.dateAdded || new Date().toISOString(),
+        createdAt: opp.createdAt || new Date().toISOString(),
         updatedAt: opp.updatedAt || new Date().toISOString(),
         value: opp.monetaryValue || 0,
-        dueDate: opp.dueDate,
-        description: opp.description,
+        dueDate: opp.dueDate || "",
+        description: description || "",
         tags: Array.isArray(opp.contact?.tags) ? opp.contact.tags : [],
       } as Ticket;
     });
@@ -201,20 +221,34 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
   if (updates.status) body.status = updates.status;
   if (updates.assignedToUserId) body.assignedToUserId = updates.assignedToUserId;
 
-  if (updates.priority) {
-    const fieldId = getFieldId("priority");
-    if (fieldId) customFields.push({ id: fieldId, value: updates.priority });
-  }
-  if (updates.category) {
-    const fieldId = getFieldId("category");
-    if (fieldId) customFields.push({ id: fieldId, value: updates.category });
-  }
-  if (updates.resolutionSummary) {
-    const fieldId = getFieldId("resolutionSummary");
-    if (fieldId) customFields.push({ id: fieldId, value: updates.resolutionSummary });
+  // Map assignedTo to Ticket Owner custom field
+  if (updates.assignedTo !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.ticketOwner, value: updates.assignedTo });
   }
 
-  if (customFields.length > 0) body.customField = customFields;
+  if (updates.priority) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.priority, value: updates.priority });
+  }
+  
+  if (updates.category !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.category, value: updates.category });
+  }
+  
+  if (updates.description !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.description, value: updates.description });
+  }
+  
+  if (updates.resolutionSummary !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.resolutionSummary, value: updates.resolutionSummary });
+  }
+  
+  if (updates.agencyName !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
+  }
+
+  if (customFields.length > 0) {
+    body.customFields = customFields;
+  }
 
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body });
 }
@@ -235,8 +269,15 @@ export interface GHLUser {
 }
 
 export async function fetchUsers(): Promise<GHLUser[]> {
-  // Endpoint doesn't exist in OAuth v2 API
-  return [];
+  // Return ticket owners from custom field options
+  return [
+    { id: "Aneela", name: "Aneela" },
+    { id: "Carl", name: "Carl" },
+    { id: "Chloe", name: "Chloe" },
+    { id: "Christian", name: "Christian" },
+    { id: "Jonathan", name: "Jonathan" },
+    { id: "Joyce", name: "Joyce" },
+  ];
 }
 
 /** Tags */
@@ -258,7 +299,6 @@ export async function fetchTags(): Promise<GHLTag[]> {
     );
     
     console.log('Tags API response:', response);
-    console.log('Tags array:', response.tags);
     
     if (!response.tags || !Array.isArray(response.tags)) {
       console.error('Invalid tags response:', response);
@@ -272,7 +312,6 @@ export async function fetchTags(): Promise<GHLTag[]> {
     }));
   } catch (error) {
     console.error("Failed to fetch tags:", error);
-    toast.error("Failed to load tags");
     return [];
   }
 }
