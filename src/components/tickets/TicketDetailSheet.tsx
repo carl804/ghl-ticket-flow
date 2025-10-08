@@ -83,6 +83,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
       console.log('Ticket loaded in sheet:', ticket);
       console.log('Ticket tags:', ticket.tags);
       setEditedTicket(ticket);
+      console.log("✅ editedTicket set to:", ticket);
     }
   }, [ticket]);
 
