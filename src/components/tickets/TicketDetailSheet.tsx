@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -18,7 +19,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { updateTicket, fetchUsers, fetchTags, updateContactTags } from "@/lib/api";
 import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from "@/lib/types";
 import { toast } from "sonner";
@@ -33,8 +40,10 @@ import {
   Plus,
   MessageSquare,
   ExternalLink,
+  Search,
+  Check,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 const CATEGORIES: TicketCategory[] = [
   "Billing",
@@ -53,9 +62,11 @@ interface TicketDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export default function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProps) {
+function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProps) {
   const queryClient = useQueryClient();
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
+  const [tagSearch, setTagSearch] = useState("");
+  const [tagsOpen, setTagsOpen] = useState(false);
 
   const { data: users = [] } = useQuery({
     queryKey: ["users"],
@@ -68,7 +79,11 @@ export default function TicketDetailSheet({ ticket, open, onOpenChange }: Ticket
   });
 
   useEffect(() => {
-    if (ticket) setEditedTicket(ticket);
+    if (ticket) {
+      console.log('Ticket loaded in sheet:', ticket);
+      console.log('Ticket tags:', ticket.tags);
+      setEditedTicket(ticket);
+    }
   }, [ticket]);
 
   const updateMutation = useMutation({
@@ -121,6 +136,18 @@ export default function TicketDetailSheet({ ticket, open, onOpenChange }: Ticket
       });
     }
   };
+
+  const handleRemoveTag = (tagName: string) => {
+    const currentTags = editedTicket.tags || [];
+    setEditedTicket({
+      ...editedTicket,
+      tags: currentTags.filter((tag) => tag !== tagName),
+    });
+  };
+
+  const filteredAvailableTags = availableTags.filter(tag =>
+    tag.name.toLowerCase().includes(tagSearch.toLowerCase())
+  );
 
   if (!ticket) return null;
 
@@ -313,12 +340,14 @@ export default function TicketDetailSheet({ ticket, open, onOpenChange }: Ticket
           {/* Tags */}
           <div>
             <Label>Tags</Label>
-            <div className="flex flex-wrap gap-2 mt-2 mb-3">
+            
+            {/* Selected Tags */}
+            <div className="flex flex-wrap gap-2 mt-2 mb-3 min-h-[36px] p-2 border rounded-md bg-background">
               {(editedTicket.tags || []).map((tag) => (
                 <Badge key={tag} variant="secondary" className="gap-1">
                   {tag}
                   <button
-                    onClick={() => handleToggleTag(tag)}
+                    onClick={() => handleRemoveTag(tag)}
                     className="ml-1 hover:text-destructive"
                   >
                     <X className="h-3 w-3" />
@@ -326,46 +355,82 @@ export default function TicketDetailSheet({ ticket, open, onOpenChange }: Ticket
                 </Badge>
               ))}
               {(editedTicket.tags || []).length === 0 && (
-                <p className="text-sm text-muted-foreground">No tags assigned</p>
+                <span className="text-sm text-muted-foreground">No tags assigned</span>
               )}
             </div>
-            <Label className="text-sm text-muted-foreground">Available Tags</Label>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {availableTags
-                .filter(tag => !(editedTicket.tags || []).includes(tag.name))
-                .map((tag) => (
-                  <Badge
-                    key={tag.id}
-                    variant="outline"
-                    className="cursor-pointer hover:bg-secondary"
-                    onClick={() => handleToggleTag(tag.name)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    {tag.name}
-                  </Badge>
-                ))}
-            </div>
+
+            {/* Add Tags Popover */}
+            <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Tags
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="start">
+                <div className="p-2 border-b">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search / create tags"
+                      value={tagSearch}
+                      onChange={(e) => setTagSearch(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
+                <div className="max-h-[300px] overflow-y-auto p-2">
+                  {filteredAvailableTags.length > 0 ? (
+                    <div className="space-y-1">
+                      {filteredAvailableTags.map((tag) => {
+                        const isSelected = (editedTicket.tags || []).includes(tag.name);
+                        return (
+                          <div
+                            key={tag.id}
+                            className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+                            onClick={() => handleToggleTag(tag.name)}
+                          >
+                            <div className="flex-1">{tag.name}</div>
+                            {isSelected && <Check className="h-4 w-4 text-primary" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No tags found
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <Separator />
 
           {/* Metadata */}
-          <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
+          <div className="space-y-3 text-sm">
+            <div className="flex items-start gap-2">
+              <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
               <div>
-                <p className="text-xs">Created</p>
-                <p className="font-medium text-foreground">
-                  {format(new Date(ticket.createdAt), "MMM d, yyyy")}
+                <p className="text-xs text-muted-foreground">Created</p>
+                <p className="font-medium">
+                  {format(new Date(ticket.createdAt), "MMM d, yyyy, h:mm a")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  ({formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })})
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+            <div className="flex items-start gap-2">
+              <Clock className="h-4 w-4 mt-0.5 text-muted-foreground" />
               <div>
-                <p className="text-xs">Updated</p>
-                <p className="font-medium text-foreground">
-                  {format(new Date(ticket.updatedAt), "MMM d, yyyy")}
+                <p className="text-xs text-muted-foreground">Updated</p>
+                <p className="font-medium">
+                  {format(new Date(ticket.updatedAt), "MMM d, yyyy, h:mm a")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  ({formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true })})
                 </p>
               </div>
             </div>
@@ -385,3 +450,5 @@ export default function TicketDetailSheet({ ticket, open, onOpenChange }: Ticket
     </Sheet>
   );
 }
+
+export default TicketDetailSheet;
