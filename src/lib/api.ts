@@ -247,10 +247,10 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
   }
 
   if (customFields.length > 0) {
-    body.customFields = customFields;
+    body.customField = customFields;
   }
 
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
+  await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body });
 }
 
 export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
