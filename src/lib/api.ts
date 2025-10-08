@@ -247,7 +247,7 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
   }
 
   if (customFields.length > 0) {
-    body.customField = customFields;
+    body.customFields = customFields;
   }
 
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body });
