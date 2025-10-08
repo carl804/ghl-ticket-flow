@@ -307,7 +307,6 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
           </div>
           </div>
 
