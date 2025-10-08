@@ -1,6 +1,5 @@
 // src/lib/types.ts
-
-export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Deleted";
+export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Deleted" | "Pending Customer";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
 export type TicketCategory = string;
 
@@ -32,10 +31,12 @@ export interface Ticket {
 export interface Stats {
   total: number;
   open: number;
-  inProgress: number;
-  resolved: number;
-  closed: number;
-  deleted: number;
+  inProgress?: number;
+  resolved?: number;
+  closed?: number;
+  deleted?: number;
+  pending?: number;
+  pendingCustomer: number;
   resolvedToday: number;
   avgResolutionTime: string;
   // Trends
@@ -45,6 +46,7 @@ export interface Stats {
   resolvedTrend?: number;
   closedTrend?: number;
   deletedTrend?: number;
+  pendingTrend?: number;
   resolvedTodayTrend?: number;
 }
 

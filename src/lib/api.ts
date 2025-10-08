@@ -84,7 +84,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
         value: opp.monetaryValue || 0,
         dueDate: opp.dueDate,
         description: opp.description,
-        tags: opp.tags || [],
+        tags: opp.contact?.tags || [],
       } as Ticket;
     });
   } catch (error) {
@@ -213,6 +213,44 @@ export interface GHLUser {
 export async function fetchUsers(): Promise<GHLUser[]> {
   // Endpoint doesn't exist in OAuth v2 API
   return [];
+}
+
+/** Tags */
+export interface GHLTag {
+  id: string;
+  name: string;
+  color?: string;
+}
+
+/** Fetch all tags for the location */
+export async function fetchTags(): Promise<GHLTag[]> {
+  try {
+    const locationId = getLocationId();
+    const response = await ghlRequest<{ tags: any[] }>(
+      `/locations/${locationId}/tags`
+    );
+    return (response.tags || []).map((tag: any) => ({
+      id: tag.id,
+      name: tag.name,
+      color: tag.color,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch tags:", error);
+    return [];
+  }
+}
+
+/** Update tags on a contact */
+export async function updateContactTags(contactId: string, tags: string[]): Promise<void> {
+  try {
+    await ghlRequest(`/contacts/${contactId}`, {
+      method: "PUT",
+      body: { tags },
+    });
+  } catch (error) {
+    console.error("Failed to update contact tags:", error);
+    throw error;
+  }
 }
 
 /** Converters to keep UI types safe */
