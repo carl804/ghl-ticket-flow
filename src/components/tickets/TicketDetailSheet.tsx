@@ -156,7 +156,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto bg-popover">
         <SheetHeader>
           <SheetTitle className="text-2xl font-bold">{ticket.name}</SheetTitle>
-          <SheetDescription>View and edit ticket details</SheetDescription>
+          <SheetDescription>View and edit ticket details - NEW VERSION</SheetDescription>
         </SheetHeader>
 
         <div className="py-6 space-y-6">
