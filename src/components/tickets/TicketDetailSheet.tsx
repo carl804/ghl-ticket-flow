@@ -359,12 +359,12 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
               )}
             </div>
 
-            {/* Add Tags Popover */}
+            {/* 🏷️ ADD TAGS NOW Popover */}
             <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Tags
+                  🏷️ ADD TAGS NOW
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80 p-0" align="start">
