@@ -38,20 +38,31 @@ export default function Tickets() {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
+    const resolved = tickets.filter((t) => t.status === "Resolved");
+    const avgMs = resolved.length > 0
+      ? resolved.reduce(
+          (acc, t) => acc + (new Date(t.updatedAt).getTime() - new Date(t.createdAt).getTime()),
+          0
+        ) / resolved.length
+      : 0;
+    const avgHours = Math.round(avgMs / (1000 * 60 * 60));
+    const avgResolutionTime = avgHours < 24 ? `${avgHours}h` : `${Math.round(avgHours / 24)}d`;
+    
     return {
       total: tickets.length,
       open: tickets.filter((t) => t.status === "Open").length,
       inProgress: tickets.filter((t) => t.status === "In Progress").length,
-      resolved: tickets.filter((t) => t.status === "Resolved").length,
+      resolved: resolved.length,
       closed: tickets.filter((t) => t.status === "Closed").length,
       deleted: tickets.filter((t) => t.status === "Deleted").length,
+      pendingCustomer: tickets.filter((t) => t.status === "Pending Customer").length,
       resolvedToday: tickets.filter(
         (t) => t.status === "Resolved" && new Date(t.updatedAt) >= todayStart
       ).length,
-      avgResolutionTime: "2.5 days", // Calculate this based on your logic
+      avgResolutionTime,
     };
   }, [tickets]);
-
+  
   // Filter tickets based on filters
   const filteredTickets = useMemo(() => {
     return tickets.filter((ticket) => {

@@ -3,7 +3,6 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -20,7 +19,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { updateTicket, fetchUsers } from "@/lib/api";
+import { updateTicket, fetchUsers, fetchTags, updateContactTags } from "@/lib/api";
 import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from "@/lib/types";
 import { toast } from "sonner";
 import {
@@ -54,14 +53,18 @@ interface TicketDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProps) {
+export default function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProps) {
   const queryClient = useQueryClient();
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
-  const [newTag, setNewTag] = useState("");
 
   const { data: users = [] } = useQuery({
     queryKey: ["users"],
     queryFn: fetchUsers,
+  });
+
+  const { data: availableTags = [] } = useQuery({
+    queryKey: ["tags"],
+    queryFn: fetchTags,
   });
 
   useEffect(() => {
@@ -77,12 +80,23 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
     onError: () => toast.error("Failed to update ticket"),
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const updates: Partial<Ticket> = { ...editedTicket };
     if (updates.assignedToUserId) {
       const selectedUser = users.find(u => u.id === updates.assignedToUserId);
       if (selectedUser) updates.assignedTo = selectedUser.name;
     }
+    
+    // Update contact tags separately if they changed
+    if (ticket?.contactId && updates.tags) {
+      try {
+        await updateContactTags(ticket.contactId, updates.tags);
+      } catch (error) {
+        toast.error("Failed to update tags");
+        return;
+      }
+    }
+    
     updateMutation.mutate(updates);
   };
 
@@ -93,19 +107,19 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
     } else toast.error("Contact ID not available");
   };
 
-  const handleAddTag = () => {
-    if (newTag.trim()) {
-      const currentTags = editedTicket.tags || [];
-      setEditedTicket({ ...editedTicket, tags: [...currentTags, newTag.trim()] });
-      setNewTag("");
+  const handleToggleTag = (tagName: string) => {
+    const currentTags = editedTicket.tags || [];
+    if (currentTags.includes(tagName)) {
+      setEditedTicket({
+        ...editedTicket,
+        tags: currentTags.filter((tag) => tag !== tagName),
+      });
+    } else {
+      setEditedTicket({
+        ...editedTicket,
+        tags: [...currentTags, tagName],
+      });
     }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setEditedTicket({
-      ...editedTicket,
-      tags: (editedTicket.tags || []).filter((tag) => tag !== tagToRemove),
-    });
   };
 
   if (!ticket) return null;
@@ -299,30 +313,37 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
           {/* Tags */}
           <div>
             <Label>Tags</Label>
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2 mb-3">
               {(editedTicket.tags || []).map((tag) => (
                 <Badge key={tag} variant="secondary" className="gap-1">
                   {tag}
                   <button
-                    onClick={() => handleRemoveTag(tag)}
+                    onClick={() => handleToggleTag(tag)}
                     className="ml-1 hover:text-destructive"
                   >
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
               ))}
+              {(editedTicket.tags || []).length === 0 && (
+                <p className="text-sm text-muted-foreground">No tags assigned</p>
+              )}
             </div>
-            <div className="flex gap-2 mt-2">
-              <Input
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                placeholder="Add a tag..."
-                onKeyPress={(e) => e.key === "Enter" && handleAddTag()}
-                className="bg-popover"
-              />
-              <Button onClick={handleAddTag} size="sm">
-                <Plus className="h-4 w-4" />
-              </Button>
+            <Label className="text-sm text-muted-foreground">Available Tags</Label>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {availableTags
+                .filter(tag => !(editedTicket.tags || []).includes(tag.name))
+                .map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    variant="outline"
+                    className="cursor-pointer hover:bg-secondary"
+                    onClick={() => handleToggleTag(tag.name)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    {tag.name}
+                  </Badge>
+                ))}
             </div>
           </div>
 
@@ -353,7 +374,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
 
         {/* Footer Actions */}
         <div className="sticky bottom-0 bg-popover border-t pt-4 flex gap-2">
-          <Button onClick={onOpenChange} variant="outline" className="flex-1">
+          <Button onClick={() => onOpenChange(false)} variant="outline" className="flex-1">
             Cancel
           </Button>
           <Button onClick={handleSave} className="flex-1">
@@ -364,5 +385,3 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
     </Sheet>
   );
 }
-
-export default TicketDetailSheet;

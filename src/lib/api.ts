@@ -45,31 +45,51 @@ export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const locationId = getLocationId();
     
+    // First, get all opportunity IDs from the pipeline
     const response = await ghlRequest<{ opportunities: any[] }>(
       `/opportunities/search`,
       { 
         queryParams: { 
           location_id: locationId,
-          pipeline_id: "p14Is7nXjiqS6MVI0cCk",  // Use pipeline_id not pipelineId
+          pipeline_id: "p14Is7nXjiqS6MVI0cCk",
           limit: 100
         },
         skipLocationId: true
       }
     );
+    const opportunityIds = (response.opportunities || []).map((opp: any) => opp.id);
+    
+    console.log(`Fetching full details for ${opportunityIds.length} opportunities...`);
+    
+    // Then fetch full details for each opportunity (includes contact with tags)
+    const fullOpportunities = await Promise.all(
+      opportunityIds.map(id => 
+        ghlRequest<any>(`/opportunities/${id}`).catch(err => {
+          console.error(`Failed to fetch opportunity ${id}:`, err);
+          return null;
+        })
+      )
+    );
+    
+    // Filter out failed requests and extract the opportunity object
+    const validOpportunities = fullOpportunities
+      .filter(response => response !== null)
+      .map(response => response.opportunity);
 
-    const allOpportunities = response.opportunities || [];
-
-    return allOpportunities.map((opp: any) => {
-   
+    return validOpportunities.map((opp: any) => {
       const category = (opp.category as TicketCategory) || "General Questions";
+      
+      // Log to verify tags are being fetched
+      console.log('Opportunity:', opp.id, 'Contact tags:', opp.contact?.tags);
+      
       return {
         id: opp.id,
         name: opp.name || `TICKET-${opp.id?.slice(0, 8)}`,
         contact: {
-          id: opp.contactId,
-          name: opp.contactName || "Unknown",
-          email: opp.contactEmail,
-          phone: opp.contactPhone,
+          id: opp.contact?.id || opp.contactId,
+          name: opp.contact?.name || opp.contactName || "Unknown",
+          email: opp.contact?.email || opp.contactEmail,
+          phone: opp.contact?.phone || opp.contactPhone,
         },
         agencyName: opp.agencyName || "N/A",
         status: toTicketStatus(opp.status || "Open"),
@@ -78,7 +98,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
         resolutionSummary: opp.resolutionSummary || "",
         assignedTo: opp.assignedTo,
         assignedToUserId: opp.assignedToUserId,
-        contactId: opp.contactId,
+        contactId: opp.contact?.id || opp.contactId,
         createdAt: opp.dateAdded || new Date().toISOString(),
         updatedAt: opp.updatedAt || new Date().toISOString(),
         value: opp.monetaryValue || 0,
@@ -255,7 +275,7 @@ export async function updateContactTags(contactId: string, tags: string[]): Prom
 
 /** Converters to keep UI types safe */
 export function toTicketStatus(value: string): TicketStatus {
-  const allowed: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved"];
+  const allowed: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved", "Closed", "Deleted"];
   return (allowed.includes(value as TicketStatus) ? value : "Open") as TicketStatus;
 }
 
