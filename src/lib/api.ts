@@ -250,7 +250,7 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
     body.customFields = customFields;
   }
 
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PATCH", body });
+  await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
 }
 
 export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
