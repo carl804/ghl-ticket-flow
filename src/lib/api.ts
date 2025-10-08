@@ -80,6 +80,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
       const category = (opp.category as TicketCategory) || "General Questions";
       
       // DEBUG: Log to verify tags are being fetched
+      console.log("🚀🚀🚀 NEW CODE RUNNING - BUILD $(date +%s) 🚀🚀🚀");
       console.log('Opportunity:', opp.id);
       console.log('Full opportunity object:', opp);
       console.log('Contact object:', opp.contact);
