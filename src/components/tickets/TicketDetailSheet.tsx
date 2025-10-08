@@ -451,6 +451,4 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
   );
 }
 
-export default TicketDetailSheet;// Force rebuild Wed Oct  8 20:36:10 UTC 2025
-
 export default TicketDetailSheet;
