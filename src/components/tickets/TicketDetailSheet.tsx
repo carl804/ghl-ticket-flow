@@ -308,7 +308,6 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
                 ))}
               </SelectContent>
           </div>
-          </div>
 
           {/* Description */}
           <div>
