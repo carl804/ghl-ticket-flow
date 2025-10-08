@@ -79,8 +79,11 @@ export async function fetchTickets(): Promise<Ticket[]> {
     return validOpportunities.map((opp: any) => {
       const category = (opp.category as TicketCategory) || "General Questions";
       
-      // Log to verify tags are being fetched
-      console.log('Opportunity:', opp.id, 'Contact tags:', opp.contact?.tags);
+      // DEBUG: Log to verify tags are being fetched
+      console.log('Opportunity:', opp.id);
+      console.log('Full opportunity object:', opp);
+      console.log('Contact object:', opp.contact);
+      console.log('Contact tags for opportunity', opp.id, ':', opp.contact?.tags);
       
       return {
         id: opp.id,
@@ -104,7 +107,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
         value: opp.monetaryValue || 0,
         dueDate: opp.dueDate,
         description: opp.description,
-        tags: opp.contact?.tags || [],
+        tags: Array.isArray(opp.contact?.tags) ? opp.contact.tags : [],
       } as Ticket;
     });
   } catch (error) {
@@ -246,16 +249,29 @@ export interface GHLTag {
 export async function fetchTags(): Promise<GHLTag[]> {
   try {
     const locationId = getLocationId();
+    console.log('Fetching tags for location:', locationId);
+    
     const response = await ghlRequest<{ tags: any[] }>(
-      `/locations/${locationId}/tags`
+      `/locations/${locationId}/tags`,
+      { skipLocationId: false }
     );
-    return (response.tags || []).map((tag: any) => ({
+    
+    console.log('Tags API response:', response);
+    console.log('Tags array:', response.tags);
+    
+    if (!response.tags || !Array.isArray(response.tags)) {
+      console.error('Invalid tags response:', response);
+      return [];
+    }
+    
+    return response.tags.map((tag: any) => ({
       id: tag.id,
       name: tag.name,
       color: tag.color,
     }));
   } catch (error) {
     console.error("Failed to fetch tags:", error);
+    toast.error("Failed to load tags");
     return [];
   }
 }
@@ -263,10 +279,15 @@ export async function fetchTags(): Promise<GHLTag[]> {
 /** Update tags on a contact */
 export async function updateContactTags(contactId: string, tags: string[]): Promise<void> {
   try {
+    console.log('Updating contact tags:', contactId, tags);
+    
     await ghlRequest(`/contacts/${contactId}`, {
       method: "PUT",
       body: { tags },
     });
+    
+    console.log('Contact tags updated successfully');
+    toast.success("Tags updated successfully");
   } catch (error) {
     console.error("Failed to update contact tags:", error);
     throw error;
