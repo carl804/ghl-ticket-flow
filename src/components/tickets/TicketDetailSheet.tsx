@@ -287,27 +287,28 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
 
           <Separator />
 
-          {/* Assigned To */}
+          {/* Ticket Owner */}
           <div>
-            <Label>Assigned To</Label>
+            <Label>Ticket Owner</Label>
             <Select
-              value={editedTicket.assignedToUserId || ""}
+              value={editedTicket.assignedTo || "unassigned"}
               onValueChange={(value) =>
-                setEditedTicket({ ...editedTicket, assignedToUserId: value })
+                setEditedTicket({ ...editedTicket, assignedTo: value === "unassigned" ? "" : value })
               }
             >
               <SelectTrigger className="mt-1 bg-popover">
-                <SelectValue placeholder="Select assignee" />
+                <SelectValue placeholder="Select owner" />
               </SelectTrigger>
               <SelectContent className="bg-popover z-[100]">
                 <SelectItem value="unassigned">Unassigned</SelectItem>
                 {users.map((user: any) => (
-                  <SelectItem key={user.id} value={user.id}>
+                  <SelectItem key={user.id} value={user.name}>
                     {user.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </div>
           </div>
 
           {/* Description */}
