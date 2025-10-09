@@ -9,6 +9,8 @@ import {
   useSensors,
   DragStartEvent,
   DragEndEvent,
+  DragOverEvent,
+  useDroppable,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
@@ -31,7 +33,9 @@ function SortableTicketCard({
   ticket: Ticket; 
   onClick: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ticket.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+    id: ticket.id 
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -50,7 +54,7 @@ function SortableTicketCard({
   );
 }
 
-function KanbanColumn({ 
+function DroppableColumn({ 
   status, 
   tickets, 
   onTicketClick,
@@ -61,17 +65,22 @@ function KanbanColumn({
   onTicketClick: (ticket: Ticket) => void;
   isOver?: boolean;
 }) {
+  const { setNodeRef } = useDroppable({
+    id: status,
+  });
+
   return (
     <div 
+      ref={setNodeRef}
       className={`flex flex-col h-full transition-all duration-200 rounded-lg flex-shrink-0 ${
-        isOver ? "ring-2 ring-primary" : ""
+        isOver ? "ring-2 ring-primary bg-primary/5" : ""
       }`}
       style={{ width: '320px' }}
     >
       <div className="bg-primary/10 px-4 py-3 rounded-t-lg flex-shrink-0">
         <h3 className="font-semibold text-foreground">{status} ({tickets.length})</h3>
       </div>
-      <div className="flex-1 overflow-y-auto space-y-3 p-3 bg-muted/5 rounded-b-lg">
+      <div className="flex-1 overflow-y-auto space-y-3 p-3 bg-muted/5 rounded-b-lg min-h-[200px]">
         <SortableContext items={tickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tickets.map((ticket) => (
             <SortableTicketCard
@@ -95,38 +104,53 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
 
   const ticketsByStatus = COLUMNS.reduce((acc, status) => {
     acc[status] = tickets.filter((t) => t.status === status);
     return acc;
   }, {} as Record<TicketStatus, Ticket[]>);
 
-  const handleDragStart = (event: DragStartEvent) => setActiveId(event.active.id as string);
-  const handleDragOver = (event: any) => setOverId(event.over?.id || null);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event;
+    setOverId(over?.id as string || null);
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over) {
-      setActiveId(null);
-      setOverId(null);
-      return;
-    }
-
-    const activeTicket = tickets.find((t) => t.id === active.id);
-    if (!activeTicket) {
-      setActiveId(null);
-      setOverId(null);
-      return;
-    }
-
-    const overStatus = COLUMNS.find(status => ticketsByStatus[status].some(t => t.id === over.id));
-    if (overStatus && activeTicket.status !== overStatus) {
-      onStatusChange(activeTicket.id, overStatus);
-    }
-
+    
     setActiveId(null);
     setOverId(null);
+
+    if (!over) return;
+
+    const activeTicket = tickets.find((t) => t.id === active.id);
+    if (!activeTicket) return;
+
+    // Check if dropped over a column (status)
+    const targetStatus = COLUMNS.find(col => col === over.id);
+    
+    if (targetStatus && activeTicket.status !== targetStatus) {
+      onStatusChange(activeTicket.id, targetStatus);
+      return;
+    }
+
+    // Check if dropped over another ticket (get that ticket's status)
+    const targetTicket = tickets.find((t) => t.id === over.id);
+    if (targetTicket && activeTicket.status !== targetTicket.status) {
+      onStatusChange(activeTicket.id, targetTicket.status);
+    }
   };
 
   const activeTicket = tickets.find((t) => t.id === activeId);
@@ -141,17 +165,21 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
     >
       <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)]">
         {COLUMNS.map((status) => (
-          <KanbanColumn
+          <DroppableColumn
             key={status}
             status={status}
             tickets={ticketsByStatus[status]}
             onTicketClick={onTicketClick}
-            isOver={overId !== null && ticketsByStatus[status].some(t => t.id === overId)}
+            isOver={overId === status}
           />
         ))}
       </div>
       <DragOverlay>
-        {activeTicket && <TicketCard ticket={activeTicket} />}
+        {activeTicket && (
+          <div style={{ width: '320px' }}>
+            <TicketCard ticket={activeTicket} />
+          </div>
+        )}
       </DragOverlay>
     </DndContext>
   );
