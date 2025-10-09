@@ -116,11 +116,39 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
     updateMutation.mutate(updates);
   };
 
-  const handleViewConversations = () => {
-    if (ticket?.contactId) {
-      const ghlUrl = `https://app.gohighlevel.com/v2/location/${import.meta.env.VITE_GHL_LOCATION_ID || "YOUR_LOCATION_ID"}/conversations/contact/${ticket.contactId}`;
+  const handleViewConversations = async () => {
+    if (!ticket?.contactId) {
+      toast.error("Contact ID not available");
+      return;
+    }
+    
+    try {
+      const tokens = JSON.parse(localStorage.getItem("ghl_tokens") || "{}");
+      const locationId = tokens.locationId;
+      
+      const response = await ghlRequest<{ conversations: any[] }>(
+        `/conversations/search`,
+        { 
+          queryParams: { 
+            contactId: ticket.contactId,
+            locationId: locationId
+          }
+        }
+      );
+      
+      const conversationId = response.conversations?.[0]?.id;
+      
+      if (!conversationId) {
+        toast.error("No conversation found for this contact");
+        return;
+      }
+      
+      const ghlUrl = `https://app.gohighlevel.com/v2/location/${locationId}/conversations/conversations/${conversationId}`;
       window.open(ghlUrl, "_blank");
-    } else toast.error("Contact ID not available");
+    } catch (error) {
+      toast.error("Failed to fetch conversation");
+      console.error(error);
+    }
   };
 
   const handleToggleTag = (tagName: string) => {
