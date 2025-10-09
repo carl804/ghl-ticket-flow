@@ -137,7 +137,8 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
       );
       
       const conversationId = response.conversations?.[0]?.id;
-      console.log("Found conversationId:", conversationId, "Full response:", response);
+      console.log("Conversation search response:", JSON.stringify(response, null, 2));
+      const conversationId = response?.conversations?.[0]?.id;
       
       if (!conversationId) {
         toast.error("No conversation found for this contact");
