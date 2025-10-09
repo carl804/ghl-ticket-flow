@@ -1,4 +1,5 @@
 import type {
+  OpportunityStatus,
   Ticket,
   Stats,
   FieldMap,
@@ -14,13 +15,103 @@ let FIELD_MAP: FieldMap = {};
 
 // Custom field IDs
 const CUSTOM_FIELD_IDS = {
+
+// Stage ID to name mapping
+const STAGE_MAP: Record<string, TicketStatus> = {
+  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
+  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
+  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
+  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
+  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
+};
   description: 'y9aYiEln1CpSuz6u3rtE',
+
+// Stage ID to name mapping
+const STAGE_MAP: Record<string, TicketStatus> = {
+  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
+  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
+  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
+  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
+  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
+};
   priority: 'QMiATAEcjFjQc9q8FxW6',
+
+// Stage ID to name mapping
+const STAGE_MAP: Record<string, TicketStatus> = {
+  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
+  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
+  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
+  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
+  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
+};
   resolved: 'UiGPQzYy7u1xVixtCvld',
+
+// Stage ID to name mapping
+const STAGE_MAP: Record<string, TicketStatus> = {
+  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
+  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
+  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
+  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
+  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
+};
   resolutionSummary: 'ZzsDH7pErVhwLqJt1NjA',
+
+// Stage ID to name mapping
+const STAGE_MAP: Record<string, TicketStatus> = {
+  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
+  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
+  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
+  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
+  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
+};
   ticketOwner: 'VYv1QpVAAgns13227Pii',
+
+// Stage ID to name mapping
+const STAGE_MAP: Record<string, TicketStatus> = {
+  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
+  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
+  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
+  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
+  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
+};
   agencyName: '32NhsYp2R2zpExXr8TO1',
+
+// Stage ID to name mapping
+const STAGE_MAP: Record<string, TicketStatus> = {
+  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
+  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
+  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
+  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
+  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
+};
   category: 'eCjK3IHuhErwlkyWJ4Wx'
+
+// Stage ID to name mapping
+const STAGE_MAP: Record<string, TicketStatus> = {
+  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
+  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
+  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
+  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
+  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
+};
+};
+
+// Stage ID to name mapping
+const STAGE_MAP: Record<string, TicketStatus> = {
+  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
+  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
+  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
+  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
+  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
 };
 
 /** Get location ID from stored tokens */
@@ -117,7 +208,8 @@ export async function fetchTickets(): Promise<Ticket[]> {
           phone: opp.contact?.phone || opp.contactPhone,
         },
         agencyName: agencyName || "N/A",
-        status: toTicketStatus(opp.status || "Open"),
+        status: STAGE_MAP[opp.pipelineStageId] || "Open",
+        opportunityStatus: (opp.status as OpportunityStatus) || "open",
         priority: toTicketPriority(priority),
         category: category as TicketCategory,
         resolutionSummary: resolutionSummary || "",
@@ -218,7 +310,16 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
   const body: any = {};
   const customFields: Array<{ id: string; value: any }> = [];
 
-  if (updates.status) body.status = updates.status.toLowerCase();
+  // Update pipeline stage
+  if (updates.status) {
+    const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === updates.status);
+    if (stageId) body.pipelineStageId = stageId;
+  }
+
+  // Update opportunity status
+  if (updates.opportunityStatus) {
+    body.status = updates.opportunityStatus;
+  }
 
   // Map assignedTo to Ticket Owner custom field
   if (updates.assignedTo !== undefined) {
