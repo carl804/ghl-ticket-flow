@@ -249,8 +249,6 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
 
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
 }
-}
-
 export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
   await Promise.all(ids.map((id) => updateTicketStatus(id, status)));
 }
