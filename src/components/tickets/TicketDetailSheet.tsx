@@ -136,7 +136,6 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
         }
       );
       
-      const conversationId = response.conversations?.[0]?.id;
       console.log("Conversation search response:", JSON.stringify(response, null, 2));
       const conversationId = response?.conversations?.[0]?.id;
       
