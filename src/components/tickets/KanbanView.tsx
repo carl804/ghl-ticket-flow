@@ -37,18 +37,34 @@ function SortableTicketCard({
     id: ticket.id 
   });
 
+  const [isDraggingState, setIsDraggingState] = useState(false);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    cursor: isDragging ? 'grabbing' : 'grab',
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Only trigger onClick if we didn't drag
+    if (!isDraggingState) {
+      onClick();
+    }
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...listeners} 
+      {...attributes}
+      onMouseDown={() => setIsDraggingState(false)}
+      onMouseMove={() => setIsDraggingState(true)}
+      onClick={handleClick}
+    >
       <TicketCard 
         ticket={ticket} 
-        onClick={onClick} 
         isDragging={isDragging}
-        dragHandleProps={{ ...listeners, ...attributes }}
       />
     </div>
   );
