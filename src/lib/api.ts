@@ -225,15 +225,13 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
 
   console.log("Final body to send:", body);
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
-}
 
 export async function updatePriority(ticketId: string, priority: TicketPriority): Promise<void> {
-    customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
-  }
-
-  if (customFields.length > 0) {
-    body.customFields = customFields;
-  }
+  const fieldId = getFieldId("priority");
+  if (!fieldId) throw new Error("Priority field not found");
+  
+  const locationId = getLocationId();
+  await ghlRequest(`/opportunities/${ticketId}`, {
     method: "PATCH",
     body: { 
       customField: [{ id: fieldId, value: priority }],
@@ -254,6 +252,7 @@ export async function updateCategory(ticketId: string, category: TicketCategory)
       locationId 
     },
   });
+}
 }
 
 
