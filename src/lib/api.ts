@@ -7,6 +7,7 @@ import type {
   TicketCategory,
 } from "./types";
 import { ghlRequest } from "@/integrations/ghl/client";
+export { ghlRequest };
 import { toast } from "sonner";
 
 let FIELD_MAP: FieldMap = {};
