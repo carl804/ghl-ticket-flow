@@ -186,4 +186,3 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   );
 }
 
-export default KanbanView;// force rebuild
