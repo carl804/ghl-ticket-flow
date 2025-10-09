@@ -318,6 +318,19 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
             </Select>
           </div>
 
+          {/* Ticket Name */}
+          <div>
+            <Label>Ticket Name</Label>
+            <Input
+              value={editedTicket.name || ""}
+              onChange={(e) =>
+                setEditedTicket({ ...editedTicket, name: e.target.value })
+              }
+              className="mt-1 bg-popover"
+              placeholder="Ticket name..."
+            />
+          </div>
+
           {/* Description */}
           <div>
             <Label>Description</Label>

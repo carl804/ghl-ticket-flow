@@ -1,367 +1,476 @@
-import type {
-  Ticket,
-  OpportunityStatus,
-  Stats,
-  FieldMap,
-  TicketStatus,
-  TicketPriority,
-  TicketCategory,
-} from "./types";
-import { ghlRequest } from "@/integrations/ghl/client";
-export { ghlRequest };
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { updateTicket, fetchUsers, fetchTags, updateContactTags, ghlRequest, type GHLTag } from "@/lib/api";
+import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from "@/lib/types";
 import { toast } from "sonner";
+import {
+  User,
+  Mail,
+  Phone,
+  Building2,
+  Calendar,
+  Clock,
+  X,
+  Plus,
+  MessageSquare,
+  ExternalLink,
+  Search,
+  Check,
+} from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 
-let FIELD_MAP: FieldMap = {};
+const CATEGORIES: TicketCategory[] = [
+  "Billing",
+  "Technical Support",
+  "Onboarding",
+  "Sales Inquiry",
+  "Report an Outage",
+  "General Questions",
+  "Cancel Account",
+  "Upgrade Plan",
+];
 
-// Custom field IDs
-const CUSTOM_FIELD_IDS = {
-  description: 'y9aYiEln1CpSuz6u3rtE',
-  priority: 'QMiATAEcjFjQc9q8FxW6',
-  resolved: 'UiGPQzYy7u1xVixtCvld',
-  resolutionSummary: 'ZzsDH7pErVhwLqJt1NjA',
-  ticketOwner: 'VYv1QpVAAgns13227Pii',
-  agencyName: '32NhsYp2R2zpExXr8TO1',
-  category: 'eCjK3IHuhErwlkyWJ4Wx'
-};
-
-// Stage ID to name mapping
-const STAGE_MAP: Record<string, TicketStatus> = {
-  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
-  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
-  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
-  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
-  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
-  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
-};
-
-/** Get location ID from stored tokens */
-function getLocationId(): string {
-  const tokens = JSON.parse(localStorage.getItem('ghl_tokens') || '{}');
-  if (!tokens.locationId) {
-    throw new Error("Location ID not found. Please re-authenticate.");
-  }
-  return tokens.locationId;
+interface TicketDetailSheetProps {
+  ticket: Ticket | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-/** Helper to get custom field value from opportunity */
-function getCustomFieldValue(opp: any, fieldId: string): any {
-  const customFields = opp.customFields || [];
-  const field = customFields.find((f: any) => f.id === fieldId);
-  return field?.fieldValue || field?.value || field?.field_value || '';
-}
+function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProps) {
+  const queryClient = useQueryClient();
+  const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
+  const [tagSearch, setTagSearch] = useState("");
+  const [tagsOpen, setTagsOpen] = useState(false);
 
-/** Load custom field ids once */
-export async function initializeFieldMap(): Promise<void> {
-  const locationId = getLocationId();
-  const response = await ghlRequest<{ customFields: any[] }>(
-    `/locations/${locationId}/customFields`
-  );
-  const fields = response.customFields || [];
-
-  FIELD_MAP = {
-    priority: fields.find((f) => f.fieldKey === "priority")?.id,
-    category: fields.find((f) => f.fieldKey === "category")?.id,
-    resolutionSummary: fields.find((f) => f.fieldKey === "resolutionSummary")?.id,
-    agencyName: fields.find((f) => f.fieldKey === "agencyName")?.id,
-  };
-}
-
-function getFieldId(key: keyof FieldMap): string | undefined {
-  return FIELD_MAP[key];
-}
-
-/** Fetch tickets from Ticketing System pipeline only */
-export async function fetchTickets(): Promise<Ticket[]> {
-  try {
-    const locationId = getLocationId();
-    
-    // First, get all opportunity IDs from the pipeline
-    const response = await ghlRequest<{ opportunities: any[] }>(
-      `/opportunities/search`,
-      { 
-        queryParams: { 
-          location_id: locationId,
-          pipeline_id: "p14Is7nXjiqS6MVI0cCk",
-          limit: 100
-        },
-        skipLocationId: true
-      }
-    );
-    const opportunityIds = (response.opportunities || []).map((opp: any) => opp.id);
-    
-    console.log(`Fetching full details for ${opportunityIds.length} opportunities...`);
-    
-    // Then fetch full details for each opportunity (includes contact with tags)
-    const fullOpportunities = await Promise.all(
-      opportunityIds.map(id => 
-        ghlRequest<any>(`/opportunities/${id}`).catch(err => {
-          console.error(`Failed to fetch opportunity ${id}:`, err);
-          return null;
-        })
-      )
-    );
-    
-    // Filter out failed requests and extract the opportunity object
-    const validOpportunities = fullOpportunities
-      .filter(response => response !== null)
-      .map(response => response.opportunity);
-
-    return validOpportunities.map((opp: any) => {
-      // Extract custom fields
-      const description = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.description);
-      const priority = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.priority) || "Medium";
-      const resolutionSummary = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.resolutionSummary);
-      const ticketOwner = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketOwner);
-      const agencyName = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.agencyName);
-      const category = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.category) || "General Questions";
-      
-      console.log('🎫 Mapping opportunity:', opp.id);
-      console.log('📋 Extracted custom fields:', { description, priority, resolutionSummary, ticketOwner, agencyName, category });
-      
-      return {
-        id: opp.id,
-        name: opp.name || `TICKET-${opp.id?.slice(0, 8)}`,
-        contact: {
-          id: opp.contact?.id || opp.contactId,
-          name: opp.contact?.name || opp.contactName || "Unknown",
-          email: opp.contact?.email || opp.contactEmail,
-          phone: opp.contact?.phone || opp.contactPhone,
-        },
-        agencyName: agencyName || "N/A",
-        status: STAGE_MAP[opp.pipelineStageId] || "Open",
-        opportunityStatus: (opp.status as OpportunityStatus) || "open",
-        priority: toTicketPriority(priority),
-        category: category as TicketCategory,
-        resolutionSummary: resolutionSummary || "",
-        assignedTo: ticketOwner || "",
-        assignedToUserId: opp.assignedTo || "",
-        contactId: opp.contact?.id || opp.contactId,
-        createdAt: opp.createdAt || new Date().toISOString(),
-        updatedAt: opp.updatedAt || new Date().toISOString(),
-        value: opp.monetaryValue || 0,
-        dueDate: opp.dueDate || "",
-        description: description || "",
-        tags: Array.isArray(opp.contact?.tags) ? opp.contact.tags : [],
-      } as Ticket;
-    });
-  } catch (error) {
-    toast.error(`Unable to fetch tickets: ${error instanceof Error ? error.message : String(error)}`);
-    throw error;
-  }
-}
-
-/** Dashboard stats */
-export async function fetchStats(): Promise<Stats> {
-  const tickets = await fetchTickets();
-  const total = tickets.length;
-  const open = tickets.filter((t) => t.status === "Open").length;
-  const resolvedToday = tickets.filter(
-    (t) =>
-      t.status === "Resolved" &&
-      new Date(t.updatedAt).getTime() >= new Date().setHours(0, 0, 0, 0)
-  ).length;
-
-  const resolved = tickets.filter((t) => t.status === "Resolved");
-  const avgMs =
-    resolved.reduce(
-      (acc, t) => acc + (new Date(t.updatedAt).getTime() - new Date(t.createdAt).getTime()),
-      0
-    ) / (resolved.length || 1);
-
-  const avgHours = Math.round(avgMs / (1000 * 60 * 60));
-  const avgResolutionTime = avgHours < 24 ? `${avgHours}h` : `${Math.round(avgHours / 24)}d`;
-
-  return {
-    total,
-    open,
-    pendingCustomer: 0,
-    resolvedToday,
-    avgResolutionTime,
-    pending: 0,
-    totalTrend: 0,
-    openTrend: 0,
-    pendingTrend: 0,
-    resolvedTodayTrend: 0,
-  };
-}
-
-/** Updates */
-export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
-  const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === newStatus);
-  if (!stageId) throw new Error(`Invalid status: ${newStatus}`);
-  
-  await ghlRequest(`/opportunities/${ticketId}`, { 
-    method: "PATCH", 
-    body: { 
-      pipelineStageId: stageId
-    } 
+  const { data: users = [] } = useQuery({
+    queryKey: ["users"],
+    queryFn: fetchUsers,
   });
-}
 
-export async function updatePriority(ticketId: string, priority: TicketPriority): Promise<void> {
-  const fieldId = getFieldId("priority");
-  if (!fieldId) throw new Error("Priority field not found");
-  
-  const locationId = getLocationId();
-  await ghlRequest(`/opportunities/${ticketId}`, {
-    method: "PATCH",
-    body: { 
-      customField: [{ id: fieldId, value: priority }],
-      locationId 
+  const { data: availableTags = [] as GHLTag[] } = useQuery({
+    queryKey: ["tags"],
+    queryFn: fetchTags,
+  });
+
+  useEffect(() => {
+    if (ticket) {
+      console.log('Ticket loaded in sheet:', ticket);
+      console.log('Ticket tags:', ticket.tags);
+      setEditedTicket(ticket);
+      console.log("✅ editedTicket set to:", ticket);
+    }
+  }, [ticket]);
+
+  const updateMutation = useMutation({
+    mutationFn: (updates: Partial<Ticket>) => updateTicket(ticket!.id, updates),
+    onSuccess: () => {
+      toast.success("Ticket updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["tickets"] as const });
     },
+    onError: () => toast.error("Failed to update ticket"),
   });
-}
 
-export async function updateCategory(ticketId: string, category: TicketCategory): Promise<void> {
-  const fieldId = getFieldId("category");
-  if (!fieldId) throw new Error("Category field not found");
-  
-  const locationId = getLocationId();
-  await ghlRequest(`/opportunities/${ticketId}`, {
-    method: "PATCH",
-    body: { 
-      customField: [{ id: fieldId, value: category }],
-      locationId 
-    },
-  });
-}
-
-export async function updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<void> {
-  const body: any = {};
-  const customFields: Array<{ id: string; value: any }> = [];
-
-  // Update pipeline stage
-  if (updates.status) {
-    const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === updates.status);
-    if (stageId) body.pipelineStageId = stageId;
-  }
-
-  // Update opportunity status
-  if (updates.opportunityStatus) {
-    body.status = updates.opportunityStatus;
-  }
-
-  // Map assignedTo to Ticket Owner custom field
-  if (updates.assignedTo !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.ticketOwner, value: updates.assignedTo });
-  }
-
-  if (updates.priority) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.priority, value: updates.priority });
-  }
-  
-  if (updates.category !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.category, value: updates.category });
-  }
-  
-  if (updates.description !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.description, value: updates.description });
-  }
-  
-  if (updates.resolutionSummary !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.resolutionSummary, value: updates.resolutionSummary });
-  }
-  
-  if (updates.agencyName !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
-  }
-
-  if (customFields.length > 0) {
-    body.customFields = customFields;
-  }
-
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
-}
-
-export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
-  await Promise.all(ids.map((id) => updateTicketStatus(id, status)));
-}
-
-export async function bulkUpdatePriority(ids: string[], priority: TicketPriority): Promise<void> {
-  await Promise.all(ids.map((id) => updatePriority(id, priority)));
-}
-
-/** Users - endpoint doesn't exist in OAuth v2 */
-export interface GHLUser {
-  id: string;
-  name: string;
-  email?: string;
-}
-
-export async function fetchUsers(): Promise<GHLUser[]> {
-  // Return ticket owners from custom field options
-  return [
-    { id: "Aneela", name: "Aneela" },
-    { id: "Carl", name: "Carl" },
-    { id: "Chloe", name: "Chloe" },
-    { id: "Christian", name: "Christian" },
-    { id: "Jonathan", name: "Jonathan" },
-    { id: "Joyce", name: "Joyce" },
-  ];
-}
-
-/** Tags */
-export interface GHLTag {
-  id: string;
-  name: string;
-  color?: string;
-}
-
-/** Fetch all tags for the location */
-export async function fetchTags(): Promise<GHLTag[]> {
-  try {
-    const locationId = getLocationId();
-    console.log('Fetching tags for location:', locationId);
-    
-    const response = await ghlRequest<{ tags: any[] }>(
-      `/locations/${locationId}/tags`,
-      { skipLocationId: true }
-    );
-    
-    console.log('Tags API response:', response);
-    
-    if (!response.tags || !Array.isArray(response.tags)) {
-      console.error('Invalid tags response:', response);
-      return [];
+  const handleSave = async () => {
+    const updates: Partial<Ticket> = { ...editedTicket };
+    if (updates.assignedToUserId) {
+      const selectedUser = users.find(u => u.id === updates.assignedToUserId);
+      if (selectedUser) updates.assignedTo = selectedUser.name;
     }
     
-    return response.tags.map((tag: any) => ({
-      id: tag.id,
-      name: tag.name,
-      color: tag.color,
-    }));
-  } catch (error) {
-    console.error("Failed to fetch tags:", error);
-    return [];
-  }
-}
-
-/** Update tags on a contact */
-export async function updateContactTags(contactId: string, tags: string[]): Promise<void> {
-  try {
-    console.log('Updating contact tags:', contactId, tags);
+    // Update contact tags separately if they changed
+    if (ticket?.contactId && updates.tags) {
+      try {
+        await updateContactTags(ticket.contactId, updates.tags);
+      } catch (error) {
+        toast.error("Failed to update tags");
+        // Continue even if tags fail
+      }
+    }
     
-    await ghlRequest(`/contacts/${contactId}`, {
-      method: "PUT",
-      body: { tags },
-      skipLocationId: true
+    updateMutation.mutate(updates);
+  };
+
+  const handleViewConversations = async () => {
+    if (!ticket?.contactId) {
+      toast.error("Contact ID not available");
+      return;
+    }
+    
+    try {
+      const tokens = JSON.parse(localStorage.getItem("ghl_tokens") || "{}");
+      const locationId = tokens.locationId;
+      
+      const ghlUrl = `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${ticket.contactId}`;
+      window.open(ghlUrl, "_blank");
+    } catch (error) {
+      toast.error("Failed to open contact");
+      console.error(error);
+    }
+  };
+
+  const handleToggleTag = (tagName: string) => {
+    const currentTags = editedTicket.tags || [];
+    if (currentTags.includes(tagName)) {
+      setEditedTicket({
+        ...editedTicket,
+        tags: currentTags.filter((tag) => tag !== tagName),
+      });
+    } else {
+      setEditedTicket({
+        ...editedTicket,
+        tags: [...currentTags, tagName],
+      });
+    }
+  };
+
+  const handleRemoveTag = (tagName: string) => {
+    const currentTags = editedTicket.tags || [];
+    setEditedTicket({
+      ...editedTicket,
+      tags: currentTags.filter((tag) => tag !== tagName),
     });
-    
-    console.log('Contact tags updated successfully');
-    toast.success("Tags updated successfully");
-  } catch (error) {
-    console.error("Failed to update contact tags:", error);
-    throw error;
-  }
+  };
+
+  const filteredAvailableTags = availableTags.filter(tag =>
+    tag.name.toLowerCase().includes(tagSearch.toLowerCase())
+  );
+
+  if (!ticket) return null;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto bg-popover">
+        <SheetHeader>
+          <SheetTitle className="text-2xl font-bold">{ticket.name}</SheetTitle>
+          <SheetDescription>View and edit ticket details</SheetDescription>
+        </SheetHeader>
+
+        <div className="py-6 space-y-6">
+          {/* Status / Priority / Category */}
+          <div className="flex flex-wrap gap-3">
+            {/* Opportunity Status */}
+            <div className="flex-1 min-w-[150px]">
+              <Label>Status</Label>
+              <Select
+                value={editedTicket.opportunityStatus || "open"}
+                onValueChange={(value) =>
+                  setEditedTicket({ ...editedTicket, opportunityStatus: value as any })
+                }
+              >
+                <SelectTrigger className="mt-1 bg-popover">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[100]">
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="won">Won</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
+                  <SelectItem value="abandoned">Abandoned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Priority */}
+            <div className="flex-1 min-w-[150px]">
+              <Label>Priority</Label>
+              <Select
+                value={editedTicket.priority}
+                onValueChange={(value) =>
+                  setEditedTicket({ ...editedTicket, priority: value as TicketPriority })
+                }
+              >
+                <SelectTrigger className="mt-1 bg-popover">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[100]">
+                  {(["Low", "Medium", "High", "Urgent"] as TicketPriority[]).map((priority) => (
+                    <SelectItem key={priority} value={priority}>
+                      {priority}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Category */}
+            <div className="flex-1 min-w-[150px]">
+              <Label>Category</Label>
+              <Select
+                value={editedTicket.category}
+                onValueChange={(value) =>
+                  setEditedTicket({ ...editedTicket, category: value as TicketCategory })
+                }
+              >
+                <SelectTrigger className="mt-1 bg-popover">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[100]">
+                  {CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat.toUpperCase()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Contact Information */}
+          <div className="space-y-4">
+            <h3 className="font-semibold flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Contact Information
+            </h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <Label className="text-muted-foreground">Name</Label>
+                <p className="font-medium">{ticket.contact.name || "N/A"}</p>
+              </div>
+              {ticket.contact.email && (
+                <div>
+                  <Label className="text-muted-foreground flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    Email
+                  </Label>
+                  <p className="font-medium truncate">{ticket.contact.email}</p>
+                </div>
+              )}
+              {ticket.contact.phone && (
+                <div>
+                  <Label className="text-muted-foreground flex items-center gap-1">
+                    <Phone className="h-3 w-3" />
+                    Phone
+                  </Label>
+                  <p className="font-medium">{ticket.contact.phone}</p>
+                </div>
+              )}
+              {ticket.agencyName && (
+                <div>
+                  <Label className="text-muted-foreground flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    Agency
+                  </Label>
+                  <p className="font-medium">{ticket.agencyName}</p>
+                </div>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleViewConversations}
+              className="w-full"
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              View Contact in GHL
+              <ExternalLink className="h-3 w-3 ml-2" />
+            </Button>
+          </div>
+
+          <Separator />
+
+          {/* Ticket Owner */}
+          <div>
+            <Label>Ticket Owner</Label>
+            <Select
+              value={editedTicket.assignedTo || "unassigned"}
+              onValueChange={(value) =>
+                setEditedTicket({ ...editedTicket, assignedTo: value === "unassigned" ? "" : value })
+              }
+            >
+              <SelectTrigger className="mt-1 bg-popover">
+                <SelectValue placeholder="Select owner" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-[100]">
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {users.map((user: any) => (
+                  <SelectItem key={user.id} value={user.name}>
+                    {user.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Ticket Name */}
+          <div>
+            <Label>Ticket Name</Label>
+            <Input
+              value={editedTicket.name || ""}
+              onChange={(e) =>
+                setEditedTicket({ ...editedTicket, name: e.target.value })
+              }
+              className="mt-1 bg-popover"
+              placeholder="Ticket name..."
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <Label>Description</Label>
+            <Textarea
+              value={editedTicket.description || ""}
+              onChange={(e) =>
+                setEditedTicket({ ...editedTicket, description: e.target.value })
+              }
+              rows={4}
+              className="mt-1 bg-popover"
+              placeholder="Ticket description..."
+            />
+          </div>
+
+          {/* Resolution Summary */}
+          <div>
+            <Label>Resolution Summary</Label>
+            <Textarea
+              value={editedTicket.resolutionSummary || ""}
+              onChange={(e) =>
+                setEditedTicket({ ...editedTicket, resolutionSummary: e.target.value })
+              }
+              rows={4}
+              className="mt-1 bg-popover"
+              placeholder="How was this resolved..."
+            />
+          </div>
+
+          {/* Tags */}
+          <div>
+            <Label>Tags</Label>
+            
+            {/* Selected Tags */}
+            <div className="flex flex-wrap gap-2 mt-2 mb-3 min-h-[36px] p-2 border rounded-md bg-background">
+              {(editedTicket.tags || []).map((tag) => (
+                <Badge key={tag} variant="secondary" className="gap-1">
+                  {tag}
+                  <button
+                    onClick={() => handleRemoveTag(tag)}
+                    className="ml-1 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+              {(editedTicket.tags || []).length === 0 && (
+                <span className="text-sm text-muted-foreground">No tags assigned</span>
+              )}
+            </div>
+
+            {/* Add Tags Popover */}
+            <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Tags
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="start">
+                <div className="p-2 border-b">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search / create tags"
+                      value={tagSearch}
+                      onChange={(e) => setTagSearch(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
+                <div className="max-h-[300px] overflow-y-auto p-2">
+                  {filteredAvailableTags.length > 0 ? (
+                    <div className="space-y-1">
+                      {filteredAvailableTags.map((tag) => {
+                        const isSelected = (editedTicket.tags || []).includes(tag.name);
+                        return (
+                          <div
+                            key={tag.id}
+                            className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+                            onClick={() => handleToggleTag(tag.name)}
+                          >
+                            <div className="flex-1">{tag.name}</div>
+                            {isSelected && <Check className="h-4 w-4 text-primary" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No tags found
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <Separator />
+
+          {/* Metadata */}
+          <div className="space-y-3 text-sm">
+            <div className="flex items-start gap-2">
+              <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">Created</p>
+                <p className="font-medium">
+                  {format(new Date(ticket.createdAt), "MMM d, yyyy, h:mm a")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  ({formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })})
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Clock className="h-4 w-4 mt-0.5 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">Updated</p>
+                <p className="font-medium">
+                  {format(new Date(ticket.updatedAt), "MMM d, yyyy, h:mm a")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  ({formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true })})
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="sticky bottom-0 bg-popover border-t pt-4 flex gap-2">
+          <Button onClick={() => onOpenChange(false)} variant="outline" className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={handleSave} className="flex-1">
+            Save Changes
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
 }
 
-/** Converters to keep UI types safe */
-export function toTicketStatus(value: string): TicketStatus {
-  const allowed: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed", "Escalated to Dev", "Deleted"];
-  return (allowed.includes(value as TicketStatus) ? value : "Open") as TicketStatus;
-}
-
-export function toTicketPriority(value: string): TicketPriority {
-  const allowed: TicketPriority[] = ["Low", "Medium", "High", "Urgent"];
-  return (allowed.includes(value as TicketPriority) ? value : "Medium") as TicketPriority;
-}
+export default TicketDetailSheet;
