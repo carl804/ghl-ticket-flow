@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { fetchTickets, updateTicketStatus, updatePriority } from "@/lib/api";
 import type { Ticket, TicketStatus, TicketPriority, Stats } from "@/lib/types";
@@ -11,9 +10,11 @@ import CompactView from "@/components/tickets/CompactView";
 import TicketDetailSheet from "@/components/tickets/TicketDetailSheet";
 import StatsCards from "@/components/tickets/StatsCards";
 import { FilterBar, type Filters } from "@/components/tickets/FilterBar";
+import { AgentMetricsTable } from "@/components/analytics/AgentMetricsTable";
+import { calculateAgentMetrics } from "@/lib/agentMetrics";
 import { toast } from "sonner";
 
-type ViewMode = "table" | "kanban" | "compact";
+type ViewMode = "table" | "kanban" | "compact" | "analytics";
 
 export default function Tickets() {
   const queryClient = useQueryClient();
@@ -42,22 +43,15 @@ export default function Tickets() {
     },
     onMutate: async ({ ticketId, status }) => {
       console.log('⏳ onMutate triggered:', { ticketId, status });
-      // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["tickets"] });
-
-      // Snapshot previous value
       const previousTickets = queryClient.getQueryData<Ticket[]>(["tickets"]);
-
-      // Optimistically update
       queryClient.setQueryData<Ticket[]>(["tickets"], (old = []) =>
         old.map((t) => (t.id === ticketId ? { ...t, status } : t))
       );
-
       return { previousTickets };
     },
     onError: (err, variables, context) => {
       console.error('❌ Status change failed:', err);
-      // Rollback on error
       if (context?.previousTickets) {
         queryClient.setQueryData(["tickets"], context.previousTickets);
       }
@@ -129,6 +123,9 @@ export default function Tickets() {
       avgResolutionTime,
     };
   }, [tickets]);
+
+  // Calculate agent metrics
+  const agentMetrics = useMemo(() => calculateAgentMetrics(tickets), [tickets]);
   
   // Filter tickets based on filters
   const filteredTickets = useMemo(() => {
@@ -200,51 +197,60 @@ export default function Tickets() {
             <TabsTrigger value="table">Table</TabsTrigger>
             <TabsTrigger value="kanban">Kanban</TabsTrigger>
             <TabsTrigger value="compact">Compact</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Show on all views */}
       <StatsCards stats={stats} isLoading={isLoading} />
 
-      {/* Filter Bar */}
-      <div className="mb-6">
-        <FilterBar
-          filters={filters}
-          onFiltersChange={setFilters}
-          agencies={agencies}
-          assignees={assignees}
-        />
-      </div>
-
-      {/* Views */}
+      {/* Loading State */}
       {isLoading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
-      ) : viewMode === "table" ? (
-        <TableView
-          tickets={filteredTickets}
-          onTicketClick={handleTicketClick}
-          onStatusChange={handleStatusChange}
-          onPriorityChange={handlePriorityChange}
-          selectedTickets={selectedTickets}
-          onSelectTicket={handleSelectTicket}
-          onSelectAll={handleSelectAll}
-        />
-      ) : viewMode === "kanban" ? (
-        <KanbanView
-          tickets={filteredTickets}
-          onTicketClick={handleTicketClick}
-          onStatusChange={handleStatusChange}
-        />
+      ) : viewMode === "analytics" ? (
+        /* Agent Analytics View */
+        <AgentMetricsTable metrics={agentMetrics} />
       ) : (
-        <CompactView
-          tickets={filteredTickets}
-          onTicketClick={handleTicketClick}
-          onStatusChange={handleStatusChange}
-          onPriorityChange={handlePriorityChange}
-        />
+        <>
+          {/* Filter Bar - Only show on ticket views */}
+          <div className="mb-6">
+            <FilterBar
+              filters={filters}
+              onFiltersChange={setFilters}
+              agencies={agencies}
+              assignees={assignees}
+            />
+          </div>
+
+          {/* Ticket Views */}
+          {viewMode === "table" ? (
+            <TableView
+              tickets={filteredTickets}
+              onTicketClick={handleTicketClick}
+              onStatusChange={handleStatusChange}
+              onPriorityChange={handlePriorityChange}
+              selectedTickets={selectedTickets}
+              onSelectTicket={handleSelectTicket}
+              onSelectAll={handleSelectAll}
+            />
+          ) : viewMode === "kanban" ? (
+            <KanbanView
+              tickets={filteredTickets}
+              onTicketClick={handleTicketClick}
+              onStatusChange={handleStatusChange}
+            />
+          ) : (
+            <CompactView
+              tickets={filteredTickets}
+              onTicketClick={handleTicketClick}
+              onStatusChange={handleStatusChange}
+              onPriorityChange={handlePriorityChange}
+            />
+          )}
+        </>
       )}
 
       {/* Ticket Detail Sheet */}
