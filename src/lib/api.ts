@@ -228,11 +228,12 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
 }
 
 export async function updatePriority(ticketId: string, priority: TicketPriority): Promise<void> {
-  const fieldId = getFieldId("priority");
-  if (!fieldId) throw new Error("Priority field not found");
-  
-  const locationId = getLocationId();
-  await ghlRequest(`/opportunities/${ticketId}`, {
+    customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
+  }
+
+  if (customFields.length > 0) {
+    body.customFields = customFields;
+  }
     method: "PATCH",
     body: { 
       customField: [{ id: fieldId, value: priority }],
@@ -259,8 +260,6 @@ export async function updateCategory(ticketId: string, category: TicketCategory)
   if (customFields.length > 0) {
 }
 
-export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
-  await Promise.all(ids.map((id) => updateTicketStatus(id, status)));
 }
 
 export async function bulkUpdatePriority(ids: string[], priority: TicketPriority): Promise<void> {
