@@ -43,9 +43,10 @@ const priorityConfig = {
 const statusConfig = {
   Open: { color: "bg-blue-600 text-white" },
   "In Progress": { color: "bg-yellow-600 text-white" },
+  "Escalated to Dev": { color: "bg-red-600 text-white" },  // ← ADD THIS
   Resolved: { color: "bg-green-600 text-white" },
   Closed: { color: "bg-gray-600 text-white" },
-  Deleted: { color: "bg-red-600 text-white" },
+  Deleted: { color: "bg-gray-400 text-white" },
 };
 
 export default function TableView({
