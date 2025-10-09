@@ -194,23 +194,26 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
           <div className="flex flex-wrap gap-3">
             {/* Status */}
             <div className="flex-1 min-w-[150px]">
+            {/* Opportunity Status */}
+            <div className="flex-1 min-w-[150px]">
               <Label>Status</Label>
               <Select
-                value={editedTicket.status}
+                value={editedTicket.opportunityStatus || "open"}
                 onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, status: value as TicketStatus })
+                  setEditedTicket({ ...editedTicket, opportunityStatus: value as any })
                 }
               >
                 <SelectTrigger className="mt-1 bg-popover">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-[100]">
-                  {(["Open", "In Progress", "Resolved", "Closed", "Deleted"] as TicketStatus[]).map(
-                    (status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
-                      </SelectItem>
-                    )
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="won">Won</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
+                  <SelectItem value="abandoned">Abandoned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
                   )}
                 </SelectContent>
               </Select>
