@@ -144,7 +144,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
         return;
       }
       
-      const ghlUrl = `https://app.gohighlevel.com/v2/location/${locationId}/conversations/conversations/${conversationId}`;
+      const ghlUrl = `https://app.gohighlevel.com/v2/location/${locationId}/conversations/all/${conversationId}`;
       window.open(ghlUrl, "_blank");
     } catch (error) {
       toast.error("Failed to fetch conversation");
