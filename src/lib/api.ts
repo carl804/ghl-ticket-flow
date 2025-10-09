@@ -221,13 +221,6 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
   }
     customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
 
-  if (customFields.length > 0) {
-    body.customFields = customFields;
-  }
-  }
-
-  if (customFields.length > 0) {
-    body.customFields = customFields;
   }
 
   console.log("Final body to send:", body);
@@ -264,10 +257,6 @@ export async function updateCategory(ticketId: string, category: TicketCategory)
 
 
   if (customFields.length > 0) {
-    body.customFields = customFields;
-
-  console.log("Final body to send:", body);
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
 }
 
 export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
