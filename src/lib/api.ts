@@ -105,6 +105,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
       const category = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.category) || "General Questions";
       
       console.log('🎫 Mapping opportunity:', opp.id);
+      console.log("Raw opp data:", opp);
       console.log('📋 Extracted custom fields:', { description, priority, resolutionSummary, ticketOwner, agencyName, category });
       
       return {
