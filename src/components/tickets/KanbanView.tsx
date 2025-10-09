@@ -24,7 +24,7 @@ interface KanbanViewProps {
   onTicketClick: (ticket: Ticket) => void;
 }
 
-const COLUMNS: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed", "Deleted"];
+const COLUMNS: TicketStatus[] = ["Open", "In Progress", "Escalated to Dev", "Resolved", "Closed", "Deleted"];
 
 function SortableTicketCard({ 
   ticket, 
