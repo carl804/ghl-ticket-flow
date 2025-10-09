@@ -39,7 +39,7 @@ export function getAuthUrl(): string {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "contacts.readonly contacts.write opportunities.readonly opportunities.write opportunities.write users.readonly locations.readonly locations/customFields.readonly locations/customFields.write conversations.readonly conversations.write locations/tags.readonly locations/tags.write",
+    scope: "contacts.readonly contacts.write opportunities.readonly opportunities.write opportunities.write users.readonly locations.readonly locations.customFields.readonly locations.customFields.write conversations.readonly conversations.write locations.tags.readonly locations.tags.write",
   });
 
   return `${AUTH_URL}?${params.toString()}`;
