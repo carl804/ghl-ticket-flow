@@ -26,29 +26,30 @@ interface KanbanViewProps {
 
 const COLUMNS: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed", "Deleted"];
 
-function SortableTicketCard({ 
-  ticket, 
-  onClick 
-}: { 
-  ticket: Ticket; 
-  onClick: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+function SortableTicketCard({ ticket, onClick }) {
+  const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ 
     id: ticket.id 
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style}>
       <TicketCard 
         ticket={ticket} 
         onClick={onClick} 
         isDragging={isDragging}
-        dragHandleProps={listeners}
+        dragHandleProps={{ ...listeners, ...attributes }}
+      />
+    </div>
+  );
+}
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <TicketCard 
+        ticket={ticket} 
+        onClick={onClick} 
+        isDragging={isDragging}
+        dragHandleProps={{ ...listeners, ...attributes }}
       />
     </div>
   );
