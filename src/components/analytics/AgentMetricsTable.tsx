@@ -92,7 +92,8 @@ export function AgentMetricsTable({ metrics }: AgentMetricsTableProps) {
                 <TableHead className="text-center">In Progress</TableHead>
                 <TableHead className="text-center">Closed</TableHead>
                 <TableHead className="text-center">Close %</TableHead>
-                <TableHead className="text-center">Avg Time</TableHead>
+                <TableHead className="text-center">Avg Close Time</TableHead>
+                <TableHead className="text-center">Avg Time in Stage</TableHead>
                 <TableHead className="text-center">Escalated</TableHead>
                 <TableHead className="text-center">Esc %</TableHead>
               </TableRow>
@@ -114,6 +115,11 @@ export function AgentMetricsTable({ metrics }: AgentMetricsTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">{metric.avgCloseTime}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="outline" className="font-mono">
+                      {metric.avgTimeInCurrentStage}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-center">{metric.escalated}</TableCell>
                   <TableCell className="text-center">
                     <Badge 
