@@ -23,7 +23,6 @@ const CUSTOM_FIELD_IDS = {
   agencyName: '32NhsYp2R2zpExXr8TO1',
   category: 'eCjK3IHuhErwlkyWJ4Wx'
 };
-};
 
 // Stage ID to name mapping
 const STAGE_MAP: Record<string, TicketStatus> = {
