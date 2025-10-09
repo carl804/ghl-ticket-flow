@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { fetchTickets } from "@/lib/api";
+import { fetchTickets, updateTicketStatus, updatePriority } from "@/lib/api";
 import type { Ticket, TicketStatus, TicketPriority, Stats } from "@/lib/types";
 import TableView from "@/components/tickets/TableView";
 import { KanbanView } from "@/components/tickets/KanbanView";
@@ -11,6 +11,7 @@ import CompactView from "@/components/tickets/CompactView";
 import TicketDetailSheet from "@/components/tickets/TicketDetailSheet";
 import StatsCards from "@/components/tickets/StatsCards";
 import { FilterBar, type Filters } from "@/components/tickets/FilterBar";
+import { toast } from "sonner";
 
 type ViewMode = "table" | "kanban" | "compact";
 
@@ -31,6 +32,71 @@ export default function Tickets() {
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
+  });
+
+  // Status change mutation
+  const statusMutation = useMutation({
+    mutationFn: ({ ticketId, status }: { ticketId: string; status: TicketStatus }) => {
+      console.log('🔥 Mutation function called with:', { ticketId, status });
+      return updateTicketStatus(ticketId, status);
+    },
+    onMutate: async ({ ticketId, status }) => {
+      console.log('⏳ onMutate triggered:', { ticketId, status });
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["tickets"] });
+
+      // Snapshot previous value
+      const previousTickets = queryClient.getQueryData<Ticket[]>(["tickets"]);
+
+      // Optimistically update
+      queryClient.setQueryData<Ticket[]>(["tickets"], (old = []) =>
+        old.map((t) => (t.id === ticketId ? { ...t, status } : t))
+      );
+
+      return { previousTickets };
+    },
+    onError: (err, variables, context) => {
+      console.error('❌ Status change failed:', err);
+      // Rollback on error
+      if (context?.previousTickets) {
+        queryClient.setQueryData(["tickets"], context.previousTickets);
+      }
+      toast.error("Failed to update ticket status");
+    },
+    onSuccess: () => {
+      console.log('✅ Status change successful');
+      toast.success("Ticket status updated");
+    },
+    onSettled: () => {
+      console.log('🔄 Invalidating queries...');
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    },
+  });
+
+  // Priority change mutation
+  const priorityMutation = useMutation({
+    mutationFn: ({ ticketId, priority }: { ticketId: string; priority: TicketPriority }) =>
+      updatePriority(ticketId, priority),
+    onMutate: async ({ ticketId, priority }) => {
+      await queryClient.cancelQueries({ queryKey: ["tickets"] });
+      const previousTickets = queryClient.getQueryData<Ticket[]>(["tickets"]);
+      queryClient.setQueryData<Ticket[]>(["tickets"], (old = []) =>
+        old.map((t) => (t.id === ticketId ? { ...t, priority } : t))
+      );
+      return { previousTickets };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousTickets) {
+        queryClient.setQueryData(["tickets"], context.previousTickets);
+      }
+      toast.error("Failed to update ticket priority");
+    },
+    onSuccess: () => {
+      toast.success("Ticket priority updated");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    },
   });
 
   // Calculate stats from tickets
@@ -55,7 +121,7 @@ export default function Tickets() {
       resolved: resolved.length,
       closed: tickets.filter((t) => t.status === "Closed").length,
       deleted: tickets.filter((t) => t.status === "Deleted").length,
-      pendingCustomer: tickets.filter((t) => t.status === "Pending Customer").length,
+      pendingCustomer: 0,
       resolvedToday: tickets.filter(
         (t) => t.status === "Resolved" && new Date(t.updatedAt) >= todayStart
       ).length,
@@ -101,19 +167,11 @@ export default function Tickets() {
   };
 
   const handleStatusChange = (ticketId: string, status: TicketStatus) => {
-    const updated = tickets.map((t) =>
-      t.id === ticketId ? { ...t, status } : t
-    );
-    queryClient.setQueryData(["tickets"], updated);
-    queryClient.invalidateQueries({ queryKey: ["tickets"] as const });
+    statusMutation.mutate({ ticketId, status });
   };
 
   const handlePriorityChange = (ticketId: string, priority: TicketPriority) => {
-    const updated = tickets.map((t) =>
-      t.id === ticketId ? { ...t, priority } : t
-    );
-    queryClient.setQueryData(["tickets"], updated);
-    queryClient.invalidateQueries({ queryKey: ["tickets"] as const });
+    priorityMutation.mutate({ ticketId, priority });
   };
 
   const handleSelectTicket = (ticketId: string) => {
