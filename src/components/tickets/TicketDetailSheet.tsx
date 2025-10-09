@@ -30,6 +30,7 @@ import { updateTicket, fetchUsers, fetchTags, updateContactTags, ghlRequest, typ
 import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from "@/lib/types";
 import { toast } from "sonner";
 import {
+  Edit2,
   User,
   Mail,
   Phone,
@@ -67,6 +68,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
   const [tagSearch, setTagSearch] = useState("");
   const [tagsOpen, setTagsOpen] = useState(false);
+  const [editingName, setEditingName] = useState(false);
 
   const { data: users = [] } = useQuery({
     queryKey: ["users"],
@@ -83,6 +85,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
       console.log('Ticket loaded in sheet:', ticket);
       console.log('Ticket tags:', ticket.tags);
       setEditedTicket(ticket);
+      setEditingName(false);
       console.log("✅ editedTicket set to:", ticket);
     }
   }, [ticket]);
@@ -167,7 +170,37 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto bg-popover">
         <SheetHeader>
-          <SheetTitle className="text-2xl font-bold">{ticket.name}</SheetTitle>
+          <div className="flex items-center gap-2">
+            {editingName ? (
+              <Input
+                value={editedTicket.name || ""}
+                onChange={(e) =>
+                  setEditedTicket({ ...editedTicket, name: e.target.value })
+                }
+                onBlur={() => setEditingName(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setEditingName(false);
+                  if (e.key === 'Escape') {
+                    setEditedTicket({ ...editedTicket, name: ticket.name });
+                    setEditingName(false);
+                  }
+                }}
+                className="text-2xl font-bold h-auto py-1"
+                autoFocus
+              />
+            ) : (
+              <>
+                <SheetTitle className="text-2xl font-bold">{editedTicket.name || ticket?.name}</SheetTitle>
+                <button 
+                  onClick={() => setEditingName(true)} 
+                  className="hover:text-primary transition-colors"
+                  title="Edit ticket name"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </button>
+              </>
+            )}
+          </div>
           <SheetDescription>View and edit ticket details</SheetDescription>
         </SheetHeader>
 
@@ -316,19 +349,6 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Ticket Name */}
-          <div>
-            <Label>Ticket Name</Label>
-            <Input
-              value={editedTicket.name || ""}
-              onChange={(e) =>
-                setEditedTicket({ ...editedTicket, name: e.target.value })
-              }
-              className="mt-1 bg-popover"
-              placeholder="Ticket name..."
-            />
           </div>
 
           {/* Description */}
