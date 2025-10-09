@@ -3,7 +3,7 @@ import { logger } from "@/components/ErrorLog";
 import { toast } from "@/components/ui/use-toast";
 
 const TOKEN_STORAGE_KEY = "ghl_tokens";
-const AUTH_URL = "https://marketplace.gohighlevel.com/oauth/chooselocation";
+const AUTH_URL = "https://marketplace.leadconnectorhq.com/oauth/chooselocation";
 const TOKEN_URL = "https://services.leadconnectorhq.com/oauth/token";
 
 interface TokenResponse {
