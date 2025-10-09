@@ -217,7 +217,7 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
   const body: any = {};
   const customFields: Array<{ id: string; value: any }> = [];
 
-  if (updates.status) body.status = updates.status;
+  if (updates.status) body.status = updates.status.toLowerCase();
 
   // Map assignedTo to Ticket Owner custom field
   if (updates.assignedTo !== undefined) {
@@ -293,7 +293,7 @@ export async function fetchTags(): Promise<GHLTag[]> {
     
     const response = await ghlRequest<{ tags: any[] }>(
       `/locations/${locationId}/tags`,
-      { skipLocationId: false }
+      { skipLocationId: true }  // ✅ CORRECT - locationId already in path!
     );
     
     console.log('Tags API response:', response);
