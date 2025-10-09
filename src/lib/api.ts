@@ -185,15 +185,17 @@ export async function fetchStats(): Promise<Stats> {
   };
 }
 
-/** Updates */
 export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
   const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === newStatus);
   if (!stageId) throw new Error(`Invalid status: ${newStatus}`);
   
+  const locationId = getLocationId();
+  
   await ghlRequest(`/opportunities/${ticketId}`, { 
-    method: "PATCH", 
+    method: "PUT", 
     body: { 
-      pipelineStageId: stageId
+      pipelineStageId: stageId,
+      locationId
     } 
   });
 }
