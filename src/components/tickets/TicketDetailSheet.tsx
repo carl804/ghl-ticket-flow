@@ -118,7 +118,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
 
   const handleViewConversations = () => {
     if (ticket?.contactId) {
-      const ghlUrl = `https://app.gohighlevel.com/v2/location/${import.meta.env.VITE_GHL_LOCATION_ID || "YOUR_LOCATION_ID"}/conversations/all/${ticket.contactId}`;
+      const ghlUrl = `https://app.gohighlevel.com/v2/location/${import.meta.env.VITE_GHL_LOCATION_ID || "YOUR_LOCATION_ID"}/conversations/contact/${ticket.contactId}`;
       window.open(ghlUrl, "_blank");
     } else toast.error("Contact ID not available");
   };
