@@ -118,6 +118,7 @@ export default function Tickets() {
       total: tickets.length,
       open: tickets.filter((t) => t.status === "Open").length,
       inProgress: tickets.filter((t) => t.status === "In Progress").length,
+      escalated: tickets.filter((t) => t.status === "Escalated to Dev").length,
       resolved: resolved.length,
       closed: tickets.filter((t) => t.status === "Closed").length,
       deleted: tickets.filter((t) => t.status === "Deleted").length,
