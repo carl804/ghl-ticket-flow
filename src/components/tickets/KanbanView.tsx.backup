@@ -26,21 +26,22 @@ interface KanbanViewProps {
 
 const COLUMNS: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed", "Deleted"];
 
-function SortableTicketCard({ 
-  ticket, 
-  onClick 
-}: { 
-  ticket: Ticket; 
-  onClick: () => void;
-}) {
+function SortableTicketCard({ ticket, onClick }) {
   const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ 
     id: ticket.id 
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <TicketCard 
+        ticket={ticket} 
+        onClick={onClick} 
+        isDragging={isDragging}
+        dragHandleProps={{ ...listeners, ...attributes }}
+      />
+    </div>
+  );
+}
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -107,7 +108,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 8, // Require 8px movement before drag starts
       },
     }),
     useSensor(KeyboardSensor)
@@ -138,6 +139,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
     const activeTicket = tickets.find((t) => t.id === active.id);
     if (!activeTicket) return;
 
+    // Check if dropped over a column (status)
     const targetStatus = COLUMNS.find(col => col === over.id);
     
     if (targetStatus && activeTicket.status !== targetStatus) {
@@ -145,6 +147,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
       return;
     }
 
+    // Check if dropped over another ticket (get that ticket's status)
     const targetTicket = tickets.find((t) => t.id === over.id);
     if (targetTicket && activeTicket.status !== targetTicket.status) {
       onStatusChange(activeTicket.id, targetTicket.status);
@@ -183,4 +186,3 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   );
 }
 
-export default KanbanView;
