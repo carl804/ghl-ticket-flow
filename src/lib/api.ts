@@ -215,7 +215,15 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
   }
 
   if (updates.agencyName !== undefined) {
+
+  if (customFields.length > 0) {
+    body.customFields = customFields;
+  }
     customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
+
+  if (customFields.length > 0) {
+    body.customFields = customFields;
+  }
   }
 
   if (customFields.length > 0) {
