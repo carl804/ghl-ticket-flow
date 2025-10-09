@@ -254,47 +254,6 @@ export async function updateCategory(ticketId: string, category: TicketCategory)
   });
 }
 
-export async function updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<void> {
-  console.log("updateTicket called with:", updates);
-  const body: any = {};
-  const customFields: Array<{ id: string; value: any }> = [];
-
-  // Update pipeline stage
-  if (updates.status) {
-    const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === updates.status);
-    console.log("Found stageId:", stageId, "for status:", updates.status);
-    if (stageId) body.pipelineStageId = stageId;
-  }
-
-  // Update opportunity status
-  if (updates.opportunityStatus) {
-    body.status = updates.opportunityStatus;
-  }
-
-  // Map assignedTo to Ticket Owner custom field
-  if (updates.assignedTo !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.ticketOwner, value: updates.assignedTo });
-  }
-
-  if (updates.priority) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.priority, value: updates.priority });
-  }
-
-  if (updates.category !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.category, value: updates.category });
-  }
-
-  if (updates.description !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.description, value: updates.description });
-  }
-
-  if (updates.resolutionSummary !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.resolutionSummary, value: updates.resolutionSummary });
-  }
-
-  if (updates.agencyName !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
-  }
 
   if (customFields.length > 0) {
     body.customFields = customFields;
