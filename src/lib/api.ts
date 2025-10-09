@@ -189,13 +189,10 @@ export async function updateTicketStatus(ticketId: string, newStatus: TicketStat
   const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === newStatus);
   if (!stageId) throw new Error(`Invalid status: ${newStatus}`);
   
-  const locationId = getLocationId();
-  
   await ghlRequest(`/opportunities/${ticketId}`, { 
     method: "PUT", 
     body: { 
-      pipelineStageId: stageId,
-      locationId
+      pipelineStageId: stageId
     } 
   });
 }
