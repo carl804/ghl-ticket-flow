@@ -257,7 +257,6 @@ export async function updateCategory(ticketId: string, category: TicketCategory)
 
   if (customFields.length > 0) {
     body.customFields = customFields;
-  }
 
   console.log("Final body to send:", body);
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
