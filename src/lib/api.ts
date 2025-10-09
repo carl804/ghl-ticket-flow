@@ -219,7 +219,16 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
   const body: any = {};
   const customFields: Array<{ id: string; value: any }> = [];
 
-  if (updates.status) body.status = updates.status.toLowerCase();
+  // Update pipeline stage
+  if (updates.status) {
+    const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === updates.status);
+    if (stageId) body.pipelineStageId = stageId;
+  }
+  
+  // Update opportunity status
+  if (updates.opportunityStatus) {
+    body.status = updates.opportunityStatus;
+  }
 
   // Map assignedTo to Ticket Owner custom field
   if (updates.assignedTo !== undefined) {
