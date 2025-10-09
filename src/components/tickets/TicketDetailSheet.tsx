@@ -126,28 +126,10 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
       const tokens = JSON.parse(localStorage.getItem("ghl_tokens") || "{}");
       const locationId = tokens.locationId;
       
-      const response = await ghlRequest<{ conversations: any[] }>(
-        `/conversations/search`,
-        { 
-          queryParams: { 
-            contactId: ticket.contactId,
-            locationId: locationId
-          }
-        }
-      );
-      
-      console.log("Conversation search response:", JSON.stringify(response, null, 2));
-      const conversationId = response?.conversations?.[0]?.id;
-      
-      if (!conversationId) {
-        toast.error("No conversation found for this contact");
-        return;
-      }
-      
       const ghlUrl = `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${ticket.contactId}`;
       window.open(ghlUrl, "_blank");
     } catch (error) {
-      toast.error("Failed to fetch conversation");
+      toast.error("Failed to open contact");
       console.error(error);
     }
   };
@@ -186,14 +168,12 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto bg-popover">
         <SheetHeader>
           <SheetTitle className="text-2xl font-bold">{ticket.name}</SheetTitle>
-          <SheetDescription>View and edit ticket details - NEW VERSION</SheetDescription>
+          <SheetDescription>View and edit ticket details</SheetDescription>
         </SheetHeader>
 
         <div className="py-6 space-y-6">
           {/* Status / Priority / Category */}
           <div className="flex flex-wrap gap-3">
-            {/* Status */}
-            <div className="flex-1 min-w-[150px]">
             {/* Opportunity Status */}
             <div className="flex-1 min-w-[150px]">
               <Label>Status</Label>
@@ -211,10 +191,6 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
                   <SelectItem value="won">Won</SelectItem>
                   <SelectItem value="lost">Lost</SelectItem>
                   <SelectItem value="abandoned">Abandoned</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -312,7 +288,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
               className="w-full"
             >
               <MessageSquare className="h-4 w-4 mr-2" />
-              View Conversations
+              View Contact in GHL
               <ExternalLink className="h-3 w-3 ml-2" />
             </Button>
           </div>
@@ -392,12 +368,12 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
               )}
             </div>
 
-            {/* 🏷️ ADD TAGS NOW Popover */}
+            {/* Add Tags Popover */}
             <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
-                  🏷️ ADD TAGS NOW
+                  Add Tags
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80 p-0" align="start">
