@@ -1,8 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { User, Clock, Phone, Mail } from "lucide-react";
+import { User, Phone, Mail, GripVertical } from "lucide-react";
 import type { Ticket } from "@/lib/types";
-import { formatDistanceToNow } from "date-fns";
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -18,11 +17,14 @@ const priorityConfig = {
   Urgent: { color: "border-red-500/50 text-red-600 bg-background dark:text-red-400" },
 };
 
-const statusConfig = {
-  Open: { color: "bg-primary text-primary-foreground" },
-  "In Progress": { color: "bg-primary text-primary-foreground" },
-  "Pending Customer": { color: "bg-warning text-warning-foreground" },
-  Resolved: { color: "bg-success text-success-foreground" },
+const statusConfig: Record<string, { color: string }> = {
+  Open: { color: "bg-blue-500 text-white" },
+  "In Progress": { color: "bg-yellow-500 text-white" },
+  "Pending Customer": { color: "bg-orange-500 text-white" },
+  Resolved: { color: "bg-green-500 text-white" },
+  Closed: { color: "bg-gray-500 text-white" },
+  "Escalated to Dev": { color: "bg-red-500 text-white" },
+  Deleted: { color: "bg-gray-700 text-white" },
 };
 
 const categoryColors: Record<string, string> = {
@@ -47,17 +49,8 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
   
   return (
     <Card 
-      className={`bg-card cursor-pointer ${isDragging ? "opacity-50" : ""}`}
-      style={{ transition: 'box-shadow 0.2s ease, transform 0.2s ease' }}
+      className={`bg-card transition-all ${isDragging ? "opacity-50 rotate-2 shadow-2xl" : "hover:shadow-lg"}`}
       onClick={onClick}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)';
-        e.currentTarget.style.transform = 'scale(1.02)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = '';
-        e.currentTarget.style.transform = '';
-      }}
     >
       <CardContent className="p-5 space-y-3">
         {/* Header with drag handle */}
@@ -66,15 +59,15 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
             <h3 className="font-bold text-base mb-1">{ticket.name}</h3>
             <p className="text-sm text-muted-foreground">{ticket.contact.name}</p>
           </div>
-          <div 
-            {...dragHandleProps} 
-            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
+          <button
+            type="button"
+            {...dragHandleProps}
+            className="cursor-grab active:cursor-grabbing p-2 hover:bg-muted rounded transition-colors touch-none"
             onClick={(e) => e.stopPropagation()}
+            aria-label="Drag to move ticket"
           >
-            <svg className="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-          </div>
+            <GripVertical className="h-5 w-5 text-muted-foreground" />
+          </button>
         </div>
 
         {/* Status, Priority, Category badges */}
