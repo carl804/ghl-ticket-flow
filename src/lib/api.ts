@@ -1,6 +1,6 @@
 import type {
-  OpportunityStatus,
   Ticket,
+  OpportunityStatus,
   Stats,
   FieldMap,
   TicketStatus,
@@ -15,92 +15,13 @@ let FIELD_MAP: FieldMap = {};
 
 // Custom field IDs
 const CUSTOM_FIELD_IDS = {
-
-// Stage ID to name mapping
-const STAGE_MAP: Record<string, TicketStatus> = {
-  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
-  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
-  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
-  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
-  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
-  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
-};
   description: 'y9aYiEln1CpSuz6u3rtE',
-
-// Stage ID to name mapping
-const STAGE_MAP: Record<string, TicketStatus> = {
-  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
-  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
-  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
-  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
-  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
-  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
-};
   priority: 'QMiATAEcjFjQc9q8FxW6',
-
-// Stage ID to name mapping
-const STAGE_MAP: Record<string, TicketStatus> = {
-  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
-  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
-  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
-  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
-  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
-  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
-};
   resolved: 'UiGPQzYy7u1xVixtCvld',
-
-// Stage ID to name mapping
-const STAGE_MAP: Record<string, TicketStatus> = {
-  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
-  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
-  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
-  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
-  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
-  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
-};
   resolutionSummary: 'ZzsDH7pErVhwLqJt1NjA',
-
-// Stage ID to name mapping
-const STAGE_MAP: Record<string, TicketStatus> = {
-  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
-  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
-  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
-  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
-  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
-  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
-};
   ticketOwner: 'VYv1QpVAAgns13227Pii',
-
-// Stage ID to name mapping
-const STAGE_MAP: Record<string, TicketStatus> = {
-  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
-  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
-  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
-  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
-  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
-  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
-};
   agencyName: '32NhsYp2R2zpExXr8TO1',
-
-// Stage ID to name mapping
-const STAGE_MAP: Record<string, TicketStatus> = {
-  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
-  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
-  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
-  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
-  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
-  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
-};
   category: 'eCjK3IHuhErwlkyWJ4Wx'
-
-// Stage ID to name mapping
-const STAGE_MAP: Record<string, TicketStatus> = {
-  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
-  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
-  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
-  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
-  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
-  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
 };
 };
 
@@ -235,7 +156,6 @@ export async function fetchStats(): Promise<Stats> {
   const tickets = await fetchTickets();
   const total = tickets.length;
   const open = tickets.filter((t) => t.status === "Open").length;
-  const pendingCustomer = tickets.filter((t) => t.status === "Pending Customer").length;
   const resolvedToday = tickets.filter(
     (t) =>
       t.status === "Resolved" &&
@@ -255,10 +175,10 @@ export async function fetchStats(): Promise<Stats> {
   return {
     total,
     open,
-    pendingCustomer,
+    pendingCustomer: 0,
     resolvedToday,
     avgResolutionTime,
-    pending: pendingCustomer,
+    pending: 0,
     totalTrend: 0,
     openTrend: 0,
     pendingTrend: 0,
@@ -268,12 +188,13 @@ export async function fetchStats(): Promise<Stats> {
 
 /** Updates */
 export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
-  const locationId = getLocationId();
+  const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === newStatus);
+  if (!stageId) throw new Error(`Invalid status: ${newStatus}`);
+  
   await ghlRequest(`/opportunities/${ticketId}`, { 
     method: "PATCH", 
     body: { 
-      status: newStatus,
-      locationId 
+      pipelineStageId: stageId
     } 
   });
 }
@@ -395,7 +316,7 @@ export async function fetchTags(): Promise<GHLTag[]> {
     
     const response = await ghlRequest<{ tags: any[] }>(
       `/locations/${locationId}/tags`,
-      { skipLocationId: true }  // ✅ CORRECT - locationId already in path!
+      { skipLocationId: true }
     );
     
     console.log('Tags API response:', response);
@@ -424,6 +345,7 @@ export async function updateContactTags(contactId: string, tags: string[]): Prom
     await ghlRequest(`/contacts/${contactId}`, {
       method: "PUT",
       body: { tags },
+      skipLocationId: true
     });
     
     console.log('Contact tags updated successfully');
@@ -436,7 +358,7 @@ export async function updateContactTags(contactId: string, tags: string[]): Prom
 
 /** Converters to keep UI types safe */
 export function toTicketStatus(value: string): TicketStatus {
-  const allowed: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved", "Closed", "Deleted"];
+  const allowed: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed", "Escalated to Dev", "Deleted"];
   return (allowed.includes(value as TicketStatus) ? value : "Open") as TicketStatus;
 }
 
