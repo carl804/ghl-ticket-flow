@@ -196,16 +196,16 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
             <div className="flex-1 min-w-[150px]">
               <Label>Status</Label>
               <Select
-                value={editedTicket.status}
+                value={editedTicket.opportunityStatus || "open"}
                 onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, status: value as TicketStatus })
+                  setEditedTicket({ ...editedTicket, opportunityStatus: value as OpportunityStatus })
                 }
               >
                 <SelectTrigger className="mt-1 bg-popover">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-[100]">
-                  {(["Open", "In Progress", "Resolved", "Closed", "Deleted"] as TicketStatus[]).map(
+                  {(["open", "won", "lost", "abandoned"] as const).map(
                     (status) => (
                       <SelectItem key={status} value={status}>
                         {status}
