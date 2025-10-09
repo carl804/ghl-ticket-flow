@@ -75,7 +75,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
 
   const { data: availableTags = [] as GHLTag[] } = useQuery({
     queryKey: ["tags"],
-    queryFn: async () => [], // fetchTags,
+    queryFn: fetchTags,
   });
 
   useEffect(() => {
