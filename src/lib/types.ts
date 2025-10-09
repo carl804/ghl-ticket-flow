@@ -1,6 +1,5 @@
 // src/lib/types.ts
 export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Escalated to Dev" | "Deleted";
-export type OpportunityStatus = "open" | "won" | "lost" | "abandoned";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
 export type TicketCategory = string;
 
@@ -15,7 +14,6 @@ export interface Ticket {
   };
   agencyName?: string;
   status: TicketStatus;
-  opportunityStatus?: OpportunityStatus;
   priority: TicketPriority;
   category: TicketCategory;
   resolutionSummary?: string;

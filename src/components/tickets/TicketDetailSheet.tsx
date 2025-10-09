@@ -27,7 +27,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { updateTicket, fetchUsers, fetchTags, updateContactTags, ghlRequest, type GHLTag } from "@/lib/api";
-import type { Ticket, TicketStatus, TicketPriority, TicketCategory, OpportunityStatus } from "@/lib/types";
+import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from "@/lib/types";
 import { toast } from "sonner";
 import {
   User,
@@ -196,16 +196,16 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
             <div className="flex-1 min-w-[150px]">
               <Label>Status</Label>
               <Select
-                value={editedTicket.opportunityStatus || "open"}
+                value={editedTicket.status}
                 onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, opportunityStatus: value as OpportunityStatus })
+                  setEditedTicket({ ...editedTicket, status: value as TicketStatus })
                 }
               >
                 <SelectTrigger className="mt-1 bg-popover">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-[100]">
-                  {(["open", "won", "lost", "abandoned"] as const).map(
+                  {(["Open", "In Progress", "Resolved", "Closed", "Deleted"] as TicketStatus[]).map(
                     (status) => (
                       <SelectItem key={status} value={status}>
                         {status}

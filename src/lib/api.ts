@@ -105,7 +105,6 @@ export async function fetchTickets(): Promise<Ticket[]> {
       const category = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.category) || "General Questions";
       
       console.log('🎫 Mapping opportunity:', opp.id);
-      console.log("Raw opp data:", opp);
       console.log('📋 Extracted custom fields:', { description, priority, resolutionSummary, ticketOwner, agencyName, category });
       
       return {
@@ -176,55 +175,16 @@ export async function fetchStats(): Promise<Stats> {
 }
 
 /** Updates */
-export async function updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<void> {
-  console.log("updateTicket called with:", updates);
-  const body: any = {};
-  const customFields: Array<{ id: string; value: any }> = [];
-
-  // Update pipeline stage
-  if (updates.status) {
-    const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === updates.status);
-    console.log("Found stageId:", stageId, "for status:", updates.status);
-    if (stageId) body.pipelineStageId = stageId;
-  }
-
-  // Update opportunity status
-  if (updates.opportunityStatus) {
-    body.status = updates.opportunityStatus;
-  }
-
-  // Map assignedTo to Ticket Owner custom field
-  if (updates.assignedTo !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.ticketOwner, value: updates.assignedTo });
-  }
-
-  if (updates.priority) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.priority, value: updates.priority });
-  }
-
-  if (updates.category !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.category, value: updates.category });
-  }
-
-  if (updates.description !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.description, value: updates.description });
-  }
-
-  if (updates.resolutionSummary !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.resolutionSummary, value: updates.resolutionSummary });
-  }
-
-  if (updates.agencyName !== undefined) {
-
-  if (customFields.length > 0) {
-    body.customFields = customFields;
-  }
-    customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
-
-  }
-
-  console.log("Final body to send:", body);
-  await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
+export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
+  const locationId = getLocationId();
+  await ghlRequest(`/opportunities/${ticketId}`, { 
+    method: "PATCH", 
+    body: { 
+      status: newStatus,
+      locationId 
+    } 
+  });
+}
 
 export async function updatePriority(ticketId: string, priority: TicketPriority): Promise<void> {
   const fieldId = getFieldId("priority");
@@ -253,12 +213,47 @@ export async function updateCategory(ticketId: string, category: TicketCategory)
     },
   });
 }
-}
 
+export async function updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<void> {
+  const body: any = {};
+  const customFields: Array<{ id: string; value: any }> = [];
+
+  if (updates.status) body.status = updates.status.toLowerCase();
+
+  // Map assignedTo to Ticket Owner custom field
+  if (updates.assignedTo !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.ticketOwner, value: updates.assignedTo });
+  }
+
+  if (updates.priority) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.priority, value: updates.priority });
+  }
+  
+  if (updates.category !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.category, value: updates.category });
+  }
+  
+  if (updates.description !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.description, value: updates.description });
+  }
+  
+  if (updates.resolutionSummary !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.resolutionSummary, value: updates.resolutionSummary });
+  }
+  
+  if (updates.agencyName !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
+  }
 
   if (customFields.length > 0) {
+    body.customFields = customFields;
+  }
+
+  await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
 }
 
+export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
+  await Promise.all(ids.map((id) => updateTicketStatus(id, status)));
 }
 
 export async function bulkUpdatePriority(ids: string[], priority: TicketPriority): Promise<void> {
@@ -340,7 +335,7 @@ export async function updateContactTags(contactId: string, tags: string[]): Prom
 
 /** Converters to keep UI types safe */
 export function toTicketStatus(value: string): TicketStatus {
-  const allowed: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed", "Escalated to Dev", "Deleted"];
+  const allowed: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved", "Closed", "Deleted"];
   return (allowed.includes(value as TicketStatus) ? value : "Open") as TicketStatus;
 }
 
