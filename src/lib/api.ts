@@ -212,16 +212,13 @@ export async function updateCategory(ticketId: string, category: TicketCategory)
     },
   });
 }
-
 export async function updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<void> {
-  const locationId = getLocationId();
-  const body: any = { locationId };
+  const body: any = {};
   const customFields: Array<{ id: string; value: any }> = [];
 
   if (updates.status) body.status = updates.status;
-  if (updates.assignedToUserId) body.assignedToUserId = updates.assignedToUserId;
 
-  // Map assignedTo to Ticket Owner custom field
+  // Map assignedTo to Ticket Owner custom field (don't use assignedToUserId)
   if (updates.assignedTo !== undefined) {
     customFields.push({ id: CUSTOM_FIELD_IDS.ticketOwner, value: updates.assignedTo });
   }
@@ -251,6 +248,7 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
   }
 
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
+}
 }
 
 export async function bulkUpdateStatus(ids: string[], status: TicketStatus): Promise<void> {
