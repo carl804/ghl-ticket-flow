@@ -3,7 +3,7 @@ import { logger } from "@/components/ErrorLog";
 import { toast } from "@/components/ui/use-toast";
 
 const TOKEN_STORAGE_KEY = "ghl_tokens";
-const AUTH_URL = "https://marketplace.leadconnectorhq.com/oauth/chooselocation";
+const AUTH_URL = "https://marketplace.gohighlevel.com/oauth/chooselocation";
 const TOKEN_URL = "https://services.leadconnectorhq.com/oauth/token";
 
 interface TokenResponse {
@@ -36,10 +36,11 @@ export function getAuthUrl(): string {
   }
 
   const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
     response_type: "code",
-    scope: "contacts.readonly contacts.write opportunities.readonly opportunities.write opportunities.write users.readonly locations.readonly locations.customFields.readonly locations.customFields.write conversations.readonly conversations.write locations.tags.readonly locations.tags.write",
+    redirect_uri: redirectUri,
+    client_id: clientId,
+    scope: "opportunities.readonly opportunities.write contacts.readonly contacts.write users.readonly locations/customFields.readonly locations/customFields.write conversations.readonly locations.readonly conversations.write locations/tags.readonly locations/tags.write",
+    version_id: clientId.split("-")[0],
   });
 
   return `${AUTH_URL}?${params.toString()}`;
