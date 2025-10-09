@@ -27,7 +27,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { updateTicket, fetchUsers, fetchTags, updateContactTags, ghlRequest, type GHLTag } from "@/lib/api";
-import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from "@/lib/types";
+import type { Ticket, TicketStatus, TicketPriority, TicketCategory, OpportunityStatus } from "@/lib/types";
 import { toast } from "sonner";
 import {
   User,
