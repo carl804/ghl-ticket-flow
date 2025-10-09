@@ -1,5 +1,5 @@
 // src/lib/types.ts
-export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Deleted" | "Pending Customer";
+export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Escalated to Dev" | "Deleted";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
 export type TicketCategory = string;
 
