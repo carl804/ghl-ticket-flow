@@ -335,7 +335,7 @@ export async function updateContactTags(contactId: string, tags: string[]): Prom
 
 /** Converters to keep UI types safe */
 export function toTicketStatus(value: string): TicketStatus {
-  const allowed: TicketStatus[] = ["Open", "In Progress", "Pending Customer", "Resolved", "Closed", "Deleted"];
+  const allowed: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed", "Escalated to Dev", "Deleted"];
   return (allowed.includes(value as TicketStatus) ? value : "Open") as TicketStatus;
 }
 
