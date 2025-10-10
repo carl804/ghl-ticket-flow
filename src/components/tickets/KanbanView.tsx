@@ -120,25 +120,51 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
-  const logToGoogleSheets = async (ticketId: string, fromColumn: TicketStatus, toColumn: TicketStatus) => {
+ const logToGoogleSheets = async (ticketId: string, fromColumn: TicketStatus, toColumn: TicketStatus) => {
     try {
       const ticket = tickets.find(t => t.id === ticketId);
+      if (!ticket) {
+        console.error('Ticket not found:', ticketId);
+        return;
+      }
+
+      console.log('Ticket data:', ticket); // Debug log
+
+      // Calculate duration in previous stage (in hours)
+      const now = new Date();
+      const lastUpdate = new Date(ticket.updatedAt);
+      const durationHours = Math.round((now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60));
+      
+      // Calculate total ticket age (in days)
+      const created = new Date(ticket.createdAt);
+      const ageDays = Math.round((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const payload = {
+        ticketId: ticket.id,
+        ticketName: ticket.name || 'Unnamed Ticket',
+        agent: ticket.assignedTo || 'Unassigned',
+        contactName: ticket.contact?.name || 'No Contact',
+        category: ticket.category || 'Uncategorized',
+        priority: ticket.priority || 'None',
+        fromStage: fromColumn,
+        toStage: toColumn,
+        durationInPreviousStage: `${durationHours}h`,
+        totalTicketAge: `${ageDays}d`
+      };
+
+      console.log('Sending to Google Sheets:', payload); // Debug log
       
       const response = await fetch('/api/log-ticket', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ticketId,
-          title: ticket?.name || '',
-          fromColumn,
-          toColumn,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const error = await response.json();
+        throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(error)}`);
       }
 
       console.log('Logged to Google Sheets successfully');
@@ -146,7 +172,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
       console.error('Error logging to Google Sheets:', error);
     }
   };
-
+  
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -229,4 +255,4 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   );
 }
 
-export default KanbanView;
+export default KanbanView;// Cache bust Fri Oct 10 21:34:42 UTC 2025
