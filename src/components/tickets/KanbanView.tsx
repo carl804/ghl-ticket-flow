@@ -124,7 +124,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
     try {
       const ticket = tickets.find(t => t.id === ticketId);
       
-      const response = await fetch('/api/log-ticket.cjs', {
+      const response = await fetch('/api/log-ticket', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
