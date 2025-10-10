@@ -4,5 +4,11 @@
       "source": "/((?!api).*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/log-agent-performance",
+      "schedule": "0 2 * * *"
+    }
   ]
 }
