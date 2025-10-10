@@ -6,6 +6,10 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('Starting agent performance logging...');
+    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
+    console.log('Location ID:', process.env.GHL_LOCATION_ID);
+    
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/ghl-proxy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -20,6 +24,10 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
+    console.log('API Response status:', response.status);
+    console.log('Response data keys:', Object.keys(data));
+    console.log('Opportunities found:', data.opportunities?.length || 0);
+    
     const tickets = data.opportunities || [];
 
     const agentMap = new Map();
@@ -59,6 +67,8 @@ export default async function handler(req, res) {
       }
     });
 
+    console.log('Agents found:', agentMap.size);
+
     const timestamp = new Date().toISOString();
     const rows = [];
     
@@ -94,25 +104,32 @@ export default async function handler(req, res) {
       ]);
     });
 
-    const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || '{}');
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    console.log('Rows to write:', rows.length);
 
-    const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (rows.length > 0) {
+      const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || '{}');
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: 'Agent Performance!A:M',
-      valueInputOption: 'USER_ENTERED',
-      resource: { values: rows },
-    });
+      const sheets = google.sheets({ version: 'v4', auth });
+      const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'Agent Performance!A:M',
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: rows },
+      });
+      
+      console.log('Successfully wrote to Google Sheets');
+    }
 
     return res.status(200).json({ 
       success: true, 
-      agentsLogged: rows.length 
+      agentsLogged: rows.length,
+      ticketsFetched: tickets.length
     });
   } catch (error) {
     console.error('Error logging agent performance:', error);
