@@ -1,4 +1,35 @@
+cat > api/log-agent-performance.js << 'ENDOFFILE'
 import { google } from 'googleapis';
+
+const GHL_API_BASE = 'https://services.leadconnectorhq.com';
+
+async function getGHLAccessToken() {
+  const tokenUrl = `${GHL_API_BASE}/oauth/token`;
+  
+  const params = new URLSearchParams({
+    client_id: process.env.VITE_GHL_CLIENT_ID,
+    client_secret: process.env.VITE_GHL_CLIENT_SECRET,
+    grant_type: 'client_credentials'
+  });
+
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+    },
+    body: params.toString(),
+  });
+
+  const data = await response.json();
+  console.log('Token response:', data);
+  
+  if (!response.ok || data.error) {
+    throw new Error(`Failed to get access token: ${JSON.stringify(data)}`);
+  }
+
+  return data.access_token;
+}
 
 export default async function handler(req, res) {
   if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -7,25 +38,27 @@ export default async function handler(req, res) {
 
   try {
     console.log('Starting agent performance logging...');
-    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
-    console.log('Location ID:', process.env.GHL_LOCATION_ID);
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/ghl-proxy`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        endpoint: '/opportunities/search',
-        method: 'GET',
-        queryParams: {
-          location_id: process.env.GHL_LOCATION_ID,
-          limit: 100
-        }
-      })
+    const accessToken = await getGHLAccessToken();
+    console.log('Got access token:', accessToken ? 'YES' : 'NO');
+    
+    const locationId = process.env.VITE_GHL_LOCATION_ID || process.env.GHL_LOCATION_ID;
+    console.log('Location ID:', locationId);
+    
+    const apiUrl = `${GHL_API_BASE}/opportunities/search?location_id=${locationId}&limit=100`;
+    console.log('Calling:', apiUrl);
+    
+    const response = await fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Version: '2021-07-28',
+        Accept: 'application/json',
+      },
     });
 
     const data = await response.json();
     console.log('API Response status:', response.status);
-    console.log('Response data keys:', Object.keys(data));
+    console.log('Response data:', JSON.stringify(data, null, 2));
     console.log('Opportunities found:', data.opportunities?.length || 0);
     
     const tickets = data.opportunities || [];
@@ -96,10 +129,10 @@ export default async function handler(req, res) {
         metrics.escalated,
         metrics.resolved,
         metrics.closed,
-        `${closePercent}%`,
-        `${avgCloseTime}h`,
+        closePercent + '%',
+        avgCloseTime + 'h',
         'N/A',
-        `${escalationPercent}%`,
+        escalationPercent + '%',
         activeTickets
       ]);
     });
@@ -139,3 +172,4 @@ export default async function handler(req, res) {
     });
   }
 }
+ENDOFFILE
