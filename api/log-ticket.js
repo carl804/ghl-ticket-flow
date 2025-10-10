@@ -1,13 +1,12 @@
-const { google } = require('googleapis');
+import { google } from 'googleapis';
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const { ticketId, title, fromColumn, toColumn } = req.body;
-
     const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || '{}');
     
     const auth = new google.auth.GoogleAuth({
@@ -17,7 +16,6 @@ module.exports = async (req, res) => {
 
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-
     const timestamp = new Date().toISOString();
 
     await sheets.spreadsheets.values.append({
@@ -37,5 +35,4 @@ module.exports = async (req, res) => {
       details: error.message 
     });
   }
-};
-EOF
+}

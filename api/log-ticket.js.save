@@ -1,0 +1,41 @@
+cat > api/log-ticket.js << 'EOF'
+const { google } = require('googleapis');const { google } = require('googleapis');
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { ticketId, title, fromColumn, toColumn } = req.body;
+
+    const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || '{}');
+    
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+    const timestamp = new Date().toISOString();
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Sheet1!A:E',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [[timestamp, ticketId, title, fromColumn, toColumn]],
+      },
+    });
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error logging to Google Sheets:', error);
+    return res.status(500).json({ 
+      error: 'Failed to log to Google Sheets',
+      details: error.message 
+    });
+  }
+};
+EOF
