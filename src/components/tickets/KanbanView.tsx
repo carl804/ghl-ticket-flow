@@ -46,7 +46,6 @@ function SortableTicketCard({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Only trigger onClick if we didn't drag
     if (!isDraggingState) {
       onClick();
     }
@@ -120,7 +119,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
- const logToGoogleSheets = async (ticketId: string, fromColumn: TicketStatus, toColumn: TicketStatus) => {
+  const logToGoogleSheets = async (ticketId: string, fromColumn: TicketStatus, toColumn: TicketStatus) => {
     try {
       const ticket = tickets.find(t => t.id === ticketId);
       if (!ticket) {
@@ -128,12 +127,15 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
         return;
       }
 
-      console.log('Ticket data:', ticket); // Debug log
+      console.log('Ticket data:', ticket);
 
-      // Calculate duration in previous stage (in hours)
+      // Calculate duration in previous stage (HH:MM format)
       const now = new Date();
       const lastUpdate = new Date(ticket.updatedAt);
-      const durationHours = Math.round((now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60));
+      const durationMs = now.getTime() - lastUpdate.getTime();
+      const durationMinutes = Math.floor(durationMs / (1000 * 60));
+      const hours = Math.floor(durationMinutes / 60);
+      const minutes = durationMinutes % 60;
       
       // Calculate total ticket age (in days)
       const created = new Date(ticket.createdAt);
@@ -148,11 +150,11 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
         priority: ticket.priority || 'None',
         fromStage: fromColumn,
         toStage: toColumn,
-        durationInPreviousStage: `${durationHours}h`,
+        durationInPreviousStage: `${hours}:${minutes.toString().padStart(2, '0')}`,
         totalTicketAge: `${ageDays}d`
       };
 
-      console.log('Sending to Google Sheets:', payload); // Debug log
+      console.log('Sending to Google Sheets:', payload);
       
       const response = await fetch('/api/log-ticket', {
         method: 'POST',
@@ -255,4 +257,4 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   );
 }
 
-export default KanbanView;// Cache bust Fri Oct 10 21:34:42 UTC 2025
+export default KanbanView;
