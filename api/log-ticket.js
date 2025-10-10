@@ -6,7 +6,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { ticketId, title, fromColumn, toColumn } = req.body;
+    const { 
+      ticketId, 
+      ticketName, 
+      agent, 
+      contactName, 
+      category, 
+      priority, 
+      fromStage, 
+      toStage, 
+      durationInPreviousStage, 
+      totalTicketAge 
+    } = req.body;
+
     const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || '{}');
     
     const auth = new google.auth.GoogleAuth({
@@ -20,10 +32,22 @@ export default async function handler(req, res) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Sheet1!A:E',
+      range: 'Stage Transitions!A:K',
       valueInputOption: 'USER_ENTERED',
       resource: {
-        values: [[timestamp, ticketId, title, fromColumn, toColumn]],
+        values: [[
+          timestamp,
+          ticketId,
+          ticketName,
+          agent,
+          contactName,
+          category,
+          priority,
+          fromStage,
+          toStage,
+          durationInPreviousStage,
+          totalTicketAge
+        ]],
       },
     });
 
