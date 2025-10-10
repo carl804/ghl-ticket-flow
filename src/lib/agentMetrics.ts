@@ -16,6 +16,29 @@ export interface AgentMetrics {
   avgTimeInCurrentStage: string;
 }
 
+// Helper function to format duration in HH:MM:SS or Xd Xh Xm format
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (seconds < 60) {
+    return `${seconds}s`;
+  } else if (minutes < 60) {
+    const secs = seconds % 60;
+    return `${minutes}m ${secs}s`;
+  } else if (hours < 24) {
+    const mins = minutes % 60;
+    const secs = seconds % 60;
+    return `${hours}h ${mins}m ${secs}s`;
+  } else {
+    const hrs = hours % 24;
+    const mins = minutes % 60;
+    return `${days}d ${hrs}h ${mins}m`;
+  }
+}
+
 export function calculateAgentMetrics(tickets: Ticket[]): AgentMetrics[] {
   const agents = Array.from(new Set(tickets.map(t => t.assignedTo).filter(Boolean))) as string[];
   
@@ -45,14 +68,7 @@ export function calculateAgentMetrics(tickets: Ticket[]): AgentMetrics[] {
       }, 0);
       
       const avgMs = totalMs / completedTickets.length;
-      const avgHours = Math.round(avgMs / (1000 * 60 * 60));
-      
-      if (avgHours < 24) {
-        avgCloseTime = `${avgHours}h`;
-      } else {
-        const avgDays = (avgHours / 24).toFixed(1);
-        avgCloseTime = `${avgDays}d`;
-      }
+      avgCloseTime = formatDuration(avgMs);
     }
     
     // Calculate average time in current stage for active tickets
@@ -69,16 +85,7 @@ export function calculateAgentMetrics(tickets: Ticket[]): AgentMetrics[] {
       }, 0);
       
       const avgMs = totalMs / activeTickets.length;
-      const avgHours = Math.round(avgMs / (1000 * 60 * 60));
-      
-      if (avgHours < 1) {
-        avgTimeInCurrentStage = "< 1h";
-      } else if (avgHours < 24) {
-        avgTimeInCurrentStage = `${avgHours}h`;
-      } else {
-        const avgDays = (avgHours / 24).toFixed(1);
-        avgTimeInCurrentStage = `${avgDays}d`;
-      }
+      avgTimeInCurrentStage = formatDuration(avgMs);
     }
     
     return {
@@ -111,8 +118,22 @@ export function getTopPerformers(metrics: AgentMetrics[]) {
     fastestAgent = withClosedTickets.reduce((fastest, current) => {
       const parseTime = (time: string) => {
         if (time === "N/A") return Infinity;
-        if (time.endsWith('h')) return parseFloat(time);
-        if (time.endsWith('d')) return parseFloat(time) * 24;
+        if (time.endsWith('s')) return parseFloat(time) / 3600;
+        if (time.includes('m') && time.includes('s')) {
+          const parts = time.split(' ');
+          const mins = parseFloat(parts[0]);
+          return mins / 60;
+        }
+        if (time.includes('h')) {
+          const parts = time.split(' ');
+          const hours = parseFloat(parts[0]);
+          return hours;
+        }
+        if (time.includes('d')) {
+          const parts = time.split(' ');
+          const days = parseFloat(parts[0]);
+          return days * 24;
+        }
         return Infinity;
       };
       
