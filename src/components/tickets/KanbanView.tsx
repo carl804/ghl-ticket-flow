@@ -129,13 +129,14 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
 
       console.log('Ticket data:', ticket);
 
-      // Calculate duration in previous stage (HH:MM format)
+      // Calculate duration in previous stage (HH:MM:SS format)
       const now = new Date();
       const lastUpdate = new Date(ticket.updatedAt);
       const durationMs = now.getTime() - lastUpdate.getTime();
-      const durationMinutes = Math.floor(durationMs / (1000 * 60));
-      const hours = Math.floor(durationMinutes / 60);
-      const minutes = durationMinutes % 60;
+      const totalSeconds = Math.floor(durationMs / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
       
       // Calculate total ticket age (in days)
       const created = new Date(ticket.createdAt);
@@ -150,7 +151,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
         priority: ticket.priority || 'None',
         fromStage: fromColumn,
         toStage: toColumn,
-        durationInPreviousStage: `${hours}:${minutes.toString().padStart(2, '0')}`,
+        durationInPreviousStage: `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
         totalTicketAge: `${ageDays}d`
       };
 
