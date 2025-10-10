@@ -1,4 +1,3 @@
-cat > api/log-ticket.js << 'EOF'
 const { google } = require('googleapis');
 
 module.exports = async (req, res) => {
