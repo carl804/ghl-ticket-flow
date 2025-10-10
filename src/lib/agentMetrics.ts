@@ -13,10 +13,10 @@ export interface AgentMetrics {
   escalationPercentage: number;
   resolved: number;
   deleted: number;
+  avgTimeInCurrentStage: string;
 }
 
 export function calculateAgentMetrics(tickets: Ticket[]): AgentMetrics[] {
-  // Get unique agents
   const agents = Array.from(new Set(tickets.map(t => t.assignedTo).filter(Boolean))) as string[];
   
   return agents.map(agent => {
@@ -33,18 +33,18 @@ export function calculateAgentMetrics(tickets: Ticket[]): AgentMetrics[] {
     const closePercentage = total > 0 ? Math.round((closed / total) * 100) : 0;
     const escalationPercentage = total > 0 ? Math.round((escalated / total) * 100) : 0;
     
-    // Calculate average closing time
-    const closedTickets = agentTickets.filter(t => t.status === "Closed");
+    // Calculate average closing time (for Closed or Resolved tickets)
+    const completedTickets = agentTickets.filter(t => t.status === "Closed" || t.status === "Resolved");
     let avgCloseTime = "N/A";
     
-    if (closedTickets.length > 0) {
-      const totalMs = closedTickets.reduce((acc, ticket) => {
+    if (completedTickets.length > 0) {
+      const totalMs = completedTickets.reduce((acc, ticket) => {
         const created = new Date(ticket.createdAt).getTime();
         const updated = new Date(ticket.updatedAt).getTime();
         return acc + (updated - created);
       }, 0);
       
-      const avgMs = totalMs / closedTickets.length;
+      const avgMs = totalMs / completedTickets.length;
       const avgHours = Math.round(avgMs / (1000 * 60 * 60));
       
       if (avgHours < 24) {
@@ -52,6 +52,32 @@ export function calculateAgentMetrics(tickets: Ticket[]): AgentMetrics[] {
       } else {
         const avgDays = (avgHours / 24).toFixed(1);
         avgCloseTime = `${avgDays}d`;
+      }
+    }
+    
+    // Calculate average time in current stage for active tickets
+    const activeTickets = agentTickets.filter(t => 
+      t.status !== "Closed" && t.status !== "Deleted"
+    );
+    
+    let avgTimeInCurrentStage = "N/A";
+    if (activeTickets.length > 0) {
+      const now = new Date().getTime();
+      const totalMs = activeTickets.reduce((acc, ticket) => {
+        const updated = new Date(ticket.updatedAt).getTime();
+        return acc + (now - updated);
+      }, 0);
+      
+      const avgMs = totalMs / activeTickets.length;
+      const avgHours = Math.round(avgMs / (1000 * 60 * 60));
+      
+      if (avgHours < 1) {
+        avgTimeInCurrentStage = "< 1h";
+      } else if (avgHours < 24) {
+        avgTimeInCurrentStage = `${avgHours}h`;
+      } else {
+        const avgDays = (avgHours / 24).toFixed(1);
+        avgTimeInCurrentStage = `${avgDays}d`;
       }
     }
     
@@ -67,8 +93,9 @@ export function calculateAgentMetrics(tickets: Ticket[]): AgentMetrics[] {
       escalationPercentage,
       resolved,
       deleted,
+      avgTimeInCurrentStage,
     };
-  }).sort((a, b) => b.total - a.total); // Sort by total tickets descending
+  }).sort((a, b) => b.total - a.total);
 }
 
 export function getTopPerformers(metrics: AgentMetrics[]) {
@@ -79,7 +106,6 @@ export function getTopPerformers(metrics: AgentMetrics[]) {
   const highestCloseRate = [...metrics].sort((a, b) => b.closePercentage - a.closePercentage)[0];
   const lowestEscalation = [...metrics].sort((a, b) => a.escalationPercentage - b.escalationPercentage)[0];
   
-  // For fastest time, need to parse the time string
   let fastestAgent = null;
   if (withClosedTickets.length > 0) {
     fastestAgent = withClosedTickets.reduce((fastest, current) => {
