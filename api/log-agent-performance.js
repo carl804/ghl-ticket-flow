@@ -96,10 +96,10 @@ export default async function handler(req, res) {
         metrics.escalated,
         metrics.resolved,
         metrics.closed,
-        closePercent + '%',
-        avgCloseTime + 'h',
+        `${closePercent}%`,
+        `${avgCloseTime}h`,
         'N/A',
-        escalationPercent + '%',
+        `${escalationPercent}%`,
         activeTickets
       ]);
     });
