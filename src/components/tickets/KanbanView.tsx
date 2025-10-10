@@ -120,6 +120,33 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
+  const logToGoogleSheets = async (ticketId: string, fromColumn: TicketStatus, toColumn: TicketStatus) => {
+    try {
+      const ticket = tickets.find(t => t.id === ticketId);
+      
+      const response = await fetch('/api/log-ticket.cjs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ticketId,
+          title: ticket?.name || '',
+          fromColumn,
+          toColumn,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      console.log('Logged to Google Sheets successfully');
+    } catch (error) {
+      console.error('Error logging to Google Sheets:', error);
+    }
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -154,15 +181,18 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
     const activeTicket = tickets.find((t) => t.id === active.id);
     if (!activeTicket) return;
 
+    const fromStatus = activeTicket.status;
     const targetStatus = COLUMNS.find(col => col === over.id);
     
     if (targetStatus && activeTicket.status !== targetStatus) {
+      logToGoogleSheets(activeTicket.id, fromStatus, targetStatus);
       onStatusChange(activeTicket.id, targetStatus);
       return;
     }
 
     const targetTicket = tickets.find((t) => t.id === over.id);
     if (targetTicket && activeTicket.status !== targetTicket.status) {
+      logToGoogleSheets(activeTicket.id, fromStatus, targetTicket.status);
       onStatusChange(activeTicket.id, targetTicket.status);
     }
   };
