@@ -1,9 +1,13 @@
-import { google } from 'googleapis';
-import { NextResponse } from 'next/server';
+cat > api/log-ticket.js << 'EOF'
+const { google } = require('googleapis');
 
-export async function POST(request) {
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    const { ticketId, title, fromColumn, toColumn } = await request.json();
+    const { ticketId, title, fromColumn, toColumn } = req.body;
 
     const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || '{}');
     
@@ -26,12 +30,13 @@ export async function POST(request) {
       },
     });
 
-    return NextResponse.json({ success: true });
+    return res.status(200).json({ success: true });
   } catch (error) {
     console.error('Error logging to Google Sheets:', error);
-    return NextResponse.json(
-      { error: 'Failed to log to Google Sheets', details: error.message },
-      { status: 500 }
-    );
+    return res.status(500).json({ 
+      error: 'Failed to log to Google Sheets',
+      details: error.message 
+    });
   }
-}
+};
+EOF
