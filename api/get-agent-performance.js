@@ -6,11 +6,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Parse the credentials from the environment variable
+    const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS);
+
     // Initialize Google Sheets API
     const auth = new google.auth.GoogleAuth({
       credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        client_email: credentials.client_email,
+        private_key: credentials.private_key,
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     });
@@ -21,7 +24,7 @@ export default async function handler(req, res) {
     // Read from Agent Performance sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Agent Performance!A:O', // Adjust range if needed
+      range: 'Agent Performance!A:O',
     });
 
     const rows = response.data.values;
@@ -58,7 +61,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ 
       success: true,
       data: latestData,
-      allData: data // Include all historical data for trends
+      allData: data
     });
 
   } catch (error) {
