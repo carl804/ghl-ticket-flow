@@ -13,32 +13,13 @@ const STAGE_MAP = {
 };
 
 async function getGHLAccessToken() {
-  const tokenUrl = `${GHL_API_BASE}/oauth/token`;
+  const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP;
   
-  const params = new URLSearchParams({
-    client_id: process.env.VITE_GHL_CLIENT_ID,
-    client_secret: process.env.VITE_GHL_CLIENT_SECRET,
-    grant_type: 'refresh_token',
-    refresh_token: process.env.GHL_REFRESH_TOKEN,
-    user_type: 'Location'
-  });
-
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Accept: 'application/json',
-    },
-    body: params.toString(),
-  });
-
-  const data = await response.json();
-  
-  if (!response.ok || data.error) {
-    throw new Error(`Failed to get access token: ${JSON.stringify(data)}`);
+  if (!accessToken) {
+    throw new Error("GHL_ACCESS_TOKEN_TEMP not found in environment variables");
   }
-
-  return data.access_token;
+  
+  return accessToken;
 }
 
 export default async function handler(req, res) {
