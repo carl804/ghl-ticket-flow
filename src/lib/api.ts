@@ -10,6 +10,7 @@ import type {
 import { ghlRequest } from "@/integrations/ghl/client";
 export { ghlRequest };
 import { toast } from "sonner";
+import { logStageTransition } from "./googleSheets";
 
 let FIELD_MAP: FieldMap = {};
 
@@ -33,6 +34,29 @@ const STAGE_MAP: Record<string, TicketStatus> = {
   "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
   "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
 };
+
+// Helper to format duration
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (seconds < 60) {
+    return `${seconds}s`;
+  } else if (minutes < 60) {
+    const secs = seconds % 60;
+    return `${minutes}m ${secs}s`;
+  } else if (hours < 24) {
+    const mins = minutes % 60;
+    const secs = seconds % 60;
+    return `${hours}h ${mins}m ${secs}s`;
+  } else {
+    const hrs = hours % 24;
+    const mins = minutes % 60;
+    return `${days}d ${hrs}h ${mins}m`;
+  }
+}
 
 /** Get location ID from stored tokens */
 function getLocationId(): string {
@@ -70,6 +94,9 @@ function getFieldId(key: keyof FieldMap): string | undefined {
   return FIELD_MAP[key];
 }
 
+// Cache for ticket data (to track previous state)
+const ticketCache = new Map<string, Ticket>();
+
 /** Fetch tickets from Ticketing System pipeline only */
 export async function fetchTickets(): Promise<Ticket[]> {
   try {
@@ -106,7 +133,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
       .filter(response => response !== null)
       .map(response => response.opportunity);
 
-    return validOpportunities.map((opp: any) => {
+    const tickets = validOpportunities.map((opp: any) => {
       // Extract custom fields
       const description = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.description);
       const priority = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.priority) || "Medium";
@@ -144,6 +171,11 @@ export async function fetchTickets(): Promise<Ticket[]> {
         tags: Array.isArray(opp.contact?.tags) ? opp.contact.tags : [],
       } as Ticket;
     });
+
+    // Update cache
+    tickets.forEach(ticket => ticketCache.set(ticket.id, ticket));
+
+    return tickets;
   } catch (error) {
     toast.error(`Unable to fetch tickets: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
@@ -186,15 +218,47 @@ export async function fetchStats(): Promise<Stats> {
 }
 
 export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
+  // Get previous ticket state from cache
+  const previousTicket = ticketCache.get(ticketId);
+  
   const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === newStatus);
   if (!stageId) throw new Error(`Invalid status: ${newStatus}`);
   
+  // Update in GHL
   await ghlRequest(`/opportunities/${ticketId}`, { 
     method: "PUT", 
     body: { 
       pipelineStageId: stageId
     } 
   });
+
+  // Log stage transition to Google Sheets
+  if (previousTicket && previousTicket.status !== newStatus) {
+    const now = Date.now();
+    const updatedTime = new Date(previousTicket.updatedAt).getTime();
+    const createdTime = new Date(previousTicket.createdAt).getTime();
+    const durationInPreviousStage = formatDuration(now - updatedTime);
+    const totalTicketAge = formatDuration(now - createdTime);
+
+    // Log asynchronously (don't block the UI)
+    logStageTransition({
+      ticketId: previousTicket.id,
+      ticketName: previousTicket.name,
+      agent: previousTicket.assignedTo || "Unassigned",
+      contactName: previousTicket.contact.name || "Unknown",
+      category: previousTicket.category,
+      priority: previousTicket.priority,
+      fromStage: previousTicket.status,
+      toStage: newStatus,
+      durationInPreviousStage,
+      totalTicketAge,
+    }).catch(err => console.error('Failed to log stage transition:', err));
+  }
+  
+  // Update cache
+  if (previousTicket) {
+    ticketCache.set(ticketId, { ...previousTicket, status: newStatus, updatedAt: new Date().toISOString() });
+  }
 }
 
 export async function updatePriority(ticketId: string, priority: TicketPriority): Promise<void> {

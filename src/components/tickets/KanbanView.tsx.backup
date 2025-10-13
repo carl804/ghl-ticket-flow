@@ -24,32 +24,47 @@ interface KanbanViewProps {
   onTicketClick: (ticket: Ticket) => void;
 }
 
-const COLUMNS: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed", "Deleted"];
+const COLUMNS: TicketStatus[] = ["Open", "In Progress", "Escalated to Dev", "Resolved", "Closed", "Deleted"];
 
-function SortableTicketCard({ ticket, onClick }) {
+function SortableTicketCard({ 
+  ticket, 
+  onClick 
+}: { 
+  ticket: Ticket; 
+  onClick: () => void;
+}) {
   const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ 
     id: ticket.id 
   });
 
-  return (
-    <div ref={setNodeRef} style={style}>
-      <TicketCard 
-        ticket={ticket} 
-        onClick={onClick} 
-        isDragging={isDragging}
-        dragHandleProps={{ ...listeners, ...attributes }}
-      />
-    </div>
-  );
-}
+  const [isDraggingState, setIsDraggingState] = useState(false);
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    cursor: isDragging ? 'grabbing' : 'grab',
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Only trigger onClick if we didn't drag
+    if (!isDraggingState) {
+      onClick();
+    }
+  };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...listeners} 
+      {...attributes}
+      onMouseDown={() => setIsDraggingState(false)}
+      onMouseMove={() => setIsDraggingState(true)}
+      onClick={handleClick}
+    >
       <TicketCard 
         ticket={ticket} 
-        onClick={onClick} 
         isDragging={isDragging}
-        dragHandleProps={{ ...listeners, ...attributes }}
       />
     </div>
   );
@@ -105,10 +120,37 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
+  const logToGoogleSheets = async (ticketId: string, fromColumn: TicketStatus, toColumn: TicketStatus) => {
+    try {
+      const ticket = tickets.find(t => t.id === ticketId);
+      
+      const response = await fetch('/api/log-ticket.cjs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ticketId,
+          title: ticket?.name || '',
+          fromColumn,
+          toColumn,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      console.log('Logged to Google Sheets successfully');
+    } catch (error) {
+      console.error('Error logging to Google Sheets:', error);
+    }
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // Require 8px movement before drag starts
+        distance: 8,
       },
     }),
     useSensor(KeyboardSensor)
@@ -139,17 +181,18 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
     const activeTicket = tickets.find((t) => t.id === active.id);
     if (!activeTicket) return;
 
-    // Check if dropped over a column (status)
+    const fromStatus = activeTicket.status;
     const targetStatus = COLUMNS.find(col => col === over.id);
     
     if (targetStatus && activeTicket.status !== targetStatus) {
+      logToGoogleSheets(activeTicket.id, fromStatus, targetStatus);
       onStatusChange(activeTicket.id, targetStatus);
       return;
     }
 
-    // Check if dropped over another ticket (get that ticket's status)
     const targetTicket = tickets.find((t) => t.id === over.id);
     if (targetTicket && activeTicket.status !== targetTicket.status) {
+      logToGoogleSheets(activeTicket.id, fromStatus, targetTicket.status);
       onStatusChange(activeTicket.id, targetTicket.status);
     }
   };
@@ -186,3 +229,4 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
   );
 }
 
+export default KanbanView;
