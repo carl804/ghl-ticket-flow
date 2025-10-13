@@ -11,6 +11,26 @@ const STAGE_MAP = {
   "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
 };
 
+function formatDuration(hours) {
+  const totalMinutes = Math.round(hours * 60);
+  
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+  
+  const days = Math.floor(hours / 24);
+  const remainingHours = Math.floor(hours % 24);
+  const minutes = Math.round((hours % 1) * 60);
+  
+  if (days > 0) {
+    return `${days}d ${remainingHours}h ${minutes}m`;
+  } else if (remainingHours > 0) {
+    return `${remainingHours}h ${minutes}m`;
+  } else {
+    return `${totalMinutes}m`;
+  }
+}
+
 async function getGHLAccessToken() {
   const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP;
   if (!accessToken) {
@@ -82,8 +102,9 @@ export default async function handler(req, res) {
 
     console.log('✅ Stage counts:', stageCounts);
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const nowUtc = new Date();
+    const todayStr = nowUtc.toISOString().split('T')[0];
+    const today = new Date(todayStr + 'T00:00:00.000Z');
     const todayTimestamp = today.getTime();
 
     let newToday = 0;
@@ -112,9 +133,6 @@ export default async function handler(req, res) {
 
     const transitionsRows = transitionsResponse.data.values || [];
     console.log(`✅ Read ${transitionsRows.length} stage transition rows`);
-
-    const nowUtc = new Date();
-    const todayStr = nowUtc.toISOString().split('T')[0];
     
     let closedToday = 0;
     let resolvedToday = 0;
@@ -143,10 +161,10 @@ export default async function handler(req, res) {
         return sum + (closed - created);
       }, 0);
       
-      avgResolutionTime = Math.round(totalResolutionTime / closedTickets.length / (1000 * 60 * 60));
+      avgResolutionTime = totalResolutionTime / closedTickets.length / (1000 * 60 * 60);
     }
 
-    console.log(`✅ Average resolution time: ${avgResolutionTime}h`);
+    console.log(`✅ Average resolution time: ${formatDuration(avgResolutionTime)}`);
 
     const timestamp = new Date().toISOString();
     const row = [
@@ -156,7 +174,7 @@ export default async function handler(req, res) {
       closedToday,
       resolvedToday,
       escalatedToday,
-      avgResolutionTime + 'h',
+      formatDuration(avgResolutionTime),
       stageCounts.open,
       stageCounts.inProgress,
       stageCounts.escalated,
@@ -181,7 +199,7 @@ export default async function handler(req, res) {
         closedToday,
         resolvedToday,
         escalatedToday,
-        avgResolutionTime: avgResolutionTime + 'h',
+        avgResolutionTime: formatDuration(avgResolutionTime),
         activeTickets: stageCounts.open + stageCounts.inProgress + stageCounts.escalated
       }
     });
