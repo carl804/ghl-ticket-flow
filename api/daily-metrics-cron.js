@@ -109,11 +109,31 @@ export default async function handler(req, res) {
 
     console.log('✅ Stage counts:', stageCounts);
 
-    // TODO: Step 4 - Count new today
+    // STEP 4: Count tickets created today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTimestamp = today.getTime();
+
+    let newToday = 0;
+    fullOpportunities.forEach(opp => {
+      const createdAt = new Date(opp.createdAt).getTime();
+      if (createdAt >= todayTimestamp) {
+        newToday++;
+      }
+    });
+
+    console.log(`✅ New tickets today: ${newToday}`);
+
     // TODO: Step 5 - Read Stage Transitions sheet
     // TODO: Step 6 - Calculate metrics
     // TODO: Step 7 - Write to Google Sheets
 
+    return res.status(200).json({ 
+      success: true,
+      message: 'Step 4 complete - counted new today',
+      stageCounts,
+      newToday
+    });
     return res.status(200).json({ 
       success: true,
       message: 'Step 3 complete - counted by stage',
