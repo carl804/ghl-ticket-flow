@@ -49,6 +49,7 @@ export default async function handler(req, res) {
   try {
     console.log('Starting daily metrics logging...');
     
+    // STEP 1: Get access token
     const accessToken = await getGHLAccessToken();
     console.log('✅ Got access token');
 
@@ -69,7 +70,45 @@ export default async function handler(req, res) {
     
     console.log(`✅ Found ${opportunityIds.length} opportunity IDs`);
 
-    // TODO: Step 3 - Fetch full details and count by stage
+    // STEP 3: Fetch full details for each opportunity
+    const fullOpportunities = await Promise.all(
+      opportunityIds.map(async id => {
+        const oppUrl = `${GHL_API_BASE}/opportunities/${id}`;
+        const oppResponse = await fetch(oppUrl, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Version: '2021-07-28',
+            Accept: 'application/json',
+          },
+        });
+        const oppData = await oppResponse.json();
+        return oppData.opportunity;
+      })
+    );
+
+    console.log(`✅ Fetched full details for ${fullOpportunities.length} opportunities`);
+
+    // Count by stage
+    const stageCounts = {
+      open: 0,
+      inProgress: 0,
+      resolved: 0,
+      closed: 0,
+      escalated: 0,
+      total: fullOpportunities.length
+    };
+
+    fullOpportunities.forEach(opp => {
+      const stage = STAGE_MAP[opp.pipelineStageId] || 'Open';
+      if (stage === 'Open') stageCounts.open++;
+      if (stage === 'In Progress') stageCounts.inProgress++;
+      if (stage === 'Resolved') stageCounts.resolved++;
+      if (stage === 'Closed') stageCounts.closed++;
+      if (stage === 'Escalated to Dev') stageCounts.escalated++;
+    });
+
+    console.log('✅ Stage counts:', stageCounts);
+
     // TODO: Step 4 - Count new today
     // TODO: Step 5 - Read Stage Transitions sheet
     // TODO: Step 6 - Calculate metrics
@@ -77,8 +116,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ 
       success: true,
-      message: 'Step 2 complete - fetched opportunity IDs',
-      opportunityCount: opportunityIds.length
+      message: 'Step 3 complete - counted by stage',
+      stageCounts
     });
   } catch (error) {
     console.error('Error logging daily metrics:', error);
