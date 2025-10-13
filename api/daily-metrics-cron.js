@@ -13,10 +13,11 @@ const STAGE_MAP = {
 };
 
 async function getGHLAccessToken() {
+  // Use access token directly (temporary solution)
   const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP;
   
   if (!accessToken) {
-    throw new Error("GHL_ACCESS_TOKEN_TEMP not found in environment variables");
+    throw new Error('GHL_ACCESS_TOKEN_TEMP not found in environment variables');
   }
   
   return accessToken;
@@ -92,7 +93,7 @@ export default async function handler(req, res) {
 
     // STEP 4: Count tickets created today
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0); // Start of today (UTC)
     const todayTimestamp = today.getTime();
 
     let newToday = 0;
@@ -115,11 +116,6 @@ export default async function handler(req, res) {
       stageCounts,
       newToday
     });
-    return res.status(200).json({ 
-      success: true,
-      message: 'Step 3 complete - counted by stage',
-      stageCounts
-    });
   } catch (error) {
     console.error('Error logging daily metrics:', error);
     return res.status(500).json({ 
@@ -128,3 +124,52 @@ export default async function handler(req, res) {
     });
   }
 }
+// STEP 5: Read Stage Transitions sheet to count transitions today
+    const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || '{}');
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+    // Read all stage transitions
+    const transitionsResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Stage Transitions!A:H',
+    });
+
+    const transitionsRows = transitionsResponse.data.values || [];
+    console.log(`✅ Read ${transitionsRows.length} stage transition rows`);
+
+    // Count transitions TO each stage that happened today
+    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    let closedToday = 0;
+    let resolvedToday = 0;
+    let escalatedToday = 0;
+
+    transitionsRows.slice(1).forEach(row => { // Skip header
+      const timestamp = row[0]; // Column A
+      const toStage = row[3]; // Column D (To Stage)
+      
+      if (timestamp && timestamp.startsWith(todayStr)) {
+        if (toStage === 'Closed') closedToday++;
+        if (toStage === 'Resolved') resolvedToday++;
+        if (toStage === 'Escalated to Dev') escalatedToday++;
+      }
+    });
+
+    console.log(`✅ Transitions today - Closed: ${closedToday}, Resolved: ${resolvedToday}, Escalated: ${escalatedToday}`);
+
+    // TODO: Step 6 - Calculate metrics
+    // TODO: Step 7 - Write to Google Sheets
+
+    return res.status(200).json({ 
+      success: true,
+      message: 'Step 5 complete - read stage transitions',
+      stageCounts,
+      newToday,
+      transitionsToday: { closedToday, resolvedToday, escalatedToday }
+    });
