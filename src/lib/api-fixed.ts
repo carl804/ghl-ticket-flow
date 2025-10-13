@@ -10,7 +10,6 @@ import type {
 import { ghlRequest } from "@/integrations/ghl/client";
 export { ghlRequest };
 import { toast } from "sonner";
-import { logStageTransition } from "./googleSheets";
 
 let FIELD_MAP: FieldMap = {};
 
@@ -231,29 +230,6 @@ export async function updateTicketStatus(ticketId: string, newStatus: TicketStat
       pipelineStageId: stageId
     } 
   });
-
-  // Log stage transition to Google Sheets
-  if (previousTicket && previousTicket.status !== newStatus) {
-    const now = Date.now();
-    const updatedTime = new Date(previousTicket.updatedAt).getTime();
-    const createdTime = new Date(previousTicket.createdAt).getTime();
-    const durationInPreviousStage = formatDuration(now - updatedTime);
-    const totalTicketAge = formatDuration(now - createdTime);
-
-    // Log asynchronously (don't block the UI)
-    logStageTransition({
-      ticketId: previousTicket.id,
-      ticketName: previousTicket.name,
-      agent: previousTicket.assignedTo || "Unassigned",
-      contactName: previousTicket.contact.name || "Unknown",
-      category: previousTicket.category,
-      priority: previousTicket.priority,
-      fromStage: previousTicket.status,
-      toStage: newStatus,
-      durationInPreviousStage,
-      totalTicketAge,
-    }).catch(err => console.error('Failed to log stage transition:', err));
-  }
   
   // Update cache
   if (previousTicket) {
