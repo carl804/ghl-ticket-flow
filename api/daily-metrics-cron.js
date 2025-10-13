@@ -52,8 +52,24 @@ export default async function handler(req, res) {
     const accessToken = await getGHLAccessToken();
     console.log('✅ Got access token');
 
-    // TODO: Step 2 - Fetch all opportunities
-    // TODO: Step 3 - Count by stage
+    const locationId = process.env.VITE_GHL_LOCATION_ID || process.env.GHL_LOCATION_ID;
+    
+    // STEP 2: Get all opportunity IDs from pipeline
+    const searchUrl = `${GHL_API_BASE}/opportunities/search?location_id=${locationId}&pipeline_id=p14Is7nXjiqS6MVI0cCk&limit=100`;
+    const searchResponse = await fetch(searchUrl, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Version: '2021-07-28',
+        Accept: 'application/json',
+      },
+    });
+
+    const searchData = await searchResponse.json();
+    const opportunityIds = (searchData.opportunities || []).map(opp => opp.id);
+    
+    console.log(`✅ Found ${opportunityIds.length} opportunity IDs`);
+
+    // TODO: Step 3 - Fetch full details and count by stage
     // TODO: Step 4 - Count new today
     // TODO: Step 5 - Read Stage Transitions sheet
     // TODO: Step 6 - Calculate metrics
@@ -61,7 +77,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ 
       success: true,
-      message: 'Step 1 complete - authentication working'
+      message: 'Step 2 complete - fetched opportunity IDs',
+      opportunityCount: opportunityIds.length
     });
   } catch (error) {
     console.error('Error logging daily metrics:', error);
