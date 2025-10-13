@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { fetchTickets, updateTicket } from "@/lib/api";
+import { fetchTickets, updateTicket } from "@/lib/api-fixed";
 import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from "@/lib/types";
 import { toast } from "sonner";
 import {

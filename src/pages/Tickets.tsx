@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
-import { fetchTickets, updateTicketStatus, updatePriority } from "@/lib/api";
+import { fetchTickets, updateTicketStatus, updatePriority } from "@/lib/api-fixed";
 import type { Ticket, TicketStatus, TicketPriority, Stats } from "@/lib/types";
 import TableView from "@/components/tickets/TableView";
 import { KanbanView } from "@/components/tickets/KanbanView";
