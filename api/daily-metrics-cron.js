@@ -13,7 +13,6 @@ const STAGE_MAP = {
 };
 
 async function getGHLAccessToken() {
-  // Use access token directly (temporary solution)
   const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP;
   
   if (!accessToken) {
@@ -31,13 +30,11 @@ export default async function handler(req, res) {
   try {
     console.log('Starting daily metrics logging...');
     
-    // STEP 1: Get access token
     const accessToken = await getGHLAccessToken();
     console.log('✅ Got access token');
 
     const locationId = process.env.VITE_GHL_LOCATION_ID || process.env.GHL_LOCATION_ID;
     
-    // STEP 2: Get all opportunity IDs from pipeline
     const searchUrl = `${GHL_API_BASE}/opportunities/search?location_id=${locationId}&pipeline_id=p14Is7nXjiqS6MVI0cCk&limit=100`;
     const searchResponse = await fetch(searchUrl, {
       headers: {
@@ -52,7 +49,6 @@ export default async function handler(req, res) {
     
     console.log(`✅ Found ${opportunityIds.length} opportunity IDs`);
 
-    // STEP 3: Fetch full details for each opportunity
     const fullOpportunities = await Promise.all(
       opportunityIds.map(async id => {
         const oppUrl = `${GHL_API_BASE}/opportunities/${id}`;
@@ -70,7 +66,6 @@ export default async function handler(req, res) {
 
     console.log(`✅ Fetched full details for ${fullOpportunities.length} opportunities`);
 
-    // Count by stage
     const stageCounts = {
       open: 0,
       inProgress: 0,
@@ -91,9 +86,8 @@ export default async function handler(req, res) {
 
     console.log('✅ Stage counts:', stageCounts);
 
-    // STEP 4: Count tickets created today
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Start of today (UTC)
+    today.setHours(0, 0, 0, 0);
     const todayTimestamp = today.getTime();
 
     let newToday = 0;
@@ -106,25 +100,6 @@ export default async function handler(req, res) {
 
     console.log(`✅ New tickets today: ${newToday}`);
 
-    // TODO: Step 5 - Read Stage Transitions sheet
-    // TODO: Step 6 - Calculate metrics
-    // TODO: Step 7 - Write to Google Sheets
-
-    return res.status(200).json({ 
-      success: true,
-      message: 'Step 4 complete - counted new today',
-      stageCounts,
-      newToday
-    });
-  } catch (error) {
-    console.error('Error logging daily metrics:', error);
-    return res.status(500).json({ 
-      error: 'Failed to log daily metrics',
-      details: error.message 
-    });
-  }
-}
-// STEP 5: Read Stage Transitions sheet to count transitions today
     const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || '{}');
     const auth = new google.auth.GoogleAuth({
       credentials,
@@ -134,7 +109,6 @@ export default async function handler(req, res) {
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
-    // Read all stage transitions
     const transitionsResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: 'Stage Transitions!A:H',
@@ -143,16 +117,15 @@ export default async function handler(req, res) {
     const transitionsRows = transitionsResponse.data.values || [];
     console.log(`✅ Read ${transitionsRows.length} stage transition rows`);
 
-    // Count transitions TO each stage that happened today
-    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const todayStr = today.toISOString().split('T')[0];
     
     let closedToday = 0;
     let resolvedToday = 0;
     let escalatedToday = 0;
 
-    transitionsRows.slice(1).forEach(row => { // Skip header
-      const timestamp = row[0]; // Column A
-      const toStage = row[3]; // Column D (To Stage)
+    transitionsRows.slice(1).forEach(row => {
+      const timestamp = row[0];
+      const toStage = row[3];
       
       if (timestamp && timestamp.startsWith(todayStr)) {
         if (toStage === 'Closed') closedToday++;
@@ -163,16 +136,13 @@ export default async function handler(req, res) {
 
     console.log(`✅ Transitions today - Closed: ${closedToday}, Resolved: ${resolvedToday}, Escalated: ${escalatedToday}`);
 
-    // TODO: Step 6 - Calculate metrics
-    // TODO: Step 7 - Write to Google Sheets
-
     return res.status(200).json({ 
       success: true,
       message: 'Step 5 complete - read stage transitions',
       stageCounts,
       newToday,
       transitionsToday: { closedToday, resolvedToday, escalatedToday }
-    });    });
+    });
   } catch (error) {
     console.error('Error logging daily metrics:', error);
     return res.status(500).json({ 
