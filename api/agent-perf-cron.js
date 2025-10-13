@@ -2,6 +2,27 @@ import { google } from 'googleapis';
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 
+// Stage ID to name mapping (same as frontend)
+const STAGE_MAP = {
+  "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
+  "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
+  "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
+  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
+  "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
+};
+
+// Custom field IDs
+const CUSTOM_FIELD_IDS = {
+  ticketOwner: 'VYv1QpVAAgns13227Pii',
+};
+
+function getCustomFieldValue(opp, fieldId) {
+  const customFields = opp.customFields || [];
+  const field = customFields.find(f => f.id === fieldId);
+  return field?.fieldValue || field?.value || field?.field_value || '';
+}
+
 async function getGHLAccessToken() {
   const tokenUrl = `${GHL_API_BASE}/oauth/token`;
   
@@ -23,7 +44,6 @@ async function getGHLAccessToken() {
   });
 
   const data = await response.json();
-  console.log('Token response:', data);
   
   if (!response.ok || data.error) {
     throw new Error(`Failed to get access token: ${JSON.stringify(data)}`);
@@ -41,15 +61,11 @@ export default async function handler(req, res) {
     console.log('Starting agent performance logging...');
     
     const accessToken = await getGHLAccessToken();
-    console.log('Got access token:', accessToken ? 'YES' : 'NO');
-    
     const locationId = process.env.VITE_GHL_LOCATION_ID || process.env.GHL_LOCATION_ID;
-    console.log('Location ID:', locationId);
     
-    const apiUrl = `${GHL_API_BASE}/opportunities/search?location_id=${locationId}&limit=100`;
-    console.log('Calling:', apiUrl);
-    
-    const response = await fetch(apiUrl, {
+    // Get opportunity IDs from pipeline
+    const searchUrl = `${GHL_API_BASE}/opportunities/search?location_id=${locationId}&pipeline_id=p14Is7nXjiqS6MVI0cCk&limit=100`;
+    const searchResponse = await fetch(searchUrl, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Version: '2021-07-28',
@@ -57,17 +73,38 @@ export default async function handler(req, res) {
       },
     });
 
-    const data = await response.json();
-    console.log('API Response status:', response.status);
-    console.log('Response data:', JSON.stringify(data, null, 2));
-    console.log('Opportunities found:', data.opportunities?.length || 0);
+    const searchData = await searchResponse.json();
+    const opportunityIds = (searchData.opportunities || []).map(opp => opp.id);
     
-    const tickets = data.opportunities || [];
+    console.log(`Found ${opportunityIds.length} opportunities`);
+    
+    // Fetch full details for each opportunity (includes custom fields)
+    const fullOpportunities = await Promise.all(
+      opportunityIds.map(async id => {
+        const oppUrl = `${GHL_API_BASE}/opportunities/${id}`;
+        const oppResponse = await fetch(oppUrl, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Version: '2021-07-28',
+            Accept: 'application/json',
+          },
+        });
+        const oppData = await oppResponse.json();
+        return oppData.opportunity;
+      })
+    );
+
+    console.log(`Fetched details for ${fullOpportunities.length} opportunities`);
 
     const agentMap = new Map();
     
-    tickets.forEach(ticket => {
-      const agent = ticket.assignedTo || 'Unassigned';
+    fullOpportunities.forEach(opp => {
+      // Get agent name from Ticket Owner custom field
+      const agent = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketOwner) || 'Unassigned';
+      
+      // Get stage name from pipelineStageId
+      const stage = STAGE_MAP[opp.pipelineStageId] || 'Open';
+      
       if (!agentMap.has(agent)) {
         agentMap.set(agent, {
           agent,
@@ -85,17 +122,17 @@ export default async function handler(req, res) {
       const metrics = agentMap.get(agent);
       metrics.total++;
       
-      if (ticket.status === 'Open') metrics.open++;
-      if (ticket.status === 'In Progress') metrics.inProgress++;
-      if (ticket.status === 'Escalated to Dev') {
+      if (stage === 'Open') metrics.open++;
+      if (stage === 'In Progress') metrics.inProgress++;
+      if (stage === 'Escalated to Dev') {
         metrics.escalated++;
         metrics.escalations++;
       }
-      if (ticket.status === 'Resolved') metrics.resolved++;
-      if (ticket.status === 'Closed') {
+      if (stage === 'Resolved') metrics.resolved++;
+      if (stage === 'Closed') {
         metrics.closed++;
-        const created = new Date(ticket.createdAt);
-        const closed = new Date(ticket.updatedAt);
+        const created = new Date(opp.createdAt);
+        const closed = new Date(opp.updatedAt);
         const closeTimeHours = (closed - created) / (1000 * 60 * 60);
         metrics.closeTimes.push(closeTimeHours);
       }
@@ -163,7 +200,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ 
       success: true, 
       agentsLogged: rows.length,
-      ticketsFetched: tickets.length
+      ticketsFetched: fullOpportunities.length
     });
   } catch (error) {
     console.error('Error logging agent performance:', error);
