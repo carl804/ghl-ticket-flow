@@ -21,6 +21,26 @@ function getCustomFieldValue(opp, fieldId) {
   return field?.fieldValue || field?.value || field?.field_value || '';
 }
 
+function formatDuration(hours) {
+  const totalMinutes = Math.round(hours * 60);
+  
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+  
+  const days = Math.floor(hours / 24);
+  const remainingHours = Math.floor(hours % 24);
+  const minutes = Math.round((hours % 1) * 60);
+  
+  if (days > 0) {
+    return `${days}d ${remainingHours}h ${minutes}m`;
+  } else if (remainingHours > 0) {
+    return `${remainingHours}h ${minutes}m`;
+  } else {
+    return `${totalMinutes}m`;
+  }
+}
+
 async function getGHLAccessToken() {
   const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP;
   if (!accessToken) {
@@ -158,12 +178,12 @@ export default async function handler(req, res) {
     const rows = [];
     
     agentMap.forEach(metrics => {
-      const avgCloseTime = metrics.closeTimes.length > 0
-        ? Math.round(metrics.closeTimes.reduce((a, b) => a + b, 0) / metrics.closeTimes.length)
+      const avgCloseTimeHours = metrics.closeTimes.length > 0
+        ? metrics.closeTimes.reduce((a, b) => a + b, 0) / metrics.closeTimes.length
         : 0;
       
-      const avgTimeInStage = metrics.stageTimeList.length > 0
-        ? Math.round(metrics.stageTimeList.reduce((a, b) => a + b, 0) / metrics.stageTimeList.length)
+      const avgTimeInStageHours = metrics.stageTimeList.length > 0
+        ? metrics.stageTimeList.reduce((a, b) => a + b, 0) / metrics.stageTimeList.length
         : 0;
       
       const closePercent = metrics.total > 0
@@ -186,8 +206,8 @@ export default async function handler(req, res) {
         metrics.resolved,
         metrics.closed,
         closePercent + '%',
-        avgCloseTime + 'h',
-        avgTimeInStage + 'h',
+        formatDuration(avgCloseTimeHours),
+        formatDuration(avgTimeInStageHours),
         escalationPercent + '%',
         activeTickets
       ]);
