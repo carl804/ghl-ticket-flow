@@ -6,8 +6,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parse the credentials from the environment variable
-    const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS);
+    // Parse the credentials - handle if it's already an object or a string
+    let credentials;
+    try {
+      credentials = typeof process.env.GOOGLE_SHEETS_CREDENTIALS === 'string' 
+        ? JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS)
+        : process.env.GOOGLE_SHEETS_CREDENTIALS;
+    } catch (e) {
+      console.error('Failed to parse GOOGLE_SHEETS_CREDENTIALS:', e);
+      return res.status(500).json({ 
+        error: 'Invalid Google credentials configuration',
+        details: 'Credentials could not be parsed'
+      });
+    }
+
+    if (!credentials || !credentials.client_email || !credentials.private_key) {
+      return res.status(500).json({ 
+        error: 'Missing required credentials',
+        details: 'client_email or private_key not found in credentials'
+      });
+    }
 
     // Initialize Google Sheets API
     const auth = new google.auth.GoogleAuth({
@@ -48,7 +66,7 @@ export default async function handler(req, res) {
     // Get the most recent entry for each agent
     const latestByAgent = {};
     data.forEach(entry => {
-      const agent = entry['Agent Name'];
+      const agent = entry['Agent Name'] || entry['Agent'];
       const timestamp = new Date(entry['Timestamp']);
       
       if (!latestByAgent[agent] || new Date(latestByAgent[agent]['Timestamp']) < timestamp) {
