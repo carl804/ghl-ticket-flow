@@ -7,7 +7,7 @@
   ],
   "crons": [
     {
-      "path": "/api/log-agent-perf-final",
+      "path": "/api/agent-perf-cron",
       "schedule": "0 2 * * *"
     }
   ]
