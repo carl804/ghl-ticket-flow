@@ -82,9 +82,8 @@ export default async function handler(req, res) {
 
     console.log('✅ Stage counts:', stageCounts);
 
-    const nowUtc = new Date();
-    const todayStr = nowUtc.toISOString().split('T')[0];
-    const today = new Date(todayStr + 'T00:00:00.000Z');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const todayTimestamp = today.getTime();
 
     let newToday = 0;
@@ -113,6 +112,9 @@ export default async function handler(req, res) {
 
     const transitionsRows = transitionsResponse.data.values || [];
     console.log(`✅ Read ${transitionsRows.length} stage transition rows`);
+
+    const nowUtc = new Date();
+    const todayStr = nowUtc.toISOString().split('T')[0];
     
     let closedToday = 0;
     let resolvedToday = 0;
@@ -120,7 +122,7 @@ export default async function handler(req, res) {
 
     transitionsRows.slice(1).forEach(row => {
       const timestamp = row[0];
-      const toStage = row[3];
+      const toStage = row[8];
       
       if (timestamp && timestamp.startsWith(todayStr)) {
         if (toStage === 'Closed') closedToday++;
