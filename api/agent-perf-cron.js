@@ -19,33 +19,13 @@ function getCustomFieldValue(opp, fieldId) {
   const customFields = opp.customFields || [];
   const field = customFields.find(f => f.id === fieldId);
   return field?.fieldValue || field?.value || field?.field_value || '';
-}
-
 async function getGHLAccessToken() {
-  const tokenUrl = `${GHL_API_BASE}/oauth/token`;
-  
-  const params = new URLSearchParams({
-    client_id: process.env.VITE_GHL_CLIENT_ID,
-    client_secret: process.env.VITE_GHL_CLIENT_SECRET,
-    grant_type: 'refresh_token',
-    refresh_token: process.env.GHL_REFRESH_TOKEN,
-    user_type: 'Location'
-  });
-
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Accept: 'application/json',
-    },
-    body: params.toString(),
-  });
-
-  const data = await response.json();
-  
-  if (!response.ok || data.error) {
-    throw new Error(`Failed to get access token: ${JSON.stringify(data)}`);
+  const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP;
+  if (!accessToken) {
+    throw new Error("GHL_ACCESS_TOKEN_TEMP not found in environment variables");
   }
+  return accessToken;
+}
 
   return data.access_token;
 }
