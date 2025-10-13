@@ -19,15 +19,14 @@ function getCustomFieldValue(opp, fieldId) {
   const customFields = opp.customFields || [];
   const field = customFields.find(f => f.id === fieldId);
   return field?.fieldValue || field?.value || field?.field_value || '';
+}
+
 async function getGHLAccessToken() {
   const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP;
   if (!accessToken) {
-    throw new Error("GHL_ACCESS_TOKEN_TEMP not found in environment variables");
+    throw new Error('GHL_ACCESS_TOKEN_TEMP not found in environment variables');
   }
   return accessToken;
-}
-
-  return data.access_token;
 }
 
 export default async function handler(req, res) {
@@ -72,7 +71,6 @@ export default async function handler(req, res) {
 
     console.log(`Fetched details for ${fullOpportunities.length} opportunities`);
 
-    // Read Stage Transitions to calculate time in current stage
     const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || '{}');
     const auth = new google.auth.GoogleAuth({
       credentials,
@@ -90,7 +88,6 @@ export default async function handler(req, res) {
     const transitionsRows = transitionsResponse.data.values || [];
     console.log(`Read ${transitionsRows.length} stage transition rows`);
 
-    // Calculate time in current stage for each ticket
     const ticketTimeInStage = new Map();
     const now = Date.now();
 
@@ -98,7 +95,6 @@ export default async function handler(req, res) {
       const ticketId = opp.id;
       const currentStage = STAGE_MAP[opp.pipelineStageId] || 'Open';
       
-      // Find most recent transition TO current stage
       const relevantTransitions = transitionsRows
         .slice(1)
         .filter(row => row[1] === ticketId && row[8] === currentStage)
@@ -136,7 +132,6 @@ export default async function handler(req, res) {
       const metrics = agentMap.get(agent);
       metrics.total++;
       
-      // Add time in stage for active tickets only
       if (stage !== 'Closed' && ticketTimeInStage.has(opp.id)) {
         metrics.stageTimeList.push(ticketTimeInStage.get(opp.id));
       }
