@@ -1,4 +1,3 @@
-cat > api/log-agent-performance.js << 'ENDOFFILE'
 import { google } from 'googleapis';
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
