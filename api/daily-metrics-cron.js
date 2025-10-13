@@ -2,7 +2,6 @@ import { google } from 'googleapis';
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 
-// Stage ID to name mapping (same as agent-perf)
 const STAGE_MAP = {
   "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
   "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
@@ -14,11 +13,9 @@ const STAGE_MAP = {
 
 async function getGHLAccessToken() {
   const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP;
-  
   if (!accessToken) {
     throw new Error('GHL_ACCESS_TOKEN_TEMP not found in environment variables');
   }
-  
   return accessToken;
 }
 
@@ -46,7 +43,6 @@ export default async function handler(req, res) {
 
     const searchData = await searchResponse.json();
     const opportunityIds = (searchData.opportunities || []).map(opp => opp.id);
-    
     console.log(`✅ Found ${opportunityIds.length} opportunity IDs`);
 
     const fullOpportunities = await Promise.all(
@@ -136,12 +132,57 @@ export default async function handler(req, res) {
 
     console.log(`✅ Transitions today - Closed: ${closedToday}, Resolved: ${resolvedToday}, Escalated: ${escalatedToday}`);
 
+    const closedTickets = fullOpportunities.filter(opp => STAGE_MAP[opp.pipelineStageId] === 'Closed');
+    
+    let avgResolutionTime = 0;
+    if (closedTickets.length > 0) {
+      const totalResolutionTime = closedTickets.reduce((sum, ticket) => {
+        const created = new Date(ticket.createdAt).getTime();
+        const closed = new Date(ticket.updatedAt).getTime();
+        return sum + (closed - created);
+      }, 0);
+      
+      avgResolutionTime = Math.round(totalResolutionTime / closedTickets.length / (1000 * 60 * 60));
+    }
+
+    console.log(`✅ Average resolution time: ${avgResolutionTime}h`);
+
+    const timestamp = new Date().toISOString();
+    const row = [
+      timestamp,
+      stageCounts.total,
+      newToday,
+      closedToday,
+      resolvedToday,
+      escalatedToday,
+      avgResolutionTime + 'h',
+      stageCounts.open,
+      stageCounts.inProgress,
+      stageCounts.escalated,
+      stageCounts.open + stageCounts.inProgress + stageCounts.escalated
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Daily Metrics!A:K',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [row] },
+    });
+
+    console.log('✅ Successfully wrote to Daily Metrics sheet');
+
     return res.status(200).json({ 
       success: true,
-      message: 'Step 5 complete - read stage transitions',
-      stageCounts,
-      newToday,
-      transitionsToday: { closedToday, resolvedToday, escalatedToday }
+      message: 'Daily metrics logged successfully!',
+      data: {
+        totalTickets: stageCounts.total,
+        newToday,
+        closedToday,
+        resolvedToday,
+        escalatedToday,
+        avgResolutionTime: avgResolutionTime + 'h',
+        activeTickets: stageCounts.open + stageCounts.inProgress + stageCounts.escalated
+      }
     });
   } catch (error) {
     console.error('Error logging daily metrics:', error);
