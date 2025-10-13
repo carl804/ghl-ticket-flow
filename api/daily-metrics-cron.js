@@ -172,4 +172,12 @@ export default async function handler(req, res) {
       stageCounts,
       newToday,
       transitionsToday: { closedToday, resolvedToday, escalatedToday }
+    });    });
+  } catch (error) {
+    console.error('Error logging daily metrics:', error);
+    return res.status(500).json({ 
+      error: 'Failed to log daily metrics',
+      details: error.message 
     });
+  }
+}
