@@ -107,7 +107,7 @@ export default async function handler(req, res) {
 
     const transitionsResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Stage Transitions!A:H',
+      range: 'Stage Transitions!A:L',
     });
 
     const transitionsRows = transitionsResponse.data.values || [];
