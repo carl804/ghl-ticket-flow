@@ -13,6 +13,13 @@ import {
   Bar,
 } from "recharts";
 import { TrendingUp, TrendingDown, Activity, Calendar } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface DailyMetric {
   Date: string;
@@ -31,6 +38,7 @@ interface DailyMetric {
 export default function DailyMetricsDashboard() {
   const [data, setData] = useState<DailyMetric[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<string>("all");
 
   useEffect(() => {
     fetchData();
@@ -45,21 +53,18 @@ export default function DailyMetricsDashboard() {
       const grouped: { [key: string]: DailyMetric } = {};
       
       (result.data || []).forEach((entry: DailyMetric) => {
-        const dateOnly = entry.Date.split('T')[0]; // Get just YYYY-MM-DD part
+        const dateOnly = entry.Date.split('T')[0];
         const timestamp = new Date(entry.Date).getTime();
         
         if (!grouped[dateOnly] || new Date(grouped[dateOnly].Date).getTime() < timestamp) {
-          // Keep all the data but update the Date to just the date part
           grouped[dateOnly] = { ...entry };
         }
       });
       
-      // Convert back to array and sort by date descending
       const uniqueData = Object.values(grouped).sort((a, b) => 
         new Date(b.Date).getTime() - new Date(a.Date).getTime()
       );
       
-      console.log('Grouped data:', uniqueData); // Debug log
       setData(uniqueData);
     } catch (error) {
       console.error("Error fetching daily metrics:", error);
@@ -68,7 +73,13 @@ export default function DailyMetricsDashboard() {
     }
   };
 
-  const last30Days = data.slice(0, 30).reverse();
+  // Filter data based on selected date
+  const filteredData = selectedDate === "all" 
+    ? data 
+    : data.filter(d => d.Date.split('T')[0] === selectedDate);
+
+  const displayData = selectedDate === "all" ? data.slice(0, 30) : filteredData;
+  const last30Days = displayData.slice(0, 30).reverse();
 
   const trendData = last30Days.map((d) => ({
     date: new Date(d.Date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -83,13 +94,14 @@ export default function DailyMetricsDashboard() {
     open: parseInt(d["Open Tickets EOD"] || "0"),
   }));
 
-  const last7Days = data.slice(0, 7);
-  const totalCreated = last7Days.reduce((sum, d) => sum + parseInt(d["New Today"] || "0"), 0);
-  const totalClosed = last7Days.reduce((sum, d) => sum + parseInt(d["Closed Today"] || "0"), 0);
-  const avgCreatedPerDay = (totalCreated / 7).toFixed(1);
-  const avgClosedPerDay = (totalClosed / 7).toFixed(1);
+  // Calculate metrics from filtered data
+  const metricsData = selectedDate === "all" ? data.slice(0, 7) : filteredData;
+  const totalCreated = metricsData.reduce((sum, d) => sum + parseInt(d["New Today"] || "0"), 0);
+  const totalClosed = metricsData.reduce((sum, d) => sum + parseInt(d["Closed Today"] || "0"), 0);
+  const avgCreatedPerDay = selectedDate === "all" ? (totalCreated / 7).toFixed(1) : totalCreated.toString();
+  const avgClosedPerDay = selectedDate === "all" ? (totalClosed / 7).toFixed(1) : totalClosed.toString();
   const netChange = totalCreated - totalClosed;
-  const currentBacklog = data.length > 0 ? parseInt(data[0]["Total Active"] || "0") : 0;
+  const currentBacklog = displayData.length > 0 ? parseInt(displayData[0]["Total Active"] || "0") : 0;
 
   if (loading) {
     return (
@@ -109,32 +121,62 @@ export default function DailyMetricsDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Date Filter */}
+      <div className="flex items-center gap-4">
+        <label className="text-sm font-medium">Filter by Date:</label>
+        <Select value={selectedDate} onValueChange={setSelectedDate}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All dates" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Dates (Last 30 days)</SelectItem>
+            {data.slice(0, 30).map((day) => (
+              <SelectItem key={day.Date} value={day.Date.split('T')[0]}>
+                {new Date(day.Date).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                })}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Created/Day (7d)</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {selectedDate === "all" ? "Avg Created/Day (7d)" : "Created on Date"}
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{avgCreatedPerDay}</div>
-            <p className="text-xs text-muted-foreground">{totalCreated} total this week</p>
+            <p className="text-xs text-muted-foreground">
+              {selectedDate === "all" ? `${totalCreated} total this week` : "Tickets created"}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Closed/Day (7d)</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {selectedDate === "all" ? "Avg Closed/Day (7d)" : "Closed on Date"}
+            </CardTitle>
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{avgClosedPerDay}</div>
-            <p className="text-xs text-muted-foreground">{totalClosed} total this week</p>
+            <p className="text-xs text-muted-foreground">
+              {selectedDate === "all" ? `${totalClosed} total this week` : "Tickets closed"}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Change (7d)</CardTitle>
+            <CardTitle className="text-sm font-medium">Net Change</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -162,7 +204,9 @@ export default function DailyMetricsDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Tickets Created vs Closed (30 days)</CardTitle>
+            <CardTitle>
+              {selectedDate === "all" ? "Tickets Created vs Closed (30 days)" : "Tickets on Selected Date"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -182,7 +226,9 @@ export default function DailyMetricsDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Backlog Trend (30 days)</CardTitle>
+            <CardTitle>
+              {selectedDate === "all" ? "Backlog Trend (30 days)" : "Backlog on Selected Date"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -202,46 +248,48 @@ export default function DailyMetricsDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Last 14 Days</CardTitle>
+          <CardTitle>
+            {selectedDate === "all" ? "Last 14 Days" : `Details for ${new Date(selectedDate).toLocaleDateString()}`}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-  <thead>
-    <tr className="border-b">
-      <th className="text-left p-2">Date</th>
-      <th className="text-right p-2">Total Tickets</th>
-      <th className="text-right p-2">New Today</th>
-      <th className="text-right p-2">Closed Today</th>
-      <th className="text-right p-2">Resolved Today</th>
-      <th className="text-right p-2">Escalated Today</th>
-      <th className="text-right p-2">Avg Resolution Time</th>
-      <th className="text-right p-2">Open EOD</th>
-      <th className="text-right p-2">In Progress EOD</th>
-      <th className="text-right p-2">Escalated EOD</th>
-      <th className="text-right p-2">Total Active</th>
-    </tr>
-  </thead>
-  <tbody>
-    {data.slice(0, 14).map((day, index) => {
-      return (
-        <tr key={index} className="border-b hover:bg-gray-50">
-          <td className="p-2">{new Date(day.Date).toLocaleDateString()}</td>
-          <td className="text-right p-2">{day["Total Tickets"]}</td>
-          <td className="text-right p-2">{day["New Today"]}</td>
-          <td className="text-right p-2">{day["Closed Today"]}</td>
-          <td className="text-right p-2">{day["Resolved Today"]}</td>
-          <td className="text-right p-2">{day["Escalated Today"]}</td>
-          <td className="text-right p-2">{day["Avg Resolution Time"]}</td>
-          <td className="text-right p-2">{day["Open Tickets EOD"]}</td>
-          <td className="text-right p-2">{day["In Progress EOD"]}</td>
-          <td className="text-right p-2">{day["Escalated EOD"]}</td>
-          <td className="text-right p-2 font-medium">{day["Total Active"]}</td>
-        </tr>
-      );
-    })}
-  </tbody>
-</table>
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">Date</th>
+                  <th className="text-right p-2">Total Tickets</th>
+                  <th className="text-right p-2">New Today</th>
+                  <th className="text-right p-2">Closed Today</th>
+                  <th className="text-right p-2">Resolved Today</th>
+                  <th className="text-right p-2">Escalated Today</th>
+                  <th className="text-right p-2">Avg Resolution Time</th>
+                  <th className="text-right p-2">Open EOD</th>
+                  <th className="text-right p-2">In Progress EOD</th>
+                  <th className="text-right p-2">Escalated EOD</th>
+                  <th className="text-right p-2">Total Active</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(selectedDate === "all" ? data.slice(0, 14) : filteredData).map((day, index) => {
+                  return (
+                    <tr key={index} className="border-b hover:bg-gray-50">
+                      <td className="p-2">{new Date(day.Date).toLocaleDateString()}</td>
+                      <td className="text-right p-2">{day["Total Tickets"]}</td>
+                      <td className="text-right p-2">{day["New Today"]}</td>
+                      <td className="text-right p-2">{day["Closed Today"]}</td>
+                      <td className="text-right p-2">{day["Resolved Today"]}</td>
+                      <td className="text-right p-2">{day["Escalated Today"]}</td>
+                      <td className="text-right p-2">{day["Avg Resolution Time"]}</td>
+                      <td className="text-right p-2">{day["Open Tickets EOD"]}</td>
+                      <td className="text-right p-2">{day["In Progress EOD"]}</td>
+                      <td className="text-right p-2">{day["Escalated EOD"]}</td>
+                      <td className="text-right p-2 font-medium">{day["Total Active"]}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
