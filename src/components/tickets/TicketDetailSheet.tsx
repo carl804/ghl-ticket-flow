@@ -211,11 +211,11 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
         </SheetHeader>
 
         <div className="py-6 space-y-6">
-          {/* Stage / Priority / Category */}
-          <div className="flex flex-wrap gap-3">
+          {/* Stage / Opportunity Status / Priority / Category */}
+          <div className="grid grid-cols-2 gap-3">
             {/* Pipeline Stage */}
-            <div className="flex-1 min-w-[150px]">
-              <Label>Stage</Label>
+            <div>
+              <Label>Pipeline Stage</Label>
               <Select
                 value={editedTicket.status}
                 onValueChange={(value) =>
@@ -236,8 +236,29 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
               </Select>
             </div>
 
+            {/* Opportunity Status */}
+            <div>
+              <Label>Opportunity Status</Label>
+              <Select
+                value={editedTicket.opportunityStatus || "open"}
+                onValueChange={(value) =>
+                  setEditedTicket({ ...editedTicket, opportunityStatus: value as any })
+                }
+              >
+                <SelectTrigger className="mt-1 bg-popover">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[100]">
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="won">Won</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
+                  <SelectItem value="abandoned">Abandoned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Priority */}
-            <div className="flex-1 min-w-[150px]">
+            <div>
               <Label>Priority</Label>
               <Select
                 value={editedTicket.priority}
@@ -259,7 +280,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
             </div>
 
             {/* Category */}
-            <div className="flex-1 min-w-[150px]">
+            <div>
               <Label>Category</Label>
               <Select
                 value={editedTicket.category}
