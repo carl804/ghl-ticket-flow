@@ -40,7 +40,11 @@ async function getGHLAccessToken() {
 }
 
 export default async function handler(req, res) {
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Allow Vercel Cron (has special header) OR manual calls with Bearer token
+  const isVercelCron = req.headers['x-vercel-cron-signature'];
+  const hasValidAuth = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+  
+  if (!isVercelCron && !hasValidAuth) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
