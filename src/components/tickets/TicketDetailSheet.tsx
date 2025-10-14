@@ -61,9 +61,10 @@ interface TicketDetailSheetProps {
   ticket: Ticket | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onStatusChange?: (ticketId: string, status: TicketStatus) => void;
 }
 
-function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProps) {
+function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: TicketDetailSheetProps) {
   const queryClient = useQueryClient();
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
   const [tagSearch, setTagSearch] = useState("");
@@ -104,6 +105,11 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
     if (updates.assignedToUserId) {
       const selectedUser = users.find(u => u.id === updates.assignedToUserId);
       if (selectedUser) updates.assignedTo = selectedUser.name;
+    }
+    
+    // If status changed, call the onStatusChange callback
+    if (ticket && updates.status && updates.status !== ticket.status && onStatusChange) {
+      onStatusChange(ticket.id, updates.status);
     }
     
     // Update contact tags separately if they changed
@@ -205,25 +211,27 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
         </SheetHeader>
 
         <div className="py-6 space-y-6">
-          {/* Status / Priority / Category */}
+          {/* Stage / Priority / Category */}
           <div className="flex flex-wrap gap-3">
-            {/* Opportunity Status */}
+            {/* Pipeline Stage */}
             <div className="flex-1 min-w-[150px]">
-              <Label>Status</Label>
+              <Label>Stage</Label>
               <Select
-                value={editedTicket.opportunityStatus || "open"}
+                value={editedTicket.status}
                 onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, opportunityStatus: value as any })
+                  setEditedTicket({ ...editedTicket, status: value as TicketStatus })
                 }
               >
                 <SelectTrigger className="mt-1 bg-popover">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-[100]">
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="won">Won</SelectItem>
-                  <SelectItem value="lost">Lost</SelectItem>
-                  <SelectItem value="abandoned">Abandoned</SelectItem>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Escalated to Dev">Escalated to Dev</SelectItem>
+                  <SelectItem value="Resolved">Resolved</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
+                  <SelectItem value="Deleted">Deleted</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -265,7 +273,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange }: TicketDetailSheetProp
                 <SelectContent className="bg-popover z-[100]">
                   {CATEGORIES.map((cat) => (
                     <SelectItem key={cat} value={cat}>
-                      {cat.toUpperCase()}
+                      {cat}
                     </SelectItem>
                   ))}
                 </SelectContent>
