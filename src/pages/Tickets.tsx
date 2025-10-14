@@ -10,7 +10,7 @@ import CompactView from "@/components/tickets/CompactView";
 import TicketDetailSheet from "@/components/tickets/TicketDetailSheet";
 import StatsCards from "@/components/tickets/StatsCards";
 import { FilterBar, type Filters } from "@/components/tickets/FilterBar";
-import { AgentMetricsTable } from "@/components/analytics/AgentMetricsTable";
+import AnalyticsView from "@/components/analytics/AnalyticsView";
 import { calculateAgentMetrics } from "@/lib/agentMetrics";
 import { toast } from "sonner";
 
@@ -206,14 +206,14 @@ export default function Tickets() {
       <StatsCards stats={stats} isLoading={isLoading} />
 
       {/* Loading State */}
-      {isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
-      ) : viewMode === "analytics" ? (
-        /* Agent Analytics View */
-        <AgentMetricsTable metrics={agentMetrics} />
-      ) : (
+     {isLoading ? (
+  <div className="flex justify-center py-20">
+    <Loader2 className="h-6 w-6 animate-spin" />
+  </div>
+) : viewMode === "analytics" ? (
+  /* Agent Analytics View with Dashboard and Table */
+  <AnalyticsView metrics={agentMetrics} />
+) : (
         <>
           {/* Filter Bar - Only show on ticket views */}
           <div className="mb-6">
