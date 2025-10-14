@@ -258,6 +258,7 @@ export default function Tickets() {
         ticket={selectedTicket}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        onStatusChange={handleStatusChange}
       />
     </div>
   );
