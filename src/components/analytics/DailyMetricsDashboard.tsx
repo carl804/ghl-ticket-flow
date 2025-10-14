@@ -16,12 +16,16 @@ import { TrendingUp, TrendingDown, Activity, Calendar } from "lucide-react";
 
 interface DailyMetric {
   Date: string;
-  "Tickets Created": string;
-  "Tickets Closed": string;
-  "Tickets Resolved": string;
-  "Net Change": string;
-  "Total Open": string;
-  "Total Backlog": string;
+  "Total Tickets": string;
+  "New Today": string;
+  "Closed Today": string;
+  "Resolved Today": string;
+  "Escalated Today": string;
+  "Avg Resolution Time": string;
+  "Open Tickets EOD": string;
+  "In Progress EOD": string;
+  "Escalated EOD": string;
+  "Total Active": string;
 }
 
 export default function DailyMetricsDashboard() {
@@ -36,7 +40,27 @@ export default function DailyMetricsDashboard() {
     try {
       const response = await fetch("https://hp-ticket-flow.vercel.app/api/get-daily-metrics");
       const result = await response.json();
-      setData(result.data || []);
+      
+      // Group by date only (YYYY-MM-DD), keep the latest entry per date
+      const grouped: { [key: string]: DailyMetric } = {};
+      
+      (result.data || []).forEach((entry: DailyMetric) => {
+        const dateOnly = entry.Date.split('T')[0]; // Get just YYYY-MM-DD part
+        const timestamp = new Date(entry.Date).getTime();
+        
+        if (!grouped[dateOnly] || new Date(grouped[dateOnly].Date).getTime() < timestamp) {
+          // Keep all the data but update the Date to just the date part
+          grouped[dateOnly] = { ...entry };
+        }
+      });
+      
+      // Convert back to array and sort by date descending
+      const uniqueData = Object.values(grouped).sort((a, b) => 
+        new Date(b.Date).getTime() - new Date(a.Date).getTime()
+      );
+      
+      console.log('Grouped data:', uniqueData); // Debug log
+      setData(uniqueData);
     } catch (error) {
       console.error("Error fetching daily metrics:", error);
     } finally {
@@ -48,24 +72,24 @@ export default function DailyMetricsDashboard() {
 
   const trendData = last30Days.map((d) => ({
     date: new Date(d.Date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    created: parseInt(d["Tickets Created"] || "0"),
-    closed: parseInt(d["Tickets Closed"] || "0"),
-    resolved: parseInt(d["Tickets Resolved"] || "0"),
+    created: parseInt(d["New Today"] || "0"),
+    closed: parseInt(d["Closed Today"] || "0"),
+    resolved: parseInt(d["Resolved Today"] || "0"),
   }));
 
   const backlogData = last30Days.map((d) => ({
     date: new Date(d.Date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    backlog: parseInt(d["Total Backlog"] || "0"),
-    open: parseInt(d["Total Open"] || "0"),
+    backlog: parseInt(d["Total Active"] || "0"),
+    open: parseInt(d["Open Tickets EOD"] || "0"),
   }));
 
   const last7Days = data.slice(0, 7);
-  const totalCreated = last7Days.reduce((sum, d) => sum + parseInt(d["Tickets Created"] || "0"), 0);
-  const totalClosed = last7Days.reduce((sum, d) => sum + parseInt(d["Tickets Closed"] || "0"), 0);
+  const totalCreated = last7Days.reduce((sum, d) => sum + parseInt(d["New Today"] || "0"), 0);
+  const totalClosed = last7Days.reduce((sum, d) => sum + parseInt(d["Closed Today"] || "0"), 0);
   const avgCreatedPerDay = (totalCreated / 7).toFixed(1);
   const avgClosedPerDay = (totalClosed / 7).toFixed(1);
   const netChange = totalCreated - totalClosed;
-  const currentBacklog = data.length > 0 ? parseInt(data[0]["Total Backlog"] || "0") : 0;
+  const currentBacklog = data.length > 0 ? parseInt(data[0]["Total Active"] || "0") : 0;
 
   if (loading) {
     return (
@@ -130,7 +154,7 @@ export default function DailyMetricsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{currentBacklog}</div>
-            <p className="text-xs text-muted-foreground">Total open tickets</p>
+            <p className="text-xs text-muted-foreground">Total active tickets</p>
           </CardContent>
         </Card>
       </div>
@@ -148,9 +172,9 @@ export default function DailyMetricsDashboard() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="created" stroke="#ff7c7c" name="Created" strokeWidth={2} />
-                <Line type="monotone" dataKey="closed" stroke="#82ca9d" name="Closed" strokeWidth={2} />
-                <Line type="monotone" dataKey="resolved" stroke="#8884d8" name="Resolved" strokeWidth={2} />
+                <Line type="monotone" dataKey="created" stroke="#ff7c7c" name="New Today" strokeWidth={2} />
+                <Line type="monotone" dataKey="closed" stroke="#82ca9d" name="Closed Today" strokeWidth={2} />
+                <Line type="monotone" dataKey="resolved" stroke="#8884d8" name="Resolved Today" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -168,8 +192,8 @@ export default function DailyMetricsDashboard() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="backlog" fill="#ffc658" name="Total Backlog" />
-                <Bar dataKey="open" fill="#8884d8" name="Open Tickets" />
+                <Bar dataKey="backlog" fill="#ffc658" name="Total Active" />
+                <Bar dataKey="open" fill="#8884d8" name="Open Tickets EOD" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -186,28 +210,25 @@ export default function DailyMetricsDashboard() {
               <thead>
                 <tr className="border-b">
                   <th className="text-left p-2">Date</th>
-                  <th className="text-right p-2">Created</th>
-                  <th className="text-right p-2">Closed</th>
-                  <th className="text-right p-2">Resolved</th>
-                  <th className="text-right p-2">Net Change</th>
-                  <th className="text-right p-2">Total Open</th>
-                  <th className="text-right p-2">Backlog</th>
+                  <th className="text-right p-2">New Today</th>
+                  <th className="text-right p-2">Closed Today</th>
+                  <th className="text-right p-2">Resolved Today</th>
+                  <th className="text-right p-2">Escalated</th>
+                  <th className="text-right p-2">Open EOD</th>
+                  <th className="text-right p-2">Active</th>
                 </tr>
               </thead>
               <tbody>
                 {data.slice(0, 14).map((day, index) => {
-                  const netChange = parseInt(day["Net Change"] || "0");
                   return (
                     <tr key={index} className="border-b hover:bg-gray-50">
                       <td className="p-2">{new Date(day.Date).toLocaleDateString()}</td>
-                      <td className="text-right p-2">{day["Tickets Created"]}</td>
-                      <td className="text-right p-2">{day["Tickets Closed"]}</td>
-                      <td className="text-right p-2">{day["Tickets Resolved"]}</td>
-                      <td className={`text-right p-2 font-medium ${netChange > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {netChange > 0 ? '+' : ''}{netChange}
-                      </td>
-                      <td className="text-right p-2">{day["Total Open"]}</td>
-                      <td className="text-right p-2 font-medium">{day["Total Backlog"]}</td>
+                      <td className="text-right p-2">{day["New Today"]}</td>
+                      <td className="text-right p-2">{day["Closed Today"]}</td>
+                      <td className="text-right p-2">{day["Resolved Today"]}</td>
+                      <td className="text-right p-2">{day["Escalated Today"]}</td>
+                      <td className="text-right p-2">{day["Open Tickets EOD"]}</td>
+                      <td className="text-right p-2 font-medium">{day["Total Active"]}</td>
                     </tr>
                   );
                 })}
