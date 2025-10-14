@@ -1,7 +1,6 @@
-import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { AgentMetricsTable } from "./AgentMetricsTable";
 import AgentPerformanceDashboard from "./AgentPerformanceDashboard";
+import DailyMetricsDashboard from "./DailyMetricsDashboard";
 import type { AgentMetric } from "@/lib/agentMetrics";
 
 interface AnalyticsViewProps {
@@ -11,18 +10,18 @@ interface AnalyticsViewProps {
 export default function AnalyticsView({ metrics }: AnalyticsViewProps) {
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="charts" className="w-full">
+      <Tabs defaultValue="agent" className="w-full">
         <TabsList>
-          <TabsTrigger value="charts">Dashboard</TabsTrigger>
-          <TabsTrigger value="table">Data Table</TabsTrigger>
+          <TabsTrigger value="agent">Agent Performance</TabsTrigger>
+          <TabsTrigger value="daily">Daily Metrics</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="charts" className="mt-6">
+        <TabsContent value="agent" className="mt-6">
           <AgentPerformanceDashboard />
         </TabsContent>
 
-        <TabsContent value="table" className="mt-6">
-          <AgentMetricsTable metrics={metrics} />
+        <TabsContent value="daily" className="mt-6">
+          <DailyMetricsDashboard />
         </TabsContent>
       </Tabs>
     </div>
