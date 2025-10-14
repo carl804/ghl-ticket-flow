@@ -207,33 +207,41 @@ export default function DailyMetricsDashboard() {
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-2">Date</th>
-                  <th className="text-right p-2">New Today</th>
-                  <th className="text-right p-2">Closed Today</th>
-                  <th className="text-right p-2">Resolved Today</th>
-                  <th className="text-right p-2">Escalated</th>
-                  <th className="text-right p-2">Open EOD</th>
-                  <th className="text-right p-2">Active</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.slice(0, 14).map((day, index) => {
-                  return (
-                    <tr key={index} className="border-b hover:bg-gray-50">
-                      <td className="p-2">{new Date(day.Date).toLocaleDateString()}</td>
-                      <td className="text-right p-2">{day["New Today"]}</td>
-                      <td className="text-right p-2">{day["Closed Today"]}</td>
-                      <td className="text-right p-2">{day["Resolved Today"]}</td>
-                      <td className="text-right p-2">{day["Escalated Today"]}</td>
-                      <td className="text-right p-2">{day["Open Tickets EOD"]}</td>
-                      <td className="text-right p-2 font-medium">{day["Total Active"]}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+  <thead>
+    <tr className="border-b">
+      <th className="text-left p-2">Date</th>
+      <th className="text-right p-2">Total Tickets</th>
+      <th className="text-right p-2">New Today</th>
+      <th className="text-right p-2">Closed Today</th>
+      <th className="text-right p-2">Resolved Today</th>
+      <th className="text-right p-2">Escalated Today</th>
+      <th className="text-right p-2">Avg Resolution Time</th>
+      <th className="text-right p-2">Open EOD</th>
+      <th className="text-right p-2">In Progress EOD</th>
+      <th className="text-right p-2">Escalated EOD</th>
+      <th className="text-right p-2">Total Active</th>
+    </tr>
+  </thead>
+  <tbody>
+    {data.slice(0, 14).map((day, index) => {
+      return (
+        <tr key={index} className="border-b hover:bg-gray-50">
+          <td className="p-2">{new Date(day.Date).toLocaleDateString()}</td>
+          <td className="text-right p-2">{day["Total Tickets"]}</td>
+          <td className="text-right p-2">{day["New Today"]}</td>
+          <td className="text-right p-2">{day["Closed Today"]}</td>
+          <td className="text-right p-2">{day["Resolved Today"]}</td>
+          <td className="text-right p-2">{day["Escalated Today"]}</td>
+          <td className="text-right p-2">{day["Avg Resolution Time"]}</td>
+          <td className="text-right p-2">{day["Open Tickets EOD"]}</td>
+          <td className="text-right p-2">{day["In Progress EOD"]}</td>
+          <td className="text-right p-2">{day["Escalated EOD"]}</td>
+          <td className="text-right p-2 font-medium">{day["Total Active"]}</td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
           </div>
         </CardContent>
       </Card>
