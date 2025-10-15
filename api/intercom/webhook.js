@@ -1,10 +1,11 @@
 import crypto from 'crypto';
+import { google } from 'googleapis';
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 const GHL_ACCESS_TOKEN = process.env.GHL_ACCESS_TOKEN || process.env.GHL_ACCESS_TOKEN_TEMP;
 const GHL_LOCATION_ID = process.env.VITE_GHL_LOCATION_ID || process.env.GHL_LOCATION_ID;
-const GHL_PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk'; // Your tickets pipeline
-const GHL_STAGE_OPEN = '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e'; // "Open" stage
+const GHL_PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk';
+const GHL_STAGE_OPEN = '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e';
 
 // Custom field IDs
 const CUSTOM_FIELDS = {
@@ -14,6 +15,53 @@ const CUSTOM_FIELDS = {
   CATEGORY: 'BXohaPrmtGLyHJ0wz8F7',
   PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',
 };
+
+// Google Sheets Setup
+const SHEET_ID = process.env.GOOGLE_SHEET_ID_INTERCOM;
+const COUNTER_TAB = 'Intercom Counter';
+
+// Initialize Google Sheets
+function getGoogleSheetsClient() {
+  const auth = new google.auth.GoogleAuth({
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+  return google.sheets({ version: 'v4', auth });
+}
+
+// Get and increment ticket counter
+async function getNextTicketNumber() {
+  try {
+    const sheets = getGoogleSheetsClient();
+    
+    // Read current counter
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${COUNTER_TAB}!B2`,
+    });
+    
+    const currentNumber = parseInt(response.data.values?.[0]?.[0] || '0');
+    const nextNumber = currentNumber + 1;
+    
+    // Update counter
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${COUNTER_TAB}!B2`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [[nextNumber]],
+      },
+    });
+    
+    console.log(`✅ Generated ticket number: ${nextNumber}`);
+    return String(nextNumber).padStart(5, '0'); // "00001"
+    
+  } catch (error) {
+    console.error('❌ Error getting ticket number:', error);
+    // Fallback: use timestamp-based number
+    return String(Date.now()).slice(-5);
+  }
+}
 
 // Verify Intercom webhook signature
 function verifyIntercomSignature(body, signature) {
@@ -99,7 +147,7 @@ async function createGHLTicketFromConversation(conversation) {
       conversation.source?.author?.email || 
       conversation.user?.email || 
       conversation.contacts?.contacts?.[0]?.email ||
-      `intercom-${conversation.id}@temp.com`; // Fallback email if none provided
+      `intercom-${conversation.id}@temp.com`;
     
     const customerName = 
       conversation.source?.author?.name || 
@@ -111,15 +159,18 @@ async function createGHLTicketFromConversation(conversation) {
 
     console.log('📧 Creating ticket for:', { customerName, customerEmail, conversationId });
 
-    // STEP 1: Find or create contact
+    // STEP 1: Get next ticket number
+    const ticketNumber = await getNextTicketNumber();
+
+    // STEP 2: Find or create contact
     const contactId = await findOrCreateContact(customerEmail, customerName);
 
-    // STEP 2: Create opportunity linked to contact
+    // STEP 3: Create opportunity with ticket number
     const opportunityData = {
       pipelineId: GHL_PIPELINE_ID,
       locationId: GHL_LOCATION_ID,
-      contactId: contactId, // ✅ CRITICAL: Link to contact
-      name: `[Intercom] ${customerName}: ${firstMessage.substring(0, 60)}`,
+      contactId: contactId,
+      name: `[Intercom] #${ticketNumber} - ${customerName}`,
       pipelineStageId: GHL_STAGE_OPEN,
       status: 'open',
       customFields: [
@@ -147,7 +198,7 @@ async function createGHLTicketFromConversation(conversation) {
       monetaryValue: 0,
     };
 
-    console.log('📤 Creating opportunity for contact:', contactId);
+    console.log('📤 Creating opportunity:', opportunityData.name);
 
     const response = await fetch(`${GHL_API_BASE}/opportunities/`, {
       method: 'POST',
@@ -186,7 +237,8 @@ export default async function handler(req, res) {
       config: {
         pipeline: GHL_PIPELINE_ID,
         location: GHL_LOCATION_ID,
-        hasAccessToken: !!GHL_ACCESS_TOKEN
+        hasAccessToken: !!GHL_ACCESS_TOKEN,
+        hasSheetId: !!SHEET_ID
       }
     });
   }
@@ -213,7 +265,6 @@ export default async function handler(req, res) {
     // Parse the webhook payload
     const payload = req.body;
     console.log('📨 Received Intercom webhook:', payload.topic);
-    console.log('📦 Full payload:', JSON.stringify(payload, null, 2));
 
     // Handle different event types
     switch (payload.topic) {
@@ -225,12 +276,10 @@ export default async function handler(req, res) {
 
       case 'conversation.user.replied':
         console.log('💬 User replied to conversation');
-        // Optional: Update existing ticket or create new one
         break;
 
       case 'conversation.admin.closed':
         console.log('🔒 Admin closed conversation');
-        // Optional: Update GHL ticket status to closed
         break;
 
       default:
