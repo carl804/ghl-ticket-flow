@@ -6,7 +6,7 @@ const GHL_LOCATION_ID = process.env.VITE_GHL_LOCATION_ID || process.env.GHL_LOCA
 const GHL_PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk'; // Your tickets pipeline
 const GHL_STAGE_OPEN = '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e'; // "Open" stage
 
-// Custom field IDs - ACTUAL VALUES FROM YOUR GHL
+// Custom field IDs
 const CUSTOM_FIELDS = {
   INTERCOM_CONVERSATION_ID: 'gk2kXQuactrb8OdIJ3El',
   TICKET_SOURCE: 'ZfA3rPJQiSU8wRuEFWYP',
@@ -20,7 +20,7 @@ function verifyIntercomSignature(body, signature) {
   const secret = process.env.INTERCOM_WEBHOOK_SECRET;
   if (!secret) {
     console.warn('⚠️ INTERCOM_WEBHOOK_SECRET not set - skipping signature verification');
-    return true; // Skip verification if secret not set (for initial testing)
+    return true;
   }
 
   const hash = crypto
@@ -29,6 +29,60 @@ function verifyIntercomSignature(body, signature) {
     .digest('hex');
 
   return `sha256=${hash}` === signature;
+}
+
+// Find or create contact in GHL
+async function findOrCreateContact(email, name) {
+  try {
+    console.log('🔍 Looking for contact:', email);
+
+    // First, try to find existing contact
+    const searchUrl = `${GHL_API_BASE}/contacts/search?locationId=${GHL_LOCATION_ID}&email=${encodeURIComponent(email)}`;
+    const searchResponse = await fetch(searchUrl, {
+      headers: {
+        'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
+        'Version': '2021-07-28'
+      }
+    });
+
+    if (searchResponse.ok) {
+      const searchData = await searchResponse.json();
+      if (searchData.contacts && searchData.contacts.length > 0) {
+        console.log('✅ Found existing contact:', searchData.contacts[0].id);
+        return searchData.contacts[0].id;
+      }
+    }
+
+    // If not found, create new contact
+    console.log('📝 Creating new contact for:', email);
+    const createResponse = await fetch(`${GHL_API_BASE}/contacts/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28'
+      },
+      body: JSON.stringify({
+        locationId: GHL_LOCATION_ID,
+        email: email,
+        name: name || 'Intercom Customer',
+        source: 'Intercom'
+      })
+    });
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      throw new Error(`Failed to create contact: ${createResponse.status} ${errorText}`);
+    }
+
+    const newContact = await createResponse.json();
+    console.log('✅ Created new contact:', newContact.contact.id);
+    return newContact.contact.id;
+
+  } catch (error) {
+    console.error('❌ Error with contact:', error);
+    throw error;
+  }
 }
 
 // Create GHL ticket from Intercom conversation
@@ -45,7 +99,7 @@ async function createGHLTicketFromConversation(conversation) {
       conversation.source?.author?.email || 
       conversation.user?.email || 
       conversation.contacts?.contacts?.[0]?.email ||
-      'unknown@intercom.com';
+      `intercom-${conversation.id}@temp.com`; // Fallback email if none provided
     
     const customerName = 
       conversation.source?.author?.name || 
@@ -57,10 +111,14 @@ async function createGHLTicketFromConversation(conversation) {
 
     console.log('📧 Creating ticket for:', { customerName, customerEmail, conversationId });
 
-    // Create opportunity in GHL
+    // STEP 1: Find or create contact
+    const contactId = await findOrCreateContact(customerEmail, customerName);
+
+    // STEP 2: Create opportunity linked to contact
     const opportunityData = {
       pipelineId: GHL_PIPELINE_ID,
       locationId: GHL_LOCATION_ID,
+      contactId: contactId, // ✅ CRITICAL: Link to contact
       name: `[Intercom] ${customerName}: ${firstMessage.substring(0, 60)}`,
       pipelineStageId: GHL_STAGE_OPEN,
       status: 'open',
@@ -89,7 +147,7 @@ async function createGHLTicketFromConversation(conversation) {
       monetaryValue: 0,
     };
 
-    console.log('📤 Sending to GHL:', JSON.stringify(opportunityData, null, 2));
+    console.log('📤 Creating opportunity for contact:', contactId);
 
     const response = await fetch(`${GHL_API_BASE}/opportunities/`, {
       method: 'POST',
@@ -108,7 +166,7 @@ async function createGHLTicketFromConversation(conversation) {
     }
 
     const result = await response.json();
-    console.log('✅ Created GHL ticket:', result.id);
+    console.log('✅ Created GHL ticket:', result.opportunity.id);
     return result;
 
   } catch (error) {
@@ -124,7 +182,12 @@ export default async function handler(req, res) {
       status: 'ok',
       message: 'Intercom webhook endpoint is ready',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      config: {
+        pipeline: GHL_PIPELINE_ID,
+        location: GHL_LOCATION_ID,
+        hasAccessToken: !!GHL_ACCESS_TOKEN
+      }
     });
   }
 
@@ -150,7 +213,7 @@ export default async function handler(req, res) {
     // Parse the webhook payload
     const payload = req.body;
     console.log('📨 Received Intercom webhook:', payload.topic);
-    console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+    console.log('📦 Full payload:', JSON.stringify(payload, null, 2));
 
     // Handle different event types
     switch (payload.topic) {
@@ -162,13 +225,12 @@ export default async function handler(req, res) {
 
       case 'conversation.user.replied':
         console.log('💬 User replied to conversation');
-        // Optional: Could update existing ticket or create new one
-        // For now, just log it
+        // Optional: Update existing ticket or create new one
         break;
 
       case 'conversation.admin.closed':
         console.log('🔒 Admin closed conversation');
-        // Optional: Could update GHL ticket status to closed
+        // Optional: Update GHL ticket status to closed
         break;
 
       default:
