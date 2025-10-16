@@ -361,7 +361,9 @@ async function updateGHLTicketOwner(conversation) {
       const intercomIdField = opp.customFields?.find(
         cf => cf.id === CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID
       );
-      return intercomIdField?.value === conversationId || intercomIdField?.value === String(conversationId);
+      // ✅ FIX: GHL API returns fieldValueString, not value!
+      const fieldValue = intercomIdField?.fieldValueString || intercomIdField?.value;
+      return fieldValue === conversationId || fieldValue === String(conversationId);
     });
 
     if (!matchingOpportunity) {
