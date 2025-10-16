@@ -115,29 +115,26 @@ async function fetchIntercomConversation(conversationId) {
   }
 }
 
-// Map Intercom assignee to GHL dropdown value
-function mapIntercomAssigneeToGHL(assignee) {
-  console.log('🔍 Mapping assignee:', JSON.stringify(assignee));
+// Map Intercom assignee to GHL dropdown value (reads from admin_assignee_id)
+function mapIntercomAssigneeToGHL(adminAssigneeId) {
+  console.log('🔍 Mapping admin_assignee_id:', adminAssigneeId);
   
-  // Check multiple conditions for unassigned
-  if (!assignee || 
-      assignee.type === 'nobody_admin' || 
-      assignee.id === null ||
-      assignee.id === undefined) {
-    console.log('✅ No assignee detected (nobody_admin or null) - using Unassigned');
+  // Check if unassigned
+  if (!adminAssigneeId || adminAssigneeId === null) {
+    console.log('✅ No assignee detected (admin_assignee_id is null) - using Unassigned');
     return 'Unassigned';
   }
   
-  const assigneeId = String(assignee.id);
+  const assigneeId = String(adminAssigneeId);
   const mappedName = INTERCOM_ASSIGNEE_MAP[assigneeId];
   
   if (mappedName) {
-    console.log(`✅ Mapped assignee: ${assignee.name} (${assigneeId}) → ${mappedName}`);
+    console.log(`✅ Mapped assignee: ID ${assigneeId} → ${mappedName}`);
     return mappedName;
   }
   
   // Fallback: return Unassigned for unknown assignees
-  console.warn(`⚠️ Unknown assignee ID ${assigneeId} (${assignee.name}), using Unassigned`);
+  console.warn(`⚠️ Unknown assignee ID ${assigneeId}, using Unassigned`);
   return 'Unassigned';
 }
 
