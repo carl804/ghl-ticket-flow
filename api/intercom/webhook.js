@@ -55,9 +55,11 @@ async function getNextTicketNumber() {
   try {
     const sheets = getGoogleSheetsClient();
     
-    console.log('📊 Sheet ID being used:', SHEET_ID);
-    console.log('📊 Tab name being used:', COUNTER_TAB);
-    console.log('📊 Full range:', `${COUNTER_TAB}!B2`);
+    console.log('==================== COUNTER DEBUG START ====================');
+    console.log('📊 SHEET_ID constant:', SHEET_ID);
+    console.log('📊 COUNTER_TAB constant:', COUNTER_TAB);
+    console.log('📊 Full range string:', `${COUNTER_TAB}!B2`);
+    console.log('📊 Spreadsheet ID being used:', SHEET_ID);
     
     // Read current counter
     const response = await sheets.spreadsheets.values.get({
@@ -65,15 +67,21 @@ async function getNextTicketNumber() {
       range: `${COUNTER_TAB}!B2`,
     });
     
-    console.log('📊 Raw Google Sheets response:', JSON.stringify(response.data, null, 2));
+    console.log('📊 FULL RESPONSE:', JSON.stringify(response, null, 2));
+    console.log('📊 response.data:', JSON.stringify(response.data, null, 2));
+    console.log('📊 response.data.values:', response.data.values);
+    console.log('📊 response.data.values[0]:', response.data.values?.[0]);
+    console.log('📊 response.data.values[0][0]:', response.data.values?.[0]?.[0]);
     
     const currentNumber = parseInt(response.data.values?.[0]?.[0] || '0');
-    console.log('📊 Parsed current number:', currentNumber);
+    console.log('📊 Parsed currentNumber:', currentNumber);
+    console.log('📊 Type of currentNumber:', typeof currentNumber);
     
     const nextNumber = currentNumber + 1;
-    console.log('📊 Calculated next number:', nextNumber);
+    console.log('📊 Calculated nextNumber:', nextNumber);
     
     // Update counter
+    console.log('📊 About to update with value:', nextNumber);
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
       range: `${COUNTER_TAB}!B2`,
@@ -83,16 +91,20 @@ async function getNextTicketNumber() {
       },
     });
     
-    console.log(`✅ Updated counter to: ${nextNumber}`);
-    console.log(`✅ Returning ticket number: ${String(nextNumber).padStart(5, '0')}`);
+    console.log('📊 Successfully updated counter to:', nextNumber);
     
-    return String(nextNumber).padStart(5, '0');
+    const paddedNumber = String(nextNumber).padStart(5, '0');
+    console.log('📊 Returning padded number:', paddedNumber);
+    console.log('==================== COUNTER DEBUG END ====================');
+    
+    return paddedNumber;
     
   } catch (error) {
-    console.error('❌ Error in getNextTicketNumber:', error);
+    console.error('❌ COUNTER ERROR:', error);
+    console.error('❌ Error name:', error.name);
     console.error('❌ Error message:', error.message);
     console.error('❌ Error stack:', error.stack);
-    // Fallback: use timestamp-based number
+    
     const fallback = String(Date.now()).slice(-5);
     console.log('⚠️ Using fallback number:', fallback);
     return fallback;
