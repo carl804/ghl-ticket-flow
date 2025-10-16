@@ -431,6 +431,11 @@ export default async function handler(req, res) {
       case 'conversation.admin.assigned':
         console.log('👤 Admin assigned to conversation');
         const assignedConversation = payload.data.item;
+        
+        // 🔍 DEBUG: Log assignment details
+        console.log('📦 Assignee info:', JSON.stringify(assignedConversation.assignee, null, 2));
+        console.log('📦 Conversation ID:', assignedConversation.id);
+        
         await updateGHLTicketOwner(assignedConversation);
         break;
 
