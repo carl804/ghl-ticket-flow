@@ -47,10 +47,14 @@ function getGoogleSheetsClient() {
   return google.sheets({ version: 'v4', auth });
 }
 
-// Get and increment ticket counter
-async function getNextTicketNumber() {
+// Get and increment ticket counter with retry logic
+async function getNextTicketNumber(retryCount = 0) {
+  const MAX_RETRIES = 3;
+  
   try {
     const sheets = getGoogleSheetsClient();
+    
+    console.log(`📊 Attempting to get counter (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
     
     // Read current counter
     const response = await sheets.spreadsheets.values.get({
@@ -60,6 +64,8 @@ async function getNextTicketNumber() {
     
     const currentNumber = parseInt(response.data.values?.[0]?.[0] || '0');
     const nextNumber = currentNumber + 1;
+    
+    console.log(`📊 Current counter: ${currentNumber}, Next: ${nextNumber}`);
     
     // Update counter
     await sheets.spreadsheets.values.update({
@@ -71,13 +77,30 @@ async function getNextTicketNumber() {
       },
     });
     
-    console.log(`✅ Generated ticket number: ${nextNumber}`);
+    console.log(`✅ Successfully generated ticket number: ${nextNumber}`);
     return String(nextNumber).padStart(5, '0'); // "00001"
     
   } catch (error) {
-    console.error('❌ Error getting ticket number:', error);
-    // Fallback: use timestamp-based number
-    return String(Date.now()).slice(-5);
+    console.error(`❌ Error getting ticket number (attempt ${retryCount + 1}):`, error.message);
+    console.error('❌ Error code:', error.code);
+    console.error('❌ Error details:', error);
+    
+    // Retry logic
+    if (retryCount < MAX_RETRIES) {
+      const waitTime = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+      console.log(`🔄 Retrying in ${waitTime}ms... (${retryCount + 1}/${MAX_RETRIES})`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      return getNextTicketNumber(retryCount + 1);
+    }
+    
+    // All retries failed - use fallback
+    console.error('❌ All retries exhausted. Using timestamp fallback.');
+    console.error('⚠️ THIS SHOULD BE INVESTIGATED - Check Google Sheets permissions and quotas');
+    
+    const fallback = String(Date.now()).slice(-5);
+    console.error(`⚠️ Fallback ticket number: ${fallback}`);
+    
+    return fallback;
   }
 }
 
