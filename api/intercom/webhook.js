@@ -318,6 +318,8 @@ async function updateGHLTicketOwner(conversation) {
 
     // Find the GHL opportunity by Intercom Conversation ID
     const searchUrl = `${GHL_API_BASE}/opportunities/search?location_id=${GHL_LOCATION_ID}&pipeline_id=${GHL_PIPELINE_ID}`;
+    console.log('🔍 Searching for ticket with URL:', searchUrl);
+    
     const searchResponse = await fetch(searchUrl, {
       headers: {
         'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
@@ -330,17 +332,21 @@ async function updateGHLTicketOwner(conversation) {
     }
 
     const searchData = await searchResponse.json();
+    console.log(`📋 Found ${searchData.opportunities?.length || 0} total tickets in pipeline`);
     
     // Find the opportunity with matching Intercom Conversation ID
     const matchingOpportunity = searchData.opportunities?.find(opp => {
       const intercomIdField = opp.customFields?.find(
         cf => cf.id === CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID
       );
-      return intercomIdField?.value === conversationId;
+      console.log(`🔍 Checking ticket ${opp.name}: Intercom ID field = ${intercomIdField?.value}`);
+      return intercomIdField?.value === conversationId || intercomIdField?.value === String(conversationId);
     });
 
     if (!matchingOpportunity) {
       console.warn('⚠️ No matching GHL ticket found for conversation:', conversationId);
+      console.warn('⚠️ Searched for Intercom Conversation ID custom field:', CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID);
+      console.warn('⚠️ Make sure the ticket has this custom field set correctly');
       return;
     }
 
