@@ -49,14 +49,23 @@ async function getNextTicketNumber() {
   try {
     const sheets = getGoogleSheetsClient();
     
+    console.log('📊 Sheet ID being used:', SHEET_ID);
+    console.log('📊 Tab name being used:', COUNTER_TAB);
+    console.log('📊 Full range:', `${COUNTER_TAB}!B2`);
+    
     // Read current counter
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: `${COUNTER_TAB}!B2`,
     });
     
+    console.log('📊 Raw Google Sheets response:', JSON.stringify(response.data, null, 2));
+    
     const currentNumber = parseInt(response.data.values?.[0]?.[0] || '0');
+    console.log('📊 Parsed current number:', currentNumber);
+    
     const nextNumber = currentNumber + 1;
+    console.log('📊 Calculated next number:', nextNumber);
     
     // Update counter
     await sheets.spreadsheets.values.update({
@@ -68,13 +77,19 @@ async function getNextTicketNumber() {
       },
     });
     
-    console.log(`✅ Generated ticket number: ${nextNumber}`);
-    return String(nextNumber).padStart(5, '0'); // "00001"
+    console.log(`✅ Updated counter to: ${nextNumber}`);
+    console.log(`✅ Returning ticket number: ${String(nextNumber).padStart(5, '0')}`);
+    
+    return String(nextNumber).padStart(5, '0');
     
   } catch (error) {
-    console.error('❌ Error getting ticket number:', error);
+    console.error('❌ Error in getNextTicketNumber:', error);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
     // Fallback: use timestamp-based number
-    return String(Date.now()).slice(-5);
+    const fallback = String(Date.now()).slice(-5);
+    console.log('⚠️ Using fallback number:', fallback);
+    return fallback;
   }
 }
 
