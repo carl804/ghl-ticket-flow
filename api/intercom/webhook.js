@@ -14,6 +14,19 @@ const CUSTOM_FIELDS = {
   CUSTOMER_EMAIL: 'tpihNBgeALeCppnY3ir5',
   CATEGORY: 'BXohaPrmtGLyHJ0wz8F7',
   PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',
+  INTERCOM_TICKET_OWNER: 'TIkNFiv8JUDvj0FMVF0E',
+};
+
+// Intercom Admin ID to GHL Name Mapping
+const INTERCOM_ASSIGNEE_MAP = {
+  '1755792': 'Mark',
+  '1767611': 'Operator',
+  '4310906': 'Chloe',
+  '5326930': 'Jonathan',
+  '6465865': 'Aneela',
+  '7023191': 'Joyce',
+  '8815155': 'Christian',
+  '9123839': 'Carl',
 };
 
 // Google Sheets Setup
@@ -61,6 +74,26 @@ async function getNextTicketNumber() {
     // Fallback: use timestamp-based number
     return String(Date.now()).slice(-5);
   }
+}
+
+// Map Intercom assignee to GHL dropdown value
+function mapIntercomAssigneeToGHL(assignee) {
+  if (!assignee || assignee.type === 'nobody_admin') {
+    return 'Unassigned';
+  }
+  
+  const assigneeId = String(assignee.id);
+  const mappedName = INTERCOM_ASSIGNEE_MAP[assigneeId];
+  
+  if (mappedName) {
+    console.log(`✅ Mapped assignee: ${assignee.name} (${assigneeId}) → ${mappedName}`);
+    return mappedName;
+  }
+  
+  // Fallback: try to extract first name
+  const firstName = assignee.name?.split(' ')[0];
+  console.warn(`⚠️ Unknown assignee ID ${assigneeId} (${assignee.name}), using first name: ${firstName}`);
+  return firstName || 'Unassigned';
 }
 
 // Verify Intercom webhook signature
@@ -156,8 +189,18 @@ async function createGHLTicketFromConversation(conversation) {
       'Intercom Customer';
     
     const conversationId = conversation.id;
+    
+    // Extract and map assignee
+    const assignee = conversation.assignee;
+    const ticketOwner = mapIntercomAssigneeToGHL(assignee);
 
-    console.log('📧 Creating ticket for:', { customerName, customerEmail, conversationId });
+    console.log('📧 Creating ticket for:', { 
+      customerName, 
+      customerEmail, 
+      conversationId,
+      assignee: assignee?.name || 'Unassigned',
+      ticketOwner 
+    });
 
     // STEP 1: Get next ticket number
     const ticketNumber = await getNextTicketNumber();
@@ -165,7 +208,7 @@ async function createGHLTicketFromConversation(conversation) {
     // STEP 2: Find or create contact
     const contactId = await findOrCreateContact(customerEmail, customerName);
 
-    // STEP 3: Create opportunity with ticket number
+    // STEP 3: Create opportunity with ticket number and owner
     const opportunityData = {
       pipelineId: GHL_PIPELINE_ID,
       locationId: GHL_LOCATION_ID,
@@ -193,12 +236,16 @@ async function createGHLTicketFromConversation(conversation) {
         {
           id: CUSTOM_FIELDS.PRIORITY,
           value: 'Medium'
+        },
+        {
+          id: CUSTOM_FIELDS.INTERCOM_TICKET_OWNER,
+          value: ticketOwner
         }
       ],
       monetaryValue: 0,
     };
 
-    console.log('📤 Creating opportunity:', opportunityData.name);
+    console.log('📤 Creating opportunity:', opportunityData.name, '| Owner:', ticketOwner);
 
     const response = await fetch(`${GHL_API_BASE}/opportunities/`, {
       method: 'POST',
@@ -238,7 +285,8 @@ export default async function handler(req, res) {
         pipeline: GHL_PIPELINE_ID,
         location: GHL_LOCATION_ID,
         hasAccessToken: !!GHL_ACCESS_TOKEN,
-        hasSheetId: !!SHEET_ID
+        hasSheetId: !!SHEET_ID,
+        assigneesConfigured: Object.keys(INTERCOM_ASSIGNEE_MAP).length
       }
     });
   }
