@@ -47,6 +47,9 @@ const categoryColors: Record<string, string> = {
 export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: TicketCardProps) {
   const categoryColor = categoryColors[ticket.category] || "bg-secondary text-secondary-foreground";
   
+  // Check if this is an Intercom ticket
+  const isIntercomTicket = ticket.name.startsWith('[Intercom]');
+  
   return (
     <Card 
       className={`bg-card transition-all ${isDragging ? "opacity-50 rotate-2 shadow-2xl" : "hover:shadow-lg"}`}
@@ -108,10 +111,17 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
               <span className="truncate">{ticket.agencyName}</span>
             </div>
           )}
-          {ticket.assignedTo && (
+          {/* Show assignedTo for non-Intercom tickets OR intercomAgent for Intercom tickets */}
+          {!isIntercomTicket && ticket.assignedTo && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <User className="h-4 w-4 shrink-0" />
               <span className="truncate">{ticket.assignedTo}</span>
+            </div>
+          )}
+          {isIntercomTicket && ticket.intercomAgent && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <User className="h-4 w-4 shrink-0" />
+              <span className="truncate">{ticket.intercomAgent}</span>
             </div>
           )}
         </div>

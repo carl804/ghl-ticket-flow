@@ -172,6 +172,14 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
 
   if (!ticket) return null;
 
+  // Check if this is an Intercom ticket
+  const isIntercomTicket = ticket.name.startsWith('[Intercom]');
+  console.log('🔍 Debug Intercom ticket:', { 
+    isIntercomTicket, 
+    ticketName: ticket.name, 
+    intercomAgent: ticket.intercomAgent 
+  });
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto bg-popover">
@@ -379,6 +387,21 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
               </SelectContent>
             </Select>
           </div>
+
+          {/* Intercom Ticket Owner - Read-only, only shown for Intercom tickets */}
+          {isIntercomTicket && (
+            <div>
+              <Label>Intercom Ticket Owner</Label>
+              <Input
+                value={ticket.intercomAgent || 'Unassigned'}
+                disabled
+                className="mt-1 bg-muted cursor-not-allowed"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                This is managed by Intercom and cannot be changed here.
+              </p>
+            </div>
+          )}
 
           {/* Description */}
           <div>
