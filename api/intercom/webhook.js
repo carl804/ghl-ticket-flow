@@ -20,7 +20,6 @@ const CUSTOM_FIELDS = {
 // Intercom Admin ID to GHL Name Mapping
 const INTERCOM_ASSIGNEE_MAP = {
   '1755792': 'Mark',
-  '1767611': 'Operator',
   '4310906': 'Chloe',
   '5326930': 'Jonathan',
   '6465865': 'Aneela',
@@ -28,6 +27,9 @@ const INTERCOM_ASSIGNEE_MAP = {
   '8815155': 'Christian',
   '9123839': 'Carl',
 };
+
+// Intercom Tag ID
+const INTERCOM_TAG_ID = 'qEOvf8oLOGrOAq0SUAAF';
 
 // Google Sheets Setup
 const SHEET_ID = process.env.GOOGLE_SHEET_ID_INTERCOM;
@@ -90,10 +92,9 @@ function mapIntercomAssigneeToGHL(assignee) {
     return mappedName;
   }
   
-  // Fallback: try to extract first name
-  const firstName = assignee.name?.split(' ')[0];
-  console.warn(`⚠️ Unknown assignee ID ${assigneeId} (${assignee.name}), using first name: ${firstName}`);
-  return firstName || 'Unassigned';
+  // Fallback: return Unassigned for unknown assignees
+  console.warn(`⚠️ Unknown assignee ID ${assigneeId} (${assignee.name}), using Unassigned`);
+  return 'Unassigned';
 }
 
 // Verify Intercom webhook signature
@@ -112,10 +113,12 @@ function verifyIntercomSignature(body, signature) {
   return `sha256=${hash}` === signature;
 }
 
-// Find or create contact in GHL
+// Find or create contact in GHL and tag with "intercom"
 async function findOrCreateContact(email, name) {
   try {
     console.log('🔍 Looking for contact:', email);
+
+    let contactId = null;
 
     // First, try to find existing contact
     const searchUrl = `${GHL_API_BASE}/contacts/search?locationId=${GHL_LOCATION_ID}&email=${encodeURIComponent(email)}`;
@@ -129,14 +132,50 @@ async function findOrCreateContact(email, name) {
     if (searchResponse.ok) {
       const searchData = await searchResponse.json();
       if (searchData.contacts && searchData.contacts.length > 0) {
-        console.log('✅ Found existing contact:', searchData.contacts[0].id);
-        return searchData.contacts[0].id;
+        contactId = searchData.contacts[0].id;
+        console.log('✅ Found existing contact:', contactId);
       }
     }
 
     // If not found, create new contact
-    console.log('📝 Creating new contact for:', email);
-    const createResponse = await fetch(`${GHL_API_BASE}/contacts/`, {
+    if (!contactId) {
+      console.log('📝 Creating new contact for:', email);
+      const createResponse = await fetch(`${GHL_API_BASE}/contacts/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+          'Version': '2021-07-28'
+        },
+        body: JSON.stringify({
+          locationId: GHL_LOCATION_ID,
+          email: email,
+          name: name || 'Intercom Customer',
+          source: 'Intercom',
+          tags: [INTERCOM_TAG_ID] // Auto-tag as "intercom"
+        })
+      });
+
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json();
+        
+        // If duplicate error, extract the existing contact ID from the error
+        if (errorData.statusCode === 400 && errorData.meta?.contactId) {
+          contactId = errorData.meta.contactId;
+          console.log('✅ Contact already exists, using existing ID:', contactId);
+        } else {
+          throw new Error(`Failed to create contact: ${createResponse.status} ${JSON.stringify(errorData)}`);
+        }
+      } else {
+        const newContact = await createResponse.json();
+        contactId = newContact.contact.id;
+        console.log('✅ Created new contact:', contactId);
+      }
+    }
+
+    // Add "intercom" tag to contact (for both new and existing)
+    console.log('🏷️ Adding intercom tag to contact:', contactId);
+    const tagResponse = await fetch(`${GHL_API_BASE}/contacts/${contactId}/tags`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
@@ -144,21 +183,17 @@ async function findOrCreateContact(email, name) {
         'Version': '2021-07-28'
       },
       body: JSON.stringify({
-        locationId: GHL_LOCATION_ID,
-        email: email,
-        name: name || 'Intercom Customer',
-        source: 'Intercom'
+        tags: [INTERCOM_TAG_ID]
       })
     });
 
-    if (!createResponse.ok) {
-      const errorText = await createResponse.text();
-      throw new Error(`Failed to create contact: ${createResponse.status} ${errorText}`);
+    if (tagResponse.ok) {
+      console.log('✅ Tagged contact as "intercom"');
+    } else {
+      console.warn('⚠️ Failed to tag contact, but continuing:', await tagResponse.text());
     }
 
-    const newContact = await createResponse.json();
-    console.log('✅ Created new contact:', newContact.contact.id);
-    return newContact.contact.id;
+    return contactId;
 
   } catch (error) {
     console.error('❌ Error with contact:', error);
@@ -205,7 +240,7 @@ async function createGHLTicketFromConversation(conversation) {
     // STEP 1: Get next ticket number
     const ticketNumber = await getNextTicketNumber();
 
-    // STEP 2: Find or create contact
+    // STEP 2: Find or create contact (and tag as intercom)
     const contactId = await findOrCreateContact(customerEmail, customerName);
 
     // STEP 3: Create opportunity with ticket number and owner
@@ -286,7 +321,8 @@ export default async function handler(req, res) {
         location: GHL_LOCATION_ID,
         hasAccessToken: !!GHL_ACCESS_TOKEN,
         hasSheetId: !!SHEET_ID,
-        assigneesConfigured: Object.keys(INTERCOM_ASSIGNEE_MAP).length
+        assigneesConfigured: Object.keys(INTERCOM_ASSIGNEE_MAP).length,
+        intercomTagId: INTERCOM_TAG_ID
       }
     });
   }
