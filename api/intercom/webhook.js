@@ -6,11 +6,12 @@ const GHL_ACCESS_TOKEN = process.env.GHL_ACCESS_TOKEN || process.env.GHL_ACCESS_
 const GHL_LOCATION_ID = process.env.VITE_GHL_LOCATION_ID || process.env.GHL_LOCATION_ID;
 const GHL_PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk';
 const GHL_STAGE_OPEN = '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e';
+const INTERCOM_ACCESS_TOKEN = process.env.INTERCOM_ACCESS_TOKEN;
 
 // Custom field IDs
 const CUSTOM_FIELDS = {
   INTERCOM_CONVERSATION_ID: 'gk2kXQuactrb8OdIJ3El',
-  TICKET_SOURCE: 'xITVHATbB7UzFdMQLenB', // ✅ CORRECT field ID for "Ticket Source"
+  TICKET_SOURCE: 'ZfA3rPJQiSU8wRuEFWYP',
   CUSTOMER_EMAIL: 'tpihNBgeALeCppnY3ir5',
   CATEGORY: 'BXohaPrmtGLyHJ0wz8F7',
   PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',
@@ -20,31 +21,27 @@ const CUSTOM_FIELDS = {
 // Intercom Admin ID to GHL Name Mapping
 const INTERCOM_ASSIGNEE_MAP = {
   '1755792': 'Mark',
+  '3603553': 'Bot',
   '4310906': 'Chloe',
   '5326930': 'Jonathan',
   '6465865': 'Aneela',
   '7023191': 'Joyce',
   '8815155': 'Christian',
+  '8958425': 'Sana',
   '9123839': 'Carl',
 };
 
-// Intercom Tag Name
-const INTERCOM_TAG = 'intercom';
+// Intercom Tag ID
+const INTERCOM_TAG_ID = 'qEOvf8oLOGrOAq0SUAAF';
 
 // Google Sheets Setup
-const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const SHEET_ID = process.env.GOOGLE_SHEET_ID_INTERCOM;
 const COUNTER_TAB = 'Intercom Counter';
 
 // Initialize Google Sheets
 function getGoogleSheetsClient() {
-  const credentials = process.env.GOOGLE_SHEETS_CREDENTIALS || process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  
-  if (!credentials) {
-    throw new Error('Google Sheets credentials not found in environment variables');
-  }
-  
   const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(credentials),
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
   return google.sheets({ version: 'v4', auth });
@@ -75,19 +72,58 @@ async function getNextTicketNumber() {
     });
     
     console.log(`✅ Generated ticket number: ${nextNumber}`);
-    return String(nextNumber).padStart(5, '0');
+    return String(nextNumber).padStart(5, '0'); // "00001"
     
   } catch (error) {
     console.error('❌ Error getting ticket number:', error);
-    const fallback = String(Date.now()).slice(-5);
-    console.log('⚠️ Using fallback number:', fallback);
-    return fallback;
+    // Fallback: use timestamp-based number
+    return String(Date.now()).slice(-5);
+  }
+}
+
+// Fetch full conversation details from Intercom API
+async function fetchIntercomConversation(conversationId) {
+  if (!INTERCOM_ACCESS_TOKEN) {
+    console.warn('⚠️ INTERCOM_ACCESS_TOKEN not set - cannot fetch conversation details');
+    return null;
+  }
+
+  try {
+    console.log(`🔍 Fetching conversation ${conversationId} from Intercom API...`);
+    const response = await fetch(`https://api.intercom.io/conversations/${conversationId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${INTERCOM_ACCESS_TOKEN}`,
+        'Accept': 'application/json',
+        'Intercom-Version': '2.11'
+      }
+    });
+
+    if (!response.ok) {
+      console.error(`❌ Intercom API error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const conversation = await response.json();
+    console.log('✅ Fetched conversation from Intercom API');
+    console.log('📦 Assignee from API:', JSON.stringify(conversation.assignee, null, 2));
+    return conversation;
+  } catch (error) {
+    console.error('❌ Error fetching from Intercom API:', error);
+    return null;
   }
 }
 
 // Map Intercom assignee to GHL dropdown value
 function mapIntercomAssigneeToGHL(assignee) {
-  if (!assignee || assignee.type === 'nobody_admin') {
+  console.log('🔍 Mapping assignee:', JSON.stringify(assignee));
+  
+  // Check multiple conditions for unassigned
+  if (!assignee || 
+      assignee.type === 'nobody_admin' || 
+      assignee.id === null ||
+      assignee.id === undefined) {
+    console.log('✅ No assignee detected (nobody_admin or null) - using Unassigned');
     return 'Unassigned';
   }
   
@@ -99,6 +135,7 @@ function mapIntercomAssigneeToGHL(assignee) {
     return mappedName;
   }
   
+  // Fallback: return Unassigned for unknown assignees
   console.warn(`⚠️ Unknown assignee ID ${assigneeId} (${assignee.name}), using Unassigned`);
   return 'Unassigned';
 }
@@ -122,83 +159,82 @@ function verifyIntercomSignature(body, signature) {
 // Find or create contact in GHL and tag with "intercom"
 async function findOrCreateContact(email, name) {
   try {
-    console.log('🔍 Looking for contact:', email);
-
-    let contactId = null;
-
-    // First, try to find existing contact
-    const searchUrl = `${GHL_API_BASE}/contacts/search?locationId=${GHL_LOCATION_ID}&email=${encodeURIComponent(email)}`;
-    const searchResponse = await fetch(searchUrl, {
-      headers: {
-        'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
-        'Version': '2021-07-28'
-      }
-    });
-
-    if (searchResponse.ok) {
-      const searchData = await searchResponse.json();
-      if (searchData.contacts && searchData.contacts.length > 0) {
-        contactId = searchData.contacts[0].id;
-        console.log('✅ Found existing contact:', contactId);
-      }
-    }
-
-    // If not found, create new contact
-    if (!contactId) {
-      console.log('📝 Creating new contact for:', email);
-      const createResponse = await fetch(`${GHL_API_BASE}/contacts/`, {
-        method: 'POST',
+    console.log(`🔍 Searching for contact: ${email}`);
+    
+    // Search for existing contact
+    const searchResponse = await fetch(
+      `${GHL_API_BASE}/contacts/?locationId=${GHL_LOCATION_ID}&query=${encodeURIComponent(email)}`,
+      {
         headers: {
-          'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Version': '2021-07-28'
+          Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+          Version: '2021-07-28',
         },
-        body: JSON.stringify({
-          locationId: GHL_LOCATION_ID,
-          email: email,
-          name: name || 'Intercom Customer',
-          source: 'Intercom',
-          tags: [INTERCOM_TAG]
-        })
-      });
-
-      if (!createResponse.ok) {
-        const errorData = await createResponse.json();
-        
-        if (errorData.statusCode === 400 && errorData.meta?.contactId) {
-          contactId = errorData.meta.contactId;
-          console.log('✅ Contact already exists, using existing ID:', contactId);
-        } else {
-          throw new Error(`Failed to create contact: ${createResponse.status} ${JSON.stringify(errorData)}`);
-        }
-      } else {
-        const newContact = await createResponse.json();
-        contactId = newContact.contact.id;
-        console.log('✅ Created new contact:', contactId);
       }
+    );
+
+    const searchData = await searchResponse.json();
+    
+    if (searchData.contacts && searchData.contacts.length > 0) {
+      const existingContact = searchData.contacts[0];
+      console.log(`✅ Found existing contact: ${existingContact.id}`);
+      
+      // Check if already has intercom tag
+      const hasTags = existingContact.tags && existingContact.tags.includes('intercom');
+      
+      if (!hasTags) {
+        console.log('🏷️ Adding intercom tag to existing contact...');
+        await fetch(`${GHL_API_BASE}/contacts/${existingContact.id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            Version: '2021-07-28',
+          },
+          body: JSON.stringify({
+            tags: [...(existingContact.tags || []), 'intercom']
+          }),
+        });
+      }
+      
+      return existingContact.id;
     }
 
-    // Add "intercom" tag to contact (for both new and existing)
-    console.log('🏷️ Adding intercom tag to contact:', contactId);
-    const tagResponse = await fetch(`${GHL_API_BASE}/contacts/${contactId}/tags`, {
+    // Create new contact with intercom tag
+    console.log('➕ Creating new contact...');
+    const createResponse = await fetch(`${GHL_API_BASE}/contacts/`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
         'Content-Type': 'application/json',
-        'Version': '2021-07-28'
+        Version: '2021-07-28',
       },
       body: JSON.stringify({
-        tags: [INTERCOM_TAG]
-      })
+        email,
+        name,
+        locationId: GHL_LOCATION_ID,
+        tags: ['intercom'],
+      }),
     });
 
-    if (tagResponse.ok) {
-      console.log('✅ Tagged contact as "intercom"');
-    } else {
-      console.warn('⚠️ Failed to tag contact, but continuing:', await tagResponse.text());
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      
+      // Handle duplicate contact error
+      if (errorText.includes('Contact already exists')) {
+        console.warn('⚠️ Contact already exists (race condition), extracting ID...');
+        const match = errorText.match(/"id":"([^"]+)"/);
+        if (match) {
+          console.log(`✅ Extracted existing contact ID: ${match[1]}`);
+          return match[1];
+        }
+      }
+      
+      throw new Error(`Failed to create contact: ${errorText}`);
     }
 
-    return contactId;
+    const newContact = await createResponse.json();
+    console.log(`✅ Created new contact: ${newContact.contact.id}`);
+    return newContact.contact.id;
 
   } catch (error) {
     console.error('❌ Error with contact:', error);
@@ -209,114 +245,99 @@ async function findOrCreateContact(email, name) {
 // Create GHL ticket from Intercom conversation
 async function createGHLTicketFromConversation(conversation) {
   try {
-    const firstMessage = 
-      conversation.source?.body || 
-      conversation.conversation_message?.body || 
-      conversation.first_contact_reply?.body ||
-      'No message content';
-    
-    const customerEmail = 
-      conversation.source?.author?.email || 
-      conversation.user?.email || 
-      conversation.contacts?.contacts?.[0]?.email ||
-      `intercom-${conversation.id}@temp.com`;
-    
-    const customerName = 
-      conversation.source?.author?.name || 
-      conversation.user?.name || 
-      conversation.contacts?.contacts?.[0]?.name ||
-      'Intercom Customer';
-    
     const conversationId = conversation.id;
-    const assignee = conversation.assignee;
-    const ticketOwner = mapIntercomAssigneeToGHL(assignee);
-
-    console.log('📧 Creating ticket for:', { 
-      customerName, 
-      customerEmail, 
-      conversationId,
-      assignee: assignee?.name || 'Unassigned',
-      ticketOwner 
-    });
-
-    const ticketNumber = await getNextTicketNumber();
-    const contactId = await findOrCreateContact(customerEmail, customerName);
-
-    const opportunityData = {
-      pipelineId: GHL_PIPELINE_ID,
-      locationId: GHL_LOCATION_ID,
-      contactId: contactId,
-      name: `[Intercom] #${ticketNumber} - ${customerName}`,
-      pipelineStageId: GHL_STAGE_OPEN,
-      status: 'open',
-      customFields: [
-        {
-          id: CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID,
-          value: conversationId
-        },
-        {
-          id: CUSTOM_FIELDS.TICKET_SOURCE,
-          value: 'Intercom'
-        },
-        {
-          id: CUSTOM_FIELDS.CUSTOMER_EMAIL,
-          value: customerEmail
-        },
-        {
-          id: CUSTOM_FIELDS.CATEGORY,
-          value: 'Uncategorized'
-        },
-        {
-          id: CUSTOM_FIELDS.PRIORITY,
-          value: 'Medium'
-        },
-        {
-          id: CUSTOM_FIELDS.INTERCOM_TICKET_OWNER,
-          value: ticketOwner
-        }
-      ],
-      monetaryValue: 0,
-    };
-
-    console.log('📤 Creating opportunity:', opportunityData.name, '| Owner:', ticketOwner);
-
-    const response = await fetch(`${GHL_API_BASE}/opportunities/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28'
-      },
-      body: JSON.stringify(opportunityData)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ GHL API Error:', errorText);
-      throw new Error(`Failed to create GHL opportunity: ${response.status} ${errorText}`);
+    const user = conversation.user || conversation.source?.author;
+    
+    if (!user) {
+      console.error('❌ No user found in conversation');
+      return;
     }
 
-    const result = await response.json();
-    console.log('✅ Created GHL ticket:', result.opportunity.id);
-    return result;
+    const customerName = user.name || user.email || 'Unknown';
+    const customerEmail = user.email || '';
+    
+    // Get ticket number
+    const ticketNumber = await getNextTicketNumber();
+    const ticketName = `[Intercom] #${ticketNumber} - ${customerName}`;
+    
+    // Fetch full conversation from Intercom API to get accurate assignee
+    const fullConversation = await fetchIntercomConversation(conversationId);
+    const assignee = fullConversation?.assignee || conversation.assignee;
+    
+    console.log('📦 Final assignee to process:', JSON.stringify(assignee));
+    const ghlAssignee = mapIntercomAssigneeToGHL(assignee);
+    
+    // Find or create contact with intercom tag
+    const contactId = await findOrCreateContact(customerEmail, customerName);
+    
+    // Create opportunity (ticket) in GHL
+    console.log('🎫 Creating ticket in GHL...');
+    const opportunityResponse = await fetch(`${GHL_API_BASE}/opportunities/`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+        Version: '2021-07-28',
+      },
+      body: JSON.stringify({
+        name: ticketName,
+        pipelineId: GHL_PIPELINE_ID,
+        pipelineStageId: GHL_STAGE_OPEN,
+        status: 'open',
+        contactId: contactId,
+        locationId: GHL_LOCATION_ID,
+        customFields: [
+          {
+            id: CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID,
+            field_value: conversationId,
+          },
+          {
+            id: CUSTOM_FIELDS.TICKET_SOURCE,
+            field_value: 'Intercom',
+          },
+          {
+            id: CUSTOM_FIELDS.CUSTOMER_EMAIL,
+            field_value: customerEmail,
+          },
+          {
+            id: CUSTOM_FIELDS.INTERCOM_TICKET_OWNER,
+            field_value: ghlAssignee,
+          },
+        ],
+      }),
+    });
 
+    if (!opportunityResponse.ok) {
+      const errorText = await opportunityResponse.text();
+      throw new Error(`Failed to create opportunity: ${errorText}`);
+    }
+
+    const opportunity = await opportunityResponse.json();
+    console.log(`✅ Created ticket: ${opportunity.opportunity.id} - ${ticketName}`);
+    console.log(`✅ Assigned to: ${ghlAssignee}`);
+    
   } catch (error) {
     console.error('❌ Error creating GHL ticket:', error);
     throw error;
   }
 }
 
-// Update GHL ticket owner when Intercom assignee changes
-async function updateGHLTicketOwner(conversation) {
+// Update ticket assignee when conversation assignment changes
+async function updateTicketAssignment(conversationId) {
   try {
-    const conversationId = conversation.id;
-    const newAssignee = conversation.assignee;
-    const ticketOwner = mapIntercomAssigneeToGHL(newAssignee);
+    console.log(`🔍 Searching for ticket with Intercom ID: ${conversationId}`);
+    
+    // Fetch full conversation from Intercom API
+    const fullConversation = await fetchIntercomConversation(conversationId);
+    if (!fullConversation) {
+      console.error('❌ Could not fetch conversation from Intercom API');
+      return;
+    }
 
-    console.log('🔄 Assignee changed for conversation:', conversationId);
-    console.log('🔄 New assignee:', newAssignee?.name || 'Unassigned', '→', ticketOwner);
-
-    // Find the GHL opportunity by Intercom Conversation ID
+    const newAssignee = mapIntercomAssigneeToGHL(fullConversation.assignee);
+    console.log(`🔄 New assignee from Intercom: ${newAssignee}`);
+    
+    // Search for the ticket in GHL by Intercom Conversation ID
     const searchUrl = `${GHL_API_BASE}/opportunities/search?location_id=${GHL_LOCATION_ID}&pipeline_id=${GHL_PIPELINE_ID}`;
     console.log('🔍 Searching for ticket with URL:', searchUrl);
     console.log('🔍 Using location ID:', GHL_LOCATION_ID);
@@ -324,114 +345,105 @@ async function updateGHLTicketOwner(conversation) {
     console.log('🔍 Using access token:', GHL_ACCESS_TOKEN ? 'SET' : 'NOT SET');
     
     const searchResponse = await fetch(searchUrl, {
+      method: 'GET',
       headers: {
-        'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
-        'Version': '2021-07-28'
-      }
+        Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+        Version: '2021-07-28',
+      },
     });
 
     console.log('📡 Search response status:', searchResponse.status);
-
+    
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text();
-      console.error('❌ Search failed with error:', errorText);
-      throw new Error(`Failed to search opportunities: ${searchResponse.status} ${errorText}`);
+      console.error('❌ Search failed:', errorText);
+      return;
     }
 
     const searchData = await searchResponse.json();
     console.log('📦 Raw search response:', JSON.stringify(searchData, null, 2));
     console.log(`📋 Found ${searchData.opportunities?.length || 0} total tickets in pipeline`);
     
-    if (!searchData.opportunities || searchData.opportunities.length === 0) {
-      console.error('❌ No opportunities found in pipeline!');
-      return;
-    }
-    
-    // Log all tickets and their Intercom conversation IDs for debugging
+    // Find the ticket with matching Intercom Conversation ID
     console.log('🔍 Checking all tickets for matching Intercom Conversation ID...');
-    searchData.opportunities.forEach(opp => {
+    const matchingTicket = searchData.opportunities?.find(opp => {
       const intercomIdField = opp.customFields?.find(
-        cf => cf.id === CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID
+        field => field.id === CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID
       );
-      console.log(`  - Ticket: ${opp.name} | Intercom ID: ${intercomIdField?.value || 'NOT SET'}`);
-    });
-    
-    // Find the opportunity with matching Intercom Conversation ID
-    const matchingOpportunity = searchData.opportunities?.find(opp => {
-      const intercomIdField = opp.customFields?.find(
-        cf => cf.id === CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID
-      );
-      // ✅ FIX: GHL API returns fieldValueString, not value!
-      const fieldValue = intercomIdField?.fieldValueString || intercomIdField?.value;
-      return fieldValue === conversationId || fieldValue === String(conversationId);
+      const ticketIntercomId = intercomIdField?.fieldValueString || intercomIdField?.value;
+      console.log(`- Ticket: ${opp.name} | Intercom ID: ${ticketIntercomId || 'NOT SET'}`);
+      return ticketIntercomId === conversationId;
     });
 
-    if (!matchingOpportunity) {
-      console.warn('⚠️ No matching GHL ticket found for conversation:', conversationId);
-      console.warn('⚠️ Searched for Intercom Conversation ID custom field:', CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID);
-      console.warn('⚠️ Make sure the ticket has this custom field set correctly');
+    if (!matchingTicket) {
+      console.error(`❌ No ticket found with Intercom ID: ${conversationId}`);
       return;
     }
 
-    console.log('✅ Found matching ticket:', matchingOpportunity.id, '-', matchingOpportunity.name);
-
-    // Update the Intercom Ticket Owner field
-    const updateUrl = `${GHL_API_BASE}/opportunities/${matchingOpportunity.id}`;
-    const updateResponse = await fetch(updateUrl, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${GHL_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28'
-      },
-      body: JSON.stringify({
-        customFields: [
-          {
-            id: CUSTOM_FIELDS.INTERCOM_TICKET_OWNER,
-            value: ticketOwner
-          }
-        ]
-      })
-    });
+    console.log(`✅ Found matching ticket: ${matchingTicket.id} - ${matchingTicket.name}`);
+    
+    // Update the ticket's Intercom Ticket Owner field
+    const updateResponse = await fetch(
+      `${GHL_API_BASE}/opportunities/${matchingTicket.id}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+          Version: '2021-07-28',
+        },
+        body: JSON.stringify({
+          customFields: [
+            {
+              id: CUSTOM_FIELDS.INTERCOM_TICKET_OWNER,
+              field_value: newAssignee,
+            },
+          ],
+        }),
+      }
+    );
 
     if (!updateResponse.ok) {
       const errorText = await updateResponse.text();
-      throw new Error(`Failed to update opportunity: ${updateResponse.status} ${errorText}`);
+      throw new Error(`Failed to update ticket: ${errorText}`);
     }
 
-    console.log('✅ Updated ticket owner to:', ticketOwner);
-
+    console.log(`✅ Updated ticket owner to: ${newAssignee}`);
+    
   } catch (error) {
-    console.error('❌ Error updating ticket owner:', error);
+    console.error('❌ Error updating ticket assignment:', error);
+    throw error;
   }
 }
 
+// Main webhook handler
 export default async function handler(req, res) {
+  // Health check for GET requests
   if (req.method === 'GET') {
-    return res.status(200).json({ 
+    return res.status(200).json({
       status: 'ok',
       message: 'Intercom webhook endpoint is ready',
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
       config: {
-        pipeline: GHL_PIPELINE_ID,
-        location: GHL_LOCATION_ID,
         hasAccessToken: !!GHL_ACCESS_TOKEN,
+        hasIntercomToken: !!INTERCOM_ACCESS_TOKEN,
         hasSheetId: !!SHEET_ID,
-        assigneesConfigured: Object.keys(INTERCOM_ASSIGNEE_MAP).length,
-        intercomTag: INTERCOM_TAG
+        assigneesConfigured: Object.keys(INTERCOM_ASSIGNEE_MAP).length
       }
     });
   }
 
+  // Only accept POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
+    // Get signature for verification
     const signature = req.headers['x-hub-signature'];
     const body = JSON.stringify(req.body);
 
+    // Verify signature (optional for initial testing)
     if (signature && process.env.NODE_ENV === 'production') {
       if (!verifyIntercomSignature(body, signature)) {
         console.error('❌ Invalid Intercom signature');
@@ -440,32 +452,25 @@ export default async function handler(req, res) {
       console.log('✅ Signature verified');
     }
 
+    // Parse the webhook payload
     const payload = req.body;
     console.log('📨 Received Intercom webhook:', payload.topic);
 
+    // Handle different event types
     switch (payload.topic) {
       case 'conversation.user.created':
         console.log('🆕 New conversation from user');
         const conversation = payload.data.item;
-        
-        // 🔍 DEBUG: Log the full conversation structure to find where the name is
-        console.log('📦 Full conversation object:', JSON.stringify(conversation, null, 2));
-        console.log('📦 Source:', JSON.stringify(conversation.source, null, 2));
-        console.log('📦 User:', JSON.stringify(conversation.user, null, 2));
-        console.log('📦 Contacts:', JSON.stringify(conversation.contacts, null, 2));
-        
         await createGHLTicketFromConversation(conversation);
         break;
 
       case 'conversation.admin.assigned':
         console.log('👤 Admin assigned to conversation');
-        const assignedConversation = payload.data.item;
-        
-        // 🔍 DEBUG: Log assignment details
-        console.log('📦 Assignee info:', JSON.stringify(assignedConversation.assignee, null, 2));
-        console.log('📦 Conversation ID:', assignedConversation.id);
-        
-        await updateGHLTicketOwner(assignedConversation);
+        const assignedConvo = payload.data.item;
+        console.log('📦 Assignee info:', JSON.stringify(assignedConvo.assignee));
+        console.log('📦 Conversation ID:', assignedConvo.id);
+        console.log(`🔄 Assignee changed for conversation: ${assignedConvo.id}`);
+        await updateTicketAssignment(assignedConvo.id);
         break;
 
       case 'conversation.user.replied':
