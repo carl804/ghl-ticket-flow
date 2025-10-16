@@ -28,8 +28,8 @@ const INTERCOM_ASSIGNEE_MAP = {
   '9123839': 'Carl',
 };
 
-// Intercom Tag ID
-const INTERCOM_TAG_ID = 'qEOvf8oLOGrOAq0SUAAF';
+// Intercom Tag Name
+const INTERCOM_TAG = 'intercom';
 
 // Google Sheets Setup
 const SHEET_ID = process.env.GOOGLE_SHEET_ID_INTERCOM;
@@ -152,7 +152,7 @@ async function findOrCreateContact(email, name) {
           email: email,
           name: name || 'Intercom Customer',
           source: 'Intercom',
-          tags: [INTERCOM_TAG_ID] // Auto-tag as "intercom"
+          tags: [INTERCOM_TAG] // Auto-tag as "intercom" using tag name
         })
       });
 
@@ -183,7 +183,7 @@ async function findOrCreateContact(email, name) {
         'Version': '2021-07-28'
       },
       body: JSON.stringify({
-        tags: [INTERCOM_TAG_ID]
+        tags: [INTERCOM_TAG] // Use tag name
       })
     });
 
@@ -322,7 +322,7 @@ export default async function handler(req, res) {
         hasAccessToken: !!GHL_ACCESS_TOKEN,
         hasSheetId: !!SHEET_ID,
         assigneesConfigured: Object.keys(INTERCOM_ASSIGNEE_MAP).length,
-        intercomTagId: INTERCOM_TAG_ID
+        intercomTag: INTERCOM_TAG
       }
     });
   }
