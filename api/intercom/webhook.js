@@ -106,6 +106,7 @@ async function fetchIntercomConversation(conversationId) {
 
     const conversation = await response.json();
     console.log('✅ Fetched conversation from Intercom API');
+    console.log('📦 FULL conversation response:', JSON.stringify(conversation, null, 2));
     console.log('📦 Assignee from API:', JSON.stringify(conversation.assignee, null, 2));
     return conversation;
   } catch (error) {
