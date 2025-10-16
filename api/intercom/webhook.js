@@ -334,12 +334,25 @@ async function updateGHLTicketOwner(conversation) {
     const searchData = await searchResponse.json();
     console.log(`📋 Found ${searchData.opportunities?.length || 0} total tickets in pipeline`);
     
+    if (!searchData.opportunities || searchData.opportunities.length === 0) {
+      console.error('❌ No opportunities found in pipeline!');
+      return;
+    }
+    
+    // Log all tickets and their Intercom conversation IDs for debugging
+    console.log('🔍 Checking all tickets for matching Intercom Conversation ID...');
+    searchData.opportunities.forEach(opp => {
+      const intercomIdField = opp.customFields?.find(
+        cf => cf.id === CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID
+      );
+      console.log(`  - Ticket: ${opp.name} | Intercom ID: ${intercomIdField?.value || 'NOT SET'}`);
+    });
+    
     // Find the opportunity with matching Intercom Conversation ID
     const matchingOpportunity = searchData.opportunities?.find(opp => {
       const intercomIdField = opp.customFields?.find(
         cf => cf.id === CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID
       );
-      console.log(`🔍 Checking ticket ${opp.name}: Intercom ID field = ${intercomIdField?.value}`);
       return intercomIdField?.value === conversationId || intercomIdField?.value === String(conversationId);
     });
 
