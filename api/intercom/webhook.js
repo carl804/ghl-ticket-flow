@@ -37,8 +37,14 @@ const COUNTER_TAB = 'Intercom Counter';
 
 // Initialize Google Sheets
 function getGoogleSheetsClient() {
+  const credentials = process.env.GOOGLE_SHEETS_CREDENTIALS || process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  
+  if (!credentials) {
+    throw new Error('Google Sheets credentials not found in environment variables');
+  }
+  
   const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+    credentials: JSON.parse(credentials),
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
   return google.sheets({ version: 'v4', auth });
