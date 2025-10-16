@@ -106,8 +106,8 @@ async function fetchIntercomConversation(conversationId) {
 
     const conversation = await response.json();
     console.log('✅ Fetched conversation from Intercom API');
-    console.log('📦 FULL conversation response:', JSON.stringify(conversation, null, 2));
-    console.log('📦 Assignee from API:', JSON.stringify(conversation.assignee, null, 2));
+    console.log('📦 admin_assignee_id from Intercom:', conversation.admin_assignee_id);
+    console.log('📦 team_assignee_id from Intercom:', conversation.team_assignee_id);
     return conversation;
   } catch (error) {
     console.error('❌ Error fetching from Intercom API:', error);
@@ -260,10 +260,10 @@ async function createGHLTicketFromConversation(conversation) {
     
     // Fetch full conversation from Intercom API to get accurate assignee
     const fullConversation = await fetchIntercomConversation(conversationId);
-    const assignee = fullConversation?.assignee || conversation.assignee;
+    const adminAssigneeId = fullConversation?.admin_assignee_id;
     
-    console.log('📦 Final assignee to process:', JSON.stringify(assignee));
-    const ghlAssignee = mapIntercomAssigneeToGHL(assignee);
+    console.log('📦 Final admin_assignee_id to process:', adminAssigneeId);
+    const ghlAssignee = mapIntercomAssigneeToGHL(adminAssigneeId);
     
     // Find or create contact with intercom tag
     const contactId = await findOrCreateContact(customerEmail, customerName);
@@ -332,7 +332,7 @@ async function updateTicketAssignment(conversationId) {
       return;
     }
 
-    const newAssignee = mapIntercomAssigneeToGHL(fullConversation.assignee);
+    const newAssignee = mapIntercomAssigneeToGHL(fullConversation.admin_assignee_id);
     console.log(`🔄 New assignee from Intercom: ${newAssignee}`);
     
     // Search for the ticket in GHL by Intercom Conversation ID
