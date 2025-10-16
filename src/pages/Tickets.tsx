@@ -28,6 +28,7 @@ export default function Tickets() {
     priority: "all",
     category: "all",
     assignedTo: "all",
+    source: "all", // ✅ ADDED: Source filter
   });
 
   const { data: tickets = [], isLoading } = useQuery({
@@ -143,8 +144,9 @@ export default function Tickets() {
       const matchesPriority = filters.priority === "all" || ticket.priority === filters.priority;
       const matchesCategory = filters.category === "all" || ticket.category === filters.category;
       const matchesAssignedTo = filters.assignedTo === "all" || ticket.assignedTo === filters.assignedTo;
+      const matchesSource = filters.source === "all" || ticket.ticketSource === filters.source; // ✅ ADDED: Source filter logic
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesAssignedTo;
+      return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesAssignedTo && matchesSource; // ✅ ADDED: && matchesSource
     });
   }, [tickets, filters]);
 
@@ -206,14 +208,14 @@ export default function Tickets() {
       <StatsCards stats={stats} isLoading={isLoading} />
 
       {/* Loading State */}
-     {isLoading ? (
-  <div className="flex justify-center py-20">
-    <Loader2 className="h-6 w-6 animate-spin" />
-  </div>
-) : viewMode === "analytics" ? (
-  /* Agent Analytics View with Dashboard and Table */
-  <AnalyticsView metrics={agentMetrics} />
-) : (
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      ) : viewMode === "analytics" ? (
+        /* Agent Analytics View with Dashboard and Table */
+        <AnalyticsView metrics={agentMetrics} />
+      ) : (
         <>
           {/* Filter Bar - Only show on ticket views */}
           <div className="mb-6">

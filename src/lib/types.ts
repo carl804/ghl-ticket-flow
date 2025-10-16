@@ -3,6 +3,7 @@ export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Esc
 export type OpportunityStatus = "open" | "won" | "lost" | "abandoned";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
 export type TicketCategory = string;
+export type TicketSource = "Intercom" | "Email" | "Manual" | "Phone"; // ✅ NEW
 
 export interface Ticket {
   id: string;
@@ -28,6 +29,7 @@ export interface Ticket {
   dueDate?: string;
   description?: string;
   tags?: string[];
+  ticketSource?: TicketSource; // ✅ NEW: Added ticket source field
 }
 
 export interface Stats {
@@ -37,8 +39,6 @@ export interface Stats {
   resolved?: number;
   closed?: number;
   deleted?: number;
-  pending?: number;
-  pendingCustomer: number;
   resolvedToday: number;
   avgResolutionTime: string;
   // Trends
@@ -48,7 +48,6 @@ export interface Stats {
   resolvedTrend?: number;
   closedTrend?: number;
   deletedTrend?: number;
-  pendingTrend?: number;
   resolvedTodayTrend?: number;
 }
 
@@ -57,4 +56,5 @@ export interface FieldMap {
   category?: string;
   resolutionSummary?: string;
   agencyName?: string;
+  ticketSource?: string; // ✅ NEW: Added for API mapping
 }

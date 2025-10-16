@@ -16,6 +16,7 @@ export interface Filters {
   priority: string;
   category: string;
   assignedTo: string;
+  source: string; // ✅ NEW: Added source filter
 }
 
 interface FilterBarProps {
@@ -31,7 +32,8 @@ export function FilterBar({ filters, onFiltersChange, agencies, assignees }: Fil
     filters.status !== "all" ||
     filters.priority !== "all" ||
     filters.category !== "all" ||
-    filters.assignedTo !== "all";
+    filters.assignedTo !== "all" ||
+    filters.source !== "all"; // ✅ NEW: Include source in active filters check
 
   const clearFilters = () => {
     onFiltersChange({
@@ -40,6 +42,7 @@ export function FilterBar({ filters, onFiltersChange, agencies, assignees }: Fil
       priority: "all",
       category: "all",
       assignedTo: "all",
+      source: "all", // ✅ NEW: Clear source filter
     });
   };
 
@@ -52,38 +55,56 @@ export function FilterBar({ filters, onFiltersChange, agencies, assignees }: Fil
           placeholder="Search tickets, contacts, phone..."
           value={filters.search}
           onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-          className="pl-9"
+          className="pl-10"
         />
       </div>
 
-      {/* Filter Row */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Filter dropdowns */}
+      <div className="flex flex-wrap gap-3">
+        {/* Source Filter - NEW */}
+        <Select
+          value={filters.source}
+          onValueChange={(value) => onFiltersChange({ ...filters, source: value })}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Source" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sources</SelectItem>
+            <SelectItem value="Intercom">Intercom</SelectItem>
+            <SelectItem value="Email">Email</SelectItem>
+            <SelectItem value="Manual">Manual</SelectItem>
+            <SelectItem value="Phone">Phone</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Status Filter */}
         <Select
           value={filters.status}
           onValueChange={(value) => onFiltersChange({ ...filters, status: value })}
         >
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="Open">Open</SelectItem>
-            <SelectItem value="In Progress">In Progress</SelectItem>
-            <SelectItem value="Resolved">Resolved</SelectItem>
-            <SelectItem value="Closed">Closed</SelectItem>
-            <SelectItem value="Deleted">Deleted</SelectItem>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="won">In Progress</SelectItem>
+            <SelectItem value="lost">Resolved</SelectItem>
+            <SelectItem value="abandoned">Closed</SelectItem>
           </SelectContent>
         </Select>
 
+        {/* Priority Filter */}
         <Select
           value={filters.priority}
           onValueChange={(value) => onFiltersChange({ ...filters, priority: value })}
         >
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Priority</SelectItem>
+            <SelectItem value="all">All Priorities</SelectItem>
             <SelectItem value="Low">Low</SelectItem>
             <SelectItem value="Medium">Medium</SelectItem>
             <SelectItem value="High">High</SelectItem>
@@ -91,28 +112,30 @@ export function FilterBar({ filters, onFiltersChange, agencies, assignees }: Fil
           </SelectContent>
         </Select>
 
+        {/* Category Filter */}
         <Select
           value={filters.category}
           onValueChange={(value) => onFiltersChange({ ...filters, category: value })}
         >
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="Billing">Billing</SelectItem>
-            <SelectItem value="Tech">Tech</SelectItem>
-            <SelectItem value="Sales">Sales</SelectItem>
-            <SelectItem value="Onboarding">Onboarding</SelectItem>
-            <SelectItem value="Outage">Outage</SelectItem>
+            <SelectItem value="Bug">Bug</SelectItem>
+            <SelectItem value="Feature Request">Feature Request</SelectItem>
+            <SelectItem value="Support">Support</SelectItem>
+            <SelectItem value="Question">Question</SelectItem>
+            <SelectItem value="Other">Other</SelectItem>
           </SelectContent>
         </Select>
 
+        {/* Assigned To Filter */}
         <Select
           value={filters.assignedTo}
           onValueChange={(value) => onFiltersChange({ ...filters, assignedTo: value })}
         >
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Assigned To" />
           </SelectTrigger>
           <SelectContent>
@@ -125,9 +148,15 @@ export function FilterBar({ filters, onFiltersChange, agencies, assignees }: Fil
           </SelectContent>
         </Select>
 
+        {/* Clear Filters Button */}
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="h-4 w-4 mr-1" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="gap-2"
+          >
+            <X className="h-4 w-4" />
             Clear Filters
           </Button>
         )}
