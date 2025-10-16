@@ -30,6 +30,7 @@ export interface Ticket {
   description?: string;
   tags?: string[];
   ticketSource?: TicketSource; // ✅ NEW: Added ticket source field
+  intercomAgent?: string; // ✅ NEW: Intercom ticket owner (from custom field TIkNFiv8JUDvj0FMVF0E)
 }
 
 export interface Stats {
@@ -57,4 +58,5 @@ export interface FieldMap {
   resolutionSummary?: string;
   agencyName?: string;
   ticketSource?: string; // ✅ NEW: Added for API mapping
+  intercomAgent?: string; // ✅ NEW: Added for Intercom agent mapping
 }
