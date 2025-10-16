@@ -10,7 +10,7 @@ const GHL_STAGE_OPEN = '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e';
 // Custom field IDs
 const CUSTOM_FIELDS = {
   INTERCOM_CONVERSATION_ID: 'gk2kXQuactrb8OdIJ3El',
-  TICKET_SOURCE: 'xITVHATbB7UzFdMQLenB', // ✅ Updated to correct field ID
+  TICKET_SOURCE: 'xITVHATbB7UzFdMQLenB', // ✅ CORRECT field ID for "Ticket Source"
   CUSTOMER_EMAIL: 'tpihNBgeALeCppnY3ir5',
   CATEGORY: 'BXohaPrmtGLyHJ0wz8F7',
   PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',
@@ -418,6 +418,13 @@ export default async function handler(req, res) {
       case 'conversation.user.created':
         console.log('🆕 New conversation from user');
         const conversation = payload.data.item;
+        
+        // 🔍 DEBUG: Log the full conversation structure to find where the name is
+        console.log('📦 Full conversation object:', JSON.stringify(conversation, null, 2));
+        console.log('📦 Source:', JSON.stringify(conversation.source, null, 2));
+        console.log('📦 User:', JSON.stringify(conversation.user, null, 2));
+        console.log('📦 Contacts:', JSON.stringify(conversation.contacts, null, 2));
+        
         await createGHLTicketFromConversation(conversation);
         break;
 
