@@ -319,6 +319,9 @@ async function updateGHLTicketOwner(conversation) {
     // Find the GHL opportunity by Intercom Conversation ID
     const searchUrl = `${GHL_API_BASE}/opportunities/search?location_id=${GHL_LOCATION_ID}&pipeline_id=${GHL_PIPELINE_ID}`;
     console.log('🔍 Searching for ticket with URL:', searchUrl);
+    console.log('🔍 Using location ID:', GHL_LOCATION_ID);
+    console.log('🔍 Using pipeline ID:', GHL_PIPELINE_ID);
+    console.log('🔍 Using access token:', GHL_ACCESS_TOKEN ? 'SET' : 'NOT SET');
     
     const searchResponse = await fetch(searchUrl, {
       headers: {
@@ -327,11 +330,16 @@ async function updateGHLTicketOwner(conversation) {
       }
     });
 
+    console.log('📡 Search response status:', searchResponse.status);
+
     if (!searchResponse.ok) {
-      throw new Error(`Failed to search opportunities: ${searchResponse.status}`);
+      const errorText = await searchResponse.text();
+      console.error('❌ Search failed with error:', errorText);
+      throw new Error(`Failed to search opportunities: ${searchResponse.status} ${errorText}`);
     }
 
     const searchData = await searchResponse.json();
+    console.log('📦 Raw search response:', JSON.stringify(searchData, null, 2));
     console.log(`📋 Found ${searchData.opportunities?.length || 0} total tickets in pipeline`);
     
     if (!searchData.opportunities || searchData.opportunities.length === 0) {
