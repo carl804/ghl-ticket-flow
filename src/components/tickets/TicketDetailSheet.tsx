@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import IntercomChatView from '@/components/intercom/IntercomChatView';
 import {
   Select,
   SelectContent,
@@ -575,14 +576,34 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
           <SheetDescription>View and edit ticket details</SheetDescription>
         </SheetHeader>
 
-        {/* Conditional Layout */}
-        {isIntercomTicket && intercomConversationId ? (
-          // Side-by-side layout for Intercom tickets
-          <div className="flex gap-6 mt-6">
-            {/* Left: Ticket Details (40%) */}
-            <div className="w-2/5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-              {ticketDetailsContent}
-            </div>
+       {/* Conditional Layout */}
+{isIntercomTicket && intercomConversationId ? (
+  // Side-by-side layout for Intercom tickets
+  <div className="flex gap-6 mt-6">
+    {/* Left: Ticket Details (40%) */}
+    <div className="w-2/5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+      {ticketDetailsContent}
+    </div>
+
+    {/* Right: Intercom Chat View (60%) */}
+    <div className="w-3/5 border-l pl-6">
+      <IntercomChatView 
+        conversationId={intercomConversationId}
+        ticketId={ticket.id}
+        currentAssignee={ticket.assignedTo}
+        onClose={() => onOpenChange(false)}
+        onAssignmentChange={(assignee) => {
+          // Update ticket assignee in GHL
+          setEditedTicket({ ...editedTicket, assignedTo: assignee });
+          handleSave();
+        }}
+      />
+    </div>
+  </div>
+) : (
+  // Full-width layout for non-Intercom tickets
+  ticketDetailsContent
+)}
 
             {/* Right: Intercom Iframe (60%) */}
             <div className="w-3/5 border-l pl-6">
