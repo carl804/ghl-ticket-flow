@@ -42,11 +42,14 @@ const priorityConfig = {
   Urgent: { color: "bg-priority-urgent/10 text-priority-urgent border-priority-urgent/20" },
 };
 
-const statusConfig = {
+const statusConfig: Record<TicketStatus, { color: string }> = {
   Open: { color: "bg-status-open text-white" },
   "In Progress": { color: "bg-status-in-progress text-white" },
   "Pending Customer": { color: "bg-status-pending text-white" },
   Resolved: { color: "bg-status-resolved text-white" },
+  Closed: { color: "bg-gray-500 text-white" },
+  "Escalated to Dev": { color: "bg-orange-500 text-white" },  // ADD THIS
+  Deleted: { color: "bg-red-500 text-white" },  // ADD THIS
 };
 
 export default function TicketDetail() {
@@ -151,7 +154,7 @@ export default function TicketDetail() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className={statusConfig[ticket.status].color}>
+                  <Badge className={statusConfig[ticket.status]?.color || statusConfig.Open.color}>
                     {isEditing ? (
                       <Select
                         value={editedTicket.status}
@@ -163,7 +166,7 @@ export default function TicketDetail() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {(["Open", "In Progress", "Pending Customer", "Resolved"] as TicketStatus[]).map(
+                          {(["Open", "In Progress", "Pending Customer", "Resolved", "Closed"] as TicketStatus[]).map(
                             (status) => (
                               <SelectItem key={status} value={status}>
                                 {status}
@@ -214,7 +217,7 @@ export default function TicketDetail() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {(["Billing", "Tech", "Sales", "Onboarding", "Outage"] as TicketCategory[]).map(
+                          {(["Billing", "Tech", "Sales", "Onboarding", "Outage", "General Questions"] as TicketCategory[]).map(
                             (category) => (
                               <SelectItem key={category} value={category}>
                                 {category}
@@ -250,6 +253,8 @@ export default function TicketDetail() {
                   conversationId={intercomConversationId}
                   ticketId={ticket.id}
                   currentAssignee={ticket.assignedTo}
+                  priority={ticket.priority}
+                  category={ticket.category}
                   onAssignmentChange={handleAssignmentChange}
                 />
               </Card>

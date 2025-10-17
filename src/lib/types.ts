@@ -1,8 +1,8 @@
 // src/lib/types.ts
-export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Escalated to Dev" | "Deleted";
+export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved" | "Closed" | "Escalated to Dev" | "Deleted";
 export type OpportunityStatus = "open" | "won" | "lost" | "abandoned";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
-export type TicketCategory = string;
+export type TicketCategory = "Billing" | "Tech" | "Sales" | "Onboarding" | "Outage" | "General Questions";
 export type TicketSource = "Intercom" | "Email" | "Manual" | "Phone";
 
 export interface Ticket {
@@ -31,7 +31,7 @@ export interface Ticket {
   tags?: string[];
   ticketSource?: TicketSource;
   intercomAgent?: string;
-  intercomConversationId?: string; // ✅ ADDED: Intercom conversation ID for chat integration
+  intercomConversationId?: string;
 }
 
 export interface Stats {
@@ -62,5 +62,5 @@ export interface FieldMap {
   agencyName?: string;
   ticketSource?: string;
   intercomAgent?: string;
-  intercomConversationId?: string; // ✅ ADDED
+  intercomConversationId?: string;
 }

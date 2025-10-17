@@ -160,7 +160,7 @@ export default function Tickets() {
 
   const handleTicketClick = (ticket: Ticket) => {
     // Check if this is an Intercom ticket
-    const isIntercomTicket = ticket.source === 'Intercom' || ticket.name?.includes('[Intercom]');
+    const isIntercomTicket = ticket.ticketSource === 'Intercom' || ticket.name?.includes('[Intercom]');
     
     if (isIntercomTicket && ticket.intercomConversationId) {
       // Navigate to full page for Intercom tickets (to show chat interface)

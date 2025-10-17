@@ -17,7 +17,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import { 
   Send, 
@@ -32,9 +31,7 @@ import {
   ChevronRight,
   Info,
   Mail,
-  Phone,
   Tag,
-  Archive,
   Loader2,
   CheckCircle2
 } from 'lucide-react';
@@ -123,6 +120,8 @@ interface IntercomChatViewProps {
   conversationId: string;
   ticketId: string;
   currentAssignee?: string;
+  priority?: string;
+  category?: string;
   onClose?: () => void;
   onAssignmentChange?: (assignee: string) => void;
 }
@@ -137,6 +136,8 @@ export default function IntercomChatView({
   conversationId, 
   ticketId,
   currentAssignee,
+  priority = 'Medium',
+  category = 'General Questions',
   onClose,
   onAssignmentChange 
 }: IntercomChatViewProps) {
@@ -170,22 +171,18 @@ export default function IntercomChatView({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K for quick actions
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setShowSnoozeDialog(true);
       }
-      // Cmd/Ctrl + Enter to send
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
         handleSendMessage();
       }
-      // Cmd/Ctrl + W to close
       if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
         e.preventDefault();
         if (isAssigned) closeMutation.mutate();
       }
-      // Cmd/Ctrl + I for customer info
       if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
         e.preventDefault();
         setShowCustomerDetails(!showCustomerDetails);
@@ -196,10 +193,8 @@ export default function IntercomChatView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [message, isNote, showCustomerDetails]);
 
-  // Check if ticket is assigned
   const isAssigned = currentAssignee && currentAssignee !== 'Unassigned' && currentAssignee.trim() !== '';
 
-  // Fetch conversation
   const { data: conversation, isLoading } = useQuery({
     queryKey: ['intercom-conversation', conversationId],
     queryFn: async () => {
@@ -215,12 +210,9 @@ export default function IntercomChatView({
     retry: 3,
   });
 
-  // Assign to me mutation
   const assignMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedAgent) {
-        throw new Error('No agent selected');
-      }
+      if (!selectedAgent) throw new Error('No agent selected');
 
       const intercomResponse = await fetch('/api/intercom/actions', {
         method: 'POST',
@@ -233,9 +225,7 @@ export default function IntercomChatView({
         }),
       });
 
-      if (!intercomResponse.ok) {
-        throw new Error('Failed to assign in Intercom');
-      }
+      if (!intercomResponse.ok) throw new Error('Failed to assign in Intercom');
 
       await fetch('/api/intercom/reply', {
         method: 'POST',
@@ -249,10 +239,7 @@ export default function IntercomChatView({
         }),
       }).catch(err => console.error('Failed to add audit log:', err));
 
-      if (onAssignmentChange) {
-        onAssignmentChange(selectedAgent.name);
-      }
-
+      if (onAssignmentChange) onAssignmentChange(selectedAgent.name);
       return intercomResponse.json();
     },
     onSuccess: () => {
@@ -260,17 +247,12 @@ export default function IntercomChatView({
       queryClient.invalidateQueries({ queryKey: ['intercom-conversation', conversationId] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to assign ticket');
-    },
+    onError: (error: any) => toast.error(error.message || 'Failed to assign ticket'),
   });
 
-  // Send reply mutation
   const replyMutation = useMutation({
     mutationFn: async (messageData: { message: string; isNote: boolean }) => {
-      if (!selectedAgent) {
-        throw new Error('No agent selected');
-      }
+      if (!selectedAgent) throw new Error('No agent selected');
 
       const response = await fetch('/api/intercom/reply', {
         method: 'POST',
@@ -297,17 +279,12 @@ export default function IntercomChatView({
       queryClient.invalidateQueries({ queryKey: ['intercom-conversation', conversationId] });
       messageInputRef.current?.focus();
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to send message');
-    },
+    onError: (error: any) => toast.error(error.message || 'Failed to send message'),
   });
 
-  // Close conversation mutation
   const closeMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedAgent) {
-        throw new Error('No agent selected');
-      }
+      if (!selectedAgent) throw new Error('No agent selected');
 
       const response = await fetch('/api/intercom/actions', {
         method: 'POST',
@@ -320,9 +297,7 @@ export default function IntercomChatView({
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to close conversation');
-      }
+      if (!response.ok) throw new Error('Failed to close conversation');
 
       await fetch('/api/intercom/reply', {
         method: 'POST',
@@ -343,17 +318,12 @@ export default function IntercomChatView({
       queryClient.invalidateQueries({ queryKey: ['intercom-conversation', conversationId] });
       if (onClose) onClose();
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to close conversation');
-    },
+    onError: (error: any) => toast.error(error.message || 'Failed to close conversation'),
   });
 
-  // Snooze conversation mutation
   const snoozeMutation = useMutation({
     mutationFn: async ({ hours, label }: { hours: number; label: string }) => {
-      if (!selectedAgent) {
-        throw new Error('No agent selected');
-      }
+      if (!selectedAgent) throw new Error('No agent selected');
 
       const snoozedUntil = Math.floor(Date.now() / 1000) + (hours * 3600);
       const response = await fetch('/api/intercom/actions', {
@@ -368,9 +338,7 @@ export default function IntercomChatView({
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to snooze conversation');
-      }
+      if (!response.ok) throw new Error('Failed to snooze conversation');
 
       await fetch('/api/intercom/reply', {
         method: 'POST',
@@ -391,9 +359,7 @@ export default function IntercomChatView({
       queryClient.invalidateQueries({ queryKey: ['intercom-conversation', conversationId] });
       setShowSnoozeDialog(false);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to snooze conversation');
-    },
+    onError: (error: any) => toast.error(error.message || 'Failed to snooze conversation'),
   });
 
   const handleSaveAgent = (agent: StoredAgent) => {
@@ -423,21 +389,18 @@ export default function IntercomChatView({
     }
   };
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation]);
 
   const snoozeOptions = getSnoozeOptions();
 
-  // Parse snooze input for custom duration
   const parseSnoozeInput = (input: string): { hours: number; label: string; time: string } | null => {
     const match = input.match(/^(\d+)\s*(m|h|d|w|min|mins|minute|minutes|hour|hours|day|days|week|weeks)?$/i);
     if (!match) return null;
 
     const value = parseInt(match[1]);
     const unit = match[2]?.toLowerCase() || 'h';
-
     let hours = 0;
     let label = '';
     const now = new Date();
@@ -463,20 +426,14 @@ export default function IntercomChatView({
 
     const formatSnoozeTime = (date: Date) => {
       const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 0) {
-        return format(date, 'h:mm a');
-      } else if (diffDays < 7) {
-        return format(date, 'EEE h:mm a');
-      } else {
-        return format(date, 'EEE, MMM d, h:mm a');
-      }
+      if (diffDays === 0) return format(date, 'h:mm a');
+      else if (diffDays < 7) return format(date, 'EEE h:mm a');
+      else return format(date, 'EEE, MMM d, h:mm a');
     };
 
     return hours > 0 ? { hours, label, time: formatSnoozeTime(snoozeUntil) } : null;
   };
 
-  // Get filtered snooze suggestions based on input
   const getFilteredSnoozeOptions = () => {
     if (!snoozeInput.trim()) return snoozeOptions;
 
@@ -487,66 +444,48 @@ export default function IntercomChatView({
       
       const formatSnoozeTime = (date: Date) => {
         const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 0) {
-          return format(date, 'h:mm a');
-        } else if (diffDays < 7) {
-          return format(date, 'EEE h:mm a');
-        } else {
-          return format(date, 'EEE, MMM d, h:mm a');
-        }
+        if (diffDays === 0) return format(date, 'h:mm a');
+        else if (diffDays < 7) return format(date, 'EEE h:mm a');
+        else return format(date, 'EEE, MMM d, h:mm a');
       };
 
-      const suggestions = [];
-      
-      const minuteDate = new Date(now.getTime() + value * 60 * 1000);
-      suggestions.push({
-        label: `for ${value} minute${value !== 1 ? 's' : ''}`,
-        time: formatSnoozeTime(minuteDate),
-        hours: value / 60,
-        isCustom: true
-      });
-
-      const hourDate = new Date(now.getTime() + value * 60 * 60 * 1000);
-      suggestions.push({
-        label: `for ${value} hour${value !== 1 ? 's' : ''}`,
-        time: formatSnoozeTime(hourDate),
-        hours: value,
-        isCustom: true
-      });
-
-      const dayDate = new Date(now.getTime() + value * 24 * 60 * 60 * 1000);
-      suggestions.push({
-        label: `for ${value} day${value !== 1 ? 's' : ''}`,
-        time: formatSnoozeTime(dayDate),
-        hours: value * 24,
-        isCustom: true
-      });
-
-      const weekDate = new Date(now.getTime() + value * 7 * 24 * 60 * 60 * 1000);
-      suggestions.push({
-        label: `for ${value} week${value !== 1 ? 's' : ''}`,
-        time: formatSnoozeTime(weekDate),
-        hours: value * 168,
-        isCustom: true
-      });
-
-      return suggestions;
+      return [
+        {
+          label: `for ${value} minute${value !== 1 ? 's' : ''}`,
+          time: formatSnoozeTime(new Date(now.getTime() + value * 60 * 1000)),
+          hours: value / 60,
+          isCustom: true
+        },
+        {
+          label: `for ${value} hour${value !== 1 ? 's' : ''}`,
+          time: formatSnoozeTime(new Date(now.getTime() + value * 60 * 60 * 1000)),
+          hours: value,
+          isCustom: true
+        },
+        {
+          label: `for ${value} day${value !== 1 ? 's' : ''}`,
+          time: formatSnoozeTime(new Date(now.getTime() + value * 24 * 60 * 60 * 1000)),
+          hours: value * 24,
+          isCustom: true
+        },
+        {
+          label: `for ${value} week${value !== 1 ? 's' : ''}`,
+          time: formatSnoozeTime(new Date(now.getTime() + value * 7 * 24 * 60 * 60 * 1000)),
+          hours: value * 168,
+          isCustom: true
+        }
+      ];
     }
 
     const customDuration = parseSnoozeInput(snoozeInput);
     if (customDuration) {
       return [
         { ...customDuration, isCustom: true },
-        ...snoozeOptions.filter(opt => 
-          opt.label.toLowerCase().includes(snoozeInput.toLowerCase())
-        )
+        ...snoozeOptions.filter(opt => opt.label.toLowerCase().includes(snoozeInput.toLowerCase()))
       ];
     }
 
-    return snoozeOptions.filter(opt => 
-      opt.label.toLowerCase().includes(snoozeInput.toLowerCase())
-    );
+    return snoozeOptions.filter(opt => opt.label.toLowerCase().includes(snoozeInput.toLowerCase()));
   };
 
   const handleSnoozeSubmit = () => {
@@ -559,7 +498,6 @@ export default function IntercomChatView({
 
   const filteredSnoozeOptions = getFilteredSnoozeOptions();
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-50/50">
@@ -610,16 +548,14 @@ export default function IntercomChatView({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Who are you?</DialogTitle>
-            <DialogDescription>
-              Select your name to identify yourself when replying to customers
-            </DialogDescription>
+            <DialogDescription>Select your name to identify yourself</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             {AGENT_LIST.map((agent) => (
               <Button
                 key={agent.intercomId}
                 variant="outline"
-                className="w-full justify-start h-auto py-3 hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
+                className="w-full justify-start h-auto py-3 hover:bg-indigo-50 hover:border-indigo-200"
                 onClick={() => handleSaveAgent(agent)}
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-sm font-medium mr-3">
@@ -632,7 +568,7 @@ export default function IntercomChatView({
         </DialogContent>
       </Dialog>
 
-      {/* Snooze Options Dialog */}
+      {/* Snooze Dialog */}
       <Dialog open={showSnoozeDialog} onOpenChange={(open) => {
         setShowSnoozeDialog(open);
         if (!open) setSnoozeInput('');
@@ -640,11 +576,8 @@ export default function IntercomChatView({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Snooze conversation</DialogTitle>
-            <DialogDescription>
-              Type a duration or choose from presets
-            </DialogDescription>
+            <DialogDescription>Type a duration or choose from presets</DialogDescription>
           </DialogHeader>
-          
           <div className="space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -658,17 +591,16 @@ export default function IntercomChatView({
                   }
                 }}
                 placeholder="Type duration... (5m, 2h, 3d, 1w)"
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                 autoFocus
               />
             </div>
-
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {filteredSnoozeOptions.map((option, index) => (
                 <Button
                   key={index}
                   variant="outline"
-                  className="w-full justify-between h-auto py-3 hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
+                  className="w-full justify-between h-auto py-3 hover:bg-indigo-50 hover:border-indigo-200"
                   onClick={() => {
                     snoozeMutation.mutate({ hours: option.hours, label: option.label });
                     setSnoozeInput('');
@@ -687,12 +619,11 @@ export default function IntercomChatView({
                   </div>
                 </Button>
               ))}
-              
               {filteredSnoozeOptions.length === 0 && (
                 <div className="text-center py-8">
                   <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                   <p className="text-sm text-gray-500">No matching options</p>
-                  <p className="text-xs text-gray-400 mt-1">Try formats like "5m", "2h", "3d", or "1w"</p>
+                  <p className="text-xs text-gray-400 mt-1">Try "5m", "2h", "3d", or "1w"</p>
                 </div>
               )}
             </div>
@@ -705,9 +636,7 @@ export default function IntercomChatView({
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Customer Details</SheetTitle>
-            <SheetDescription>
-              Information about {customerName}
-            </SheetDescription>
+            <SheetDescription>Information about {customerName}</SheetDescription>
           </SheetHeader>
           <div className="mt-6 space-y-6">
             <div className="flex items-center gap-3">
@@ -719,7 +648,6 @@ export default function IntercomChatView({
                 <p className="text-sm text-gray-500">{customerEmail}</p>
               </div>
             </div>
-
             <div className="space-y-3 pt-4 border-t">
               <div className="flex items-start gap-3">
                 <Mail className="h-4 w-4 text-gray-400 mt-0.5" />
@@ -728,7 +656,6 @@ export default function IntercomChatView({
                   <p className="text-sm text-gray-900 mt-0.5">{customerEmail}</p>
                 </div>
               </div>
-
               <div className="flex items-start gap-3">
                 <Tag className="h-4 w-4 text-gray-400 mt-0.5" />
                 <div>
@@ -738,7 +665,6 @@ export default function IntercomChatView({
                   </div>
                 </div>
               </div>
-
               <div className="flex items-start gap-3">
                 <MessageSquare className="h-4 w-4 text-gray-400 mt-0.5" />
                 <div>
@@ -751,70 +677,60 @@ export default function IntercomChatView({
         </SheetContent>
       </Sheet>
 
+      {/* ULTRA-COMPACT MAIN LAYOUT */}
       <div className="flex flex-col h-full bg-gray-50/30">
-        {/* Compact Sticky Header */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-          {/* Main Header Row */}
-          <div className="px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-4 flex-1 min-w-0">
+        {/* Ultra-Compact Header - SAVED 100PX */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="px-4 py-2 flex items-center justify-between gap-3">
+            {/* Left side */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
               <button
-                onClick={onClose}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
+                onClick={() => setShowCustomerDetails(true)}
+                className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-1.5 py-0.5 transition-colors group"
               >
-                <ChevronRight className="h-4 w-4 rotate-180 group-hover:-translate-x-1 transition-transform" />
-                <span className="text-sm font-medium">Back</span>
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0">
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-gray-900 text-xs truncate">{customerName}</h3>
+                  <p className="text-[10px] text-gray-500 truncate">{customerEmail}</p>
+                </div>
+                <Info className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100" />
               </button>
 
-              <div className="h-6 w-px bg-gray-200" />
-
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <button
-                  onClick={() => setShowCustomerDetails(true)}
-                  className="flex items-center gap-3 hover:bg-gray-50 rounded-lg px-2 py-1 -ml-2 transition-colors group"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-                    {initials}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-gray-900 text-sm truncate">{customerName}</h3>
-                    <p className="text-xs text-gray-500 truncate">{customerEmail}</p>
-                  </div>
-                  <Info className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Badge 
-                  variant={conversation.state === 'open' ? 'default' : 'secondary'} 
-                  className={`text-xs font-medium ${
-                    conversation.state === 'open' 
-                      ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
-                      : 'bg-gray-100 text-gray-600 border-gray-200'
-                  }`}
-                >
-                  {conversation.state === 'open' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />}
+              <div className="flex items-center gap-1.5 ml-1">
+                <Badge className={`text-[10px] px-1.5 py-0 h-5 ${
+                  conversation.state === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {conversation.state === 'open' && <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1" />}
                   {conversation.state}
                 </Badge>
-                <Badge variant="outline" className="text-xs font-medium bg-amber-50 text-amber-700 border-amber-200">
-                  Medium
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${
+                  priority === 'High' || priority === 'Urgent' 
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : priority === 'Medium'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                }`}>
+                  {priority}
                 </Badge>
-                <Badge variant="outline" className="text-xs font-medium bg-blue-50 text-blue-700 border-blue-200">
-                  General Questions
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-blue-50 text-blue-700 border-blue-200">
+                  {category}
                 </Badge>
               </div>
             </div>
 
-            {/* Right Actions */}
-            <div className="flex items-center gap-2 ml-4">
+            {/* Right side */}
+            <div className="flex items-center gap-2">
               {selectedAgent && (
                 <button
                   onClick={() => setShowAgentSelector(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors group"
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-gray-100"
                 >
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-xs font-medium">
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-[10px] font-medium">
                     {selectedAgent.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <span className="text-sm font-medium text-gray-700">{selectedAgent.name}</span>
+                  <span className="text-xs font-medium text-gray-700">{selectedAgent.name}</span>
                 </button>
               )}
 
@@ -824,12 +740,11 @@ export default function IntercomChatView({
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowSnoozeDialog(true)}
-                    disabled={snoozeMutation.isPending}
-                    className="gap-2 hover:bg-gray-100"
+                    className="gap-1.5 h-7 px-2 text-xs"
                     title="Snooze (⌘K)"
                   >
-                    <Clock className="h-4 w-4" />
-                    <span className="hidden sm:inline">Snooze</span>
+                    <Clock className="h-3.5 w-3.5" />
+                    Snooze
                   </Button>
                   
                   <Button
@@ -837,40 +752,36 @@ export default function IntercomChatView({
                     size="sm"
                     onClick={() => closeMutation.mutate()}
                     disabled={closeMutation.isPending || conversation.state === 'closed'}
-                    className="gap-2 hover:bg-gray-100"
+                    className="gap-1.5 h-7 px-2 text-xs"
                     title="Close (⌘W)"
                   >
                     {closeMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <CheckCircle2 className="h-4 w-4" />
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                     )}
-                    <span className="hidden sm:inline">Close</span>
+                    Close
                   </Button>
                 </>
               )}
             </div>
           </div>
 
-          {/* Assignment Alert */}
+          {/* Assignment Alert - Compact */}
           {!isAssigned && (
-            <div className="px-6 pb-3">
-              <Alert className="bg-amber-50 border-amber-200">
-                <AlertCircle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="flex items-center justify-between text-amber-800">
-                  <span className="text-sm">This ticket is unassigned. Assign it to reply to customers.</span>
+            <div className="px-4 pb-2">
+              <Alert className="bg-amber-50 border-amber-200 py-2">
+                <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                <AlertDescription className="flex items-center justify-between text-amber-800 text-xs">
+                  <span>Assign ticket to reply</span>
                   <Button
                     size="sm"
                     onClick={() => assignMutation.mutate()}
                     disabled={assignMutation.isPending || !selectedAgent}
-                    className="ml-4 bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                    className="ml-3 bg-amber-600 hover:bg-amber-700 gap-1.5 h-6 px-2 text-xs"
                   >
-                    {assignMutation.isPending ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <UserPlus className="h-3 w-3" />
-                    )}
-                    Assign to Me
+                    {assignMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                    Assign
                   </Button>
                 </AlertDescription>
               </Alert>
@@ -878,33 +789,25 @@ export default function IntercomChatView({
           )}
         </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-1">
+        {/* Messages - MAXIMUM SPACE */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
           {allMessages.map((msg, index) => {
             const isCustomer = msg.author.type === 'user' || msg.author.type === 'lead';
             const isNote = msg.type === 'note';
             const messageBody = msg.body || '';
             
-            if (!messageBody.trim() && (!msg.attachments || msg.attachments.length === 0)) {
-              return null;
-            }
+            if (!messageBody.trim() && (!msg.attachments || msg.attachments.length === 0)) return null;
 
             const prevMsg = index > 0 ? allMessages[index - 1] : null;
             const isSameAuthor = prevMsg && prevMsg.author.id === msg.author.id && prevMsg.type === msg.type;
             const isFirstInGroup = !isSameAuthor;
-            
             const authorName = msg.author.name || 'Unknown';
             const initials = authorName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
             
             return (
-              <div
-                key={index}
-                className={`flex gap-3 ${isCustomer ? 'justify-start' : 'justify-end'} ${
-                  isFirstInGroup ? 'mt-6' : 'mt-1'
-                }`}
-              >
+              <div key={index} className={`flex gap-3 ${isCustomer ? 'justify-start' : 'justify-end'} ${isFirstInGroup ? 'mt-6' : 'mt-1'}`}>
                 {isCustomer && isFirstInGroup && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-medium shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-medium shadow-sm flex-shrink-0">
                     {initials}
                   </div>
                 )}
@@ -913,41 +816,21 @@ export default function IntercomChatView({
                 <div className={`flex flex-col ${isCustomer ? 'items-start' : 'items-end'} max-w-[70%]`}>
                   {isFirstInGroup && (
                     <div className={`flex items-center gap-2 mb-1.5 px-1 ${isCustomer ? 'flex-row' : 'flex-row-reverse'}`}>
-                      <span className="text-xs font-semibold text-gray-700">
-                        {authorName}
-                      </span>
-                      {isNote && (
-                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-amber-50 border-amber-200 text-amber-700">
-                          Note
-                        </Badge>
-                      )}
-                      <span className="text-[10px] text-gray-400">
-                        {formatDistanceToNow(new Date(msg.created_at * 1000), { addSuffix: true })}
-                      </span>
+                      <span className="text-xs font-semibold text-gray-700">{authorName}</span>
+                      {isNote && <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-amber-50 border-amber-200 text-amber-700">Note</Badge>}
+                      <span className="text-[10px] text-gray-400">{formatDistanceToNow(new Date(msg.created_at * 1000), { addSuffix: true })}</span>
                     </div>
                   )}
 
-                  <div
-                    className={`
-                      px-4 py-3 rounded-2xl shadow-sm transition-all hover:shadow-md
-                      ${isCustomer 
-                        ? 'bg-white border border-gray-200 text-gray-900 rounded-tl-md' 
-                        : isNote
-                        ? 'bg-amber-50 text-amber-900 border border-amber-200/50 rounded-tr-md'
-                        : 'bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-md'
-                      }
-                      ${!isFirstInGroup && isCustomer ? 'rounded-tl-2xl' : ''}
-                      ${!isFirstInGroup && !isCustomer ? 'rounded-tr-2xl' : ''}
-                      [&_a]:text-white [&_a]:underline [&_a]:font-semibold hover:[&_a]:text-white/90
-                    `}
-                  >
+                  <div className={`px-4 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all ${
+                    isCustomer ? 'bg-white border border-gray-200 text-gray-900 rounded-tl-md' 
+                    : isNote ? 'bg-amber-50 text-amber-900 border border-amber-200/50 rounded-tr-md'
+                    : 'bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-md'
+                  } ${!isFirstInGroup && isCustomer ? 'rounded-tl-2xl' : ''} ${!isFirstInGroup && !isCustomer ? 'rounded-tr-2xl' : ''}
+                  [&_a]:text-white [&_a]:underline [&_a]:font-semibold hover:[&_a]:text-white/90`}>
                     {messageBody && (
-                      <div
-                        className="text-[15px] leading-relaxed prose prose-sm max-w-none [&>p]:my-0 [&>p]:leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: messageBody }}
-                      />
+                      <div className="text-[15px] leading-relaxed prose prose-sm max-w-none [&>p]:my-0" dangerouslySetInnerHTML={{ __html: messageBody }} />
                     )}
-
                     {msg.attachments && msg.attachments.length > 0 && (
                       <div className={`${messageBody ? 'mt-2' : ''} space-y-1.5`}>
                         {msg.attachments.map((att: any, i: number) => (
@@ -956,10 +839,8 @@ export default function IntercomChatView({
                             href={att.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
-                              isCustomer 
-                                ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' 
-                                : 'bg-white/20 hover:bg-white/30 text-white'
+                            className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg ${
+                              isCustomer ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-white/20 hover:bg-white/30 text-white'
                             }`}
                           >
                             <Paperclip className="h-3 w-3" />
@@ -972,7 +853,7 @@ export default function IntercomChatView({
                 </div>
 
                 {!isCustomer && isFirstInGroup && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-xs font-medium shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-xs font-medium shadow-sm flex-shrink-0">
                     {initials}
                   </div>
                 )}
@@ -983,43 +864,33 @@ export default function IntercomChatView({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Reply Box - More compact */}
+        {/* Reply Box - Compact */}
         {selectedAgent && (
           <div className="border-t border-gray-200 bg-white px-4 py-3 space-y-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={isNote ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setIsNote(!isNote)}
-                  className={`h-7 text-xs ${isNote ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
-                >
-                  <MessageSquare className="h-3 w-3 mr-1.5" />
-                  {isNote ? 'Internal Note' : 'Reply to Customer'}
-                </Button>
-                
-                {!isAssigned && !isNote && (
-                  <p className="text-[10px] text-amber-600 font-medium">
-                    Assign ticket to reply
-                  </p>
-                )}
-              </div>
-
+              <Button
+                variant={isNote ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setIsNote(!isNote)}
+                className={`h-7 text-xs ${isNote ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
+              >
+                <MessageSquare className="h-3 w-3 mr-1.5" />
+                {isNote ? 'Internal Note' : 'Reply'}
+              </Button>
               <div className="text-[10px] text-gray-400">
-                <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-200 rounded text-[9px] font-mono">⌘</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-200 rounded text-[9px] font-mono">↵</kbd> to send
+                <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-[9px]">⌘</kbd>+<kbd className="px-1 py-0.5 bg-gray-100 border rounded text-[9px]">↵</kbd>
               </div>
             </div>
-
             <div className="flex gap-2">
               <Textarea
                 ref={messageInputRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder={isNote ? 'Add internal note...' : isAssigned ? 'Type your reply...' : 'Assign ticket first...'}
+                placeholder={isNote ? 'Add note...' : isAssigned ? 'Type reply...' : 'Assign first...'}
                 rows={3}
                 disabled={!isNote && !isAssigned}
-                className="flex-1 resize-none border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                className="flex-1 resize-none text-sm"
               />
               <Button
                 onClick={handleSendMessage}
@@ -1027,11 +898,7 @@ export default function IntercomChatView({
                 size="icon"
                 className="h-9 w-9 bg-indigo-500 hover:bg-indigo-600 self-end"
               >
-                {replyMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
+                {replyMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
           </div>
