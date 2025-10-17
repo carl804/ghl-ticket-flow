@@ -6,11 +6,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ErrorLog from "@/components/ErrorLog";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { getAccessToken } from "@/integrations/ghl/oauth";
 
 import Index from "./pages/Index";
 import Tickets from "./pages/Tickets";
 import TicketDetail from "./pages/TicketDetail";
+import IntercomView from "./pages/IntercomView";
+import Analytics from "./pages/Analytics";
 import OAuthCallback from "./pages/OAuthCallback";
 import OAuthSuccess from "./pages/OAuthSuccess";
 import NotFound from "./pages/NotFound";
@@ -79,15 +82,20 @@ const App = () => {
           <ErrorLog />
           <BrowserRouter>
             <Routes>
+              {/* Public routes - no sidebar */}
               <Route path="/" element={<Index />} />
               <Route path="/callback" element={<OAuthCallback />} />
               <Route path="/oauth/callback" element={<OAuthCallback />} />
               <Route path="/oauth/success" element={<OAuthSuccess />} />
+              
+              {/* Protected routes - with sidebar */}
               <Route
                 path="/tickets"
                 element={
                   <ProtectedRoute>
-                    <Tickets />
+                    <AppLayout>
+                      <Tickets />
+                    </AppLayout>
                   </ProtectedRoute>
                 }
               />
@@ -95,10 +103,33 @@ const App = () => {
                 path="/tickets/:id"
                 element={
                   <ProtectedRoute>
-                    <TicketDetail />
+                    <AppLayout>
+                      <TicketDetail />
+                    </AppLayout>
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/intercom"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <IntercomView />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Analytics />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
@@ -118,4 +149,3 @@ const App = () => {
 
 export default App;
 // Force rebuild
-// Force rebuild Mon Oct 13 22:59:57 UTC 2025
