@@ -3,15 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +22,7 @@ import {
   AlertCircle,
   UserPlus
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
@@ -43,6 +35,36 @@ const AGENT_LIST = [
   { name: 'Joyce', fullName: 'Joyce Vicenta', intercomId: '7023191' },
   { name: 'Mark', fullName: 'Mark Helton', intercomId: '1755792' },
 ];
+
+// Snooze options helper
+function getSnoozeOptions() {
+  const now = new Date();
+  const laterToday = new Date(now);
+  laterToday.setHours(now.getHours() + 4);
+  
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  tomorrow.setHours(9, 0, 0, 0);
+  
+  const nextMonday = new Date(now);
+  const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
+  nextMonday.setDate(now.getDate() + daysUntilMonday);
+  nextMonday.setHours(9, 0, 0, 0);
+  
+  const oneWeek = new Date(now);
+  oneWeek.setDate(now.getDate() + 7);
+  
+  const oneMonth = new Date(now);
+  oneMonth.setMonth(now.getMonth() + 1);
+  
+  return [
+    { label: 'Later today', hours: 4 },
+    { label: 'Tomorrow', hours: Math.round((tomorrow.getTime() - now.getTime()) / (1000 * 60 * 60)) },
+    { label: 'Monday', hours: Math.round((nextMonday.getTime() - now.getTime()) / (1000 * 60 * 60)), hide: now.getDay() === 1 },
+    { label: 'One week', hours: 168 },
+    { label: 'One month', hours: 720 },
+  ].filter(opt => !opt.hide);
+}
 
 interface IntercomChatViewProps {
   conversationId: string;
@@ -67,8 +89,8 @@ export default function IntercomChatView({
 }: IntercomChatViewProps) {
   const [message, setMessage] = useState('');
   const [isNote, setIsNote] = useState(false);
-  const [snoozeDuration, setSnoozeDuration] = useState('24');
   const [showAgentSelector, setShowAgentSelector] = useState(false);
+  const [showSnoozeDialog, setShowSnoozeDialog] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<StoredAgent | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -92,7 +114,6 @@ export default function IntercomChatView({
 
   // Check if ticket is assigned
   const isAssigned = currentAssignee && currentAssignee !== 'Unassigned' && currentAssignee.trim() !== '';
-  const canReply = isAssigned && selectedAgent;
 
   // Fetch conversation
   const { data: conversation, isLoading } = useQuery({
@@ -132,6 +153,19 @@ export default function IntercomChatView({
       if (!intercomResponse.ok) {
         throw new Error('Failed to assign in Intercom');
       }
+
+      // Add audit log note
+      await fetch('/api/intercom/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId,
+          message: `Assigned to ${selectedAgent.name}`,
+          isNote: true,
+          agentName: selectedAgent.name,
+          intercomAdminId: selectedAgent.intercomId,
+        }),
+      }).catch(err => console.error('Failed to add audit log:', err));
 
       // Also update in GHL if callback provided
       if (onAssignmentChange) {
@@ -207,6 +241,20 @@ export default function IntercomChatView({
       if (!response.ok) {
         throw new Error('Failed to close conversation');
       }
+
+      // Add audit log note
+      await fetch('/api/intercom/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId,
+          message: `Conversation closed by ${selectedAgent.name}`,
+          isNote: true,
+          agentName: selectedAgent.name,
+          intercomAdminId: selectedAgent.intercomId,
+        }),
+      }).catch(err => console.error('Failed to add audit log:', err));
+
       return response.json();
     },
     onSuccess: () => {
@@ -221,7 +269,7 @@ export default function IntercomChatView({
 
   // Snooze conversation mutation
   const snoozeMutation = useMutation({
-    mutationFn: async (hours: number) => {
+    mutationFn: async ({ hours, label }: { hours: number; label: string }) => {
       if (!selectedAgent) {
         throw new Error('No agent selected');
       }
@@ -242,11 +290,26 @@ export default function IntercomChatView({
       if (!response.ok) {
         throw new Error('Failed to snooze conversation');
       }
+
+      // Add audit log note
+      await fetch('/api/intercom/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId,
+          message: `Snoozed for ${label} by ${selectedAgent.name}`,
+          isNote: true,
+          agentName: selectedAgent.name,
+          intercomAdminId: selectedAgent.intercomId,
+        }),
+      }).catch(err => console.error('Failed to add audit log:', err));
+
       return response.json();
     },
-    onSuccess: () => {
-      toast.success(`Conversation snoozed for ${snoozeDuration}h`);
+    onSuccess: (_, variables) => {
+      toast.success(`Snoozed for ${variables.label}`);
       queryClient.invalidateQueries({ queryKey: ['intercom-conversation', conversationId] });
+      setShowSnoozeDialog(false);
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to snooze conversation');
@@ -262,8 +325,12 @@ export default function IntercomChatView({
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
-    if (!canReply) {
-      toast.error('Please assign the ticket first');
+    if (!selectedAgent) {
+      toast.error('Please select an agent first');
+      return;
+    }
+    if (!isNote && !isAssigned) {
+      toast.error('Please assign the ticket first to reply to customers');
       return;
     }
     replyMutation.mutate({ message, isNote });
@@ -314,6 +381,8 @@ export default function IntercomChatView({
     })),
   ];
 
+  const snoozeOptions = getSnoozeOptions();
+
   return (
     <>
       {/* Agent Selector Dialog */}
@@ -335,6 +404,32 @@ export default function IntercomChatView({
               >
                 <User className="h-4 w-4 mr-2" />
                 {agent.fullName}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Snooze Options Dialog */}
+      <Dialog open={showSnoozeDialog} onOpenChange={setShowSnoozeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Snooze conversation</DialogTitle>
+            <DialogDescription>
+              Choose when to be reminded about this conversation
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {snoozeOptions.map((option) => (
+              <Button
+                key={option.label}
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => snoozeMutation.mutate({ hours: option.hours, label: option.label })}
+                disabled={snoozeMutation.isPending}
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                {option.label}
               </Button>
             ))}
           </div>
@@ -371,7 +466,7 @@ export default function IntercomChatView({
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex items-center justify-between">
-                <span>This ticket is unassigned. Assign it to yourself to reply.</span>
+                <span>This ticket is unassigned. Assign it to yourself to reply to customers.</span>
                 <Button
                   size="sm"
                   onClick={() => assignMutation.mutate()}
@@ -398,28 +493,16 @@ export default function IntercomChatView({
                 Close
               </Button>
               
-              <div className="flex gap-2 flex-1">
-                <Select value={snoozeDuration} onValueChange={setSnoozeDuration}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 hour</SelectItem>
-                    <SelectItem value="4">4 hours</SelectItem>
-                    <SelectItem value="24">24 hours</SelectItem>
-                    <SelectItem value="72">3 days</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => snoozeMutation.mutate(parseInt(snoozeDuration))}
-                  disabled={snoozeMutation.isPending}
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Snooze
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSnoozeDialog(true)}
+                disabled={snoozeMutation.isPending}
+                className="flex-1"
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Snooze
+              </Button>
             </div>
           )}
         </div>
@@ -429,6 +512,12 @@ export default function IntercomChatView({
           {allMessages.map((msg, index) => {
             const isCustomer = msg.author.type === 'user' || msg.author.type === 'lead';
             const isNote = msg.type === 'note';
+            const messageBody = msg.body || '';
+            
+            // Skip rendering if completely empty
+            if (!messageBody.trim() && (!msg.attachments || msg.attachments.length === 0)) {
+              return null;
+            }
             
             return (
               <div
@@ -467,16 +556,18 @@ export default function IntercomChatView({
                         : 'bg-primary text-primary-foreground'
                     }`}
                   >
-                    <div
-                      className="text-sm whitespace-pre-wrap prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: msg.body }}
-                    />
+                    {messageBody && (
+                      <div
+                        className="text-sm whitespace-pre-wrap prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: messageBody }}
+                      />
+                    )}
 
                     {/* Attachments */}
                     {msg.attachments && msg.attachments.length > 0 && (
                       <div className="mt-2 space-y-2">
                         {msg.attachments.map((att: any, i: number) => (
-                            <a
+                          <a
                             key={i}
                             href={att.url}
                             target="_blank"
@@ -497,51 +588,45 @@ export default function IntercomChatView({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Reply Box */}
-        <div className="p-4 border-t space-y-3">
-          {isAssigned && (
-            <>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={isNote ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setIsNote(!isNote)}
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  {isNote ? 'Internal Note' : 'Reply to Customer'}
-                </Button>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAgentSelector(true)}
-                >
-                  <User className="h-4 w-4 mr-2" />
-                  Switch Agent
-                </Button>
-              </div>
+        {/* Reply Box - Always show if agent is selected */}
+        {selectedAgent && (
+          <div className="p-4 border-t space-y-3">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={isNote ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setIsNote(!isNote)}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                {isNote ? 'Internal Note' : 'Reply to Customer'}
+              </Button>
+              
+              {!isAssigned && !isNote && (
+                <p className="text-xs text-muted-foreground">
+                  You can add internal notes. Assign the ticket to reply to customers.
+                </p>
+              )}
+            </div>
 
-              <div className="flex gap-2">
-                <Textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder={isNote ? 'Add internal note...' : 'Type your reply...'}
-                  rows={3}
-                  className="flex-1"
-                  disabled={!canReply}
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!message.trim() || replyMutation.isPending || !canReply}
-                  size="icon"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
+            <div className="flex gap-2">
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder={isNote ? 'Add internal note...' : isAssigned ? 'Type your reply...' : 'Assign ticket to reply to customers'}
+                rows={3}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!message.trim() || replyMutation.isPending}
+                size="icon"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
