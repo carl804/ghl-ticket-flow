@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,8 @@ import {
   User,
   Bot,
   AlertCircle,
-  UserPlus
+  UserPlus,
+  Search
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -91,6 +93,7 @@ export default function IntercomChatView({
   const [isNote, setIsNote] = useState(false);
   const [showAgentSelector, setShowAgentSelector] = useState(false);
   const [showSnoozeDialog, setShowSnoozeDialog] = useState(false);
+  const [snoozeInput, setSnoozeInput] = useState('');
   const [selectedAgent, setSelectedAgent] = useState<StoredAgent | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -383,6 +386,63 @@ export default function IntercomChatView({
 
   const snoozeOptions = getSnoozeOptions();
 
+  // Parse snooze input for custom duration
+  const parseSnoozeInput = (input: string): { hours: number; label: string } | null => {
+    const match = input.match(/^(\d+)\s*(m|h|d|w|min|mins|minute|minutes|hour|hours|day|days|week|weeks)?$/i);
+    if (!match) return null;
+
+    const value = parseInt(match[1]);
+    const unit = match[2]?.toLowerCase() || 'h';
+
+    let hours = 0;
+    let label = '';
+
+    if (unit.startsWith('m')) {
+      hours = value / 60;
+      label = `${value} minute${value !== 1 ? 's' : ''}`;
+    } else if (unit.startsWith('h')) {
+      hours = value;
+      label = `${value} hour${value !== 1 ? 's' : ''}`;
+    } else if (unit.startsWith('d')) {
+      hours = value * 24;
+      label = `${value} day${value !== 1 ? 's' : ''}`;
+    } else if (unit.startsWith('w')) {
+      hours = value * 168;
+      label = `${value} week${value !== 1 ? 's' : ''}`;
+    }
+
+    return hours > 0 ? { hours, label } : null;
+  };
+
+  // Get filtered snooze suggestions based on input
+  const getFilteredSnoozeOptions = () => {
+    if (!snoozeInput.trim()) return snoozeOptions;
+
+    const customDuration = parseSnoozeInput(snoozeInput);
+    if (customDuration) {
+      return [
+        { ...customDuration, isCustom: true },
+        ...snoozeOptions.filter(opt => 
+          opt.label.toLowerCase().includes(snoozeInput.toLowerCase())
+        )
+      ];
+    }
+
+    return snoozeOptions.filter(opt => 
+      opt.label.toLowerCase().includes(snoozeInput.toLowerCase())
+    );
+  };
+
+  const handleSnoozeSubmit = () => {
+    const customDuration = parseSnoozeInput(snoozeInput);
+    if (customDuration) {
+      snoozeMutation.mutate(customDuration);
+      setSnoozeInput('');
+    }
+  };
+
+  const filteredSnoozeOptions = getFilteredSnoozeOptions();
+
   return (
     <>
       {/* Agent Selector Dialog */}
@@ -411,27 +471,64 @@ export default function IntercomChatView({
       </Dialog>
 
       {/* Snooze Options Dialog */}
-      <Dialog open={showSnoozeDialog} onOpenChange={setShowSnoozeDialog}>
+      <Dialog open={showSnoozeDialog} onOpenChange={(open) => {
+        setShowSnoozeDialog(open);
+        if (!open) setSnoozeInput('');
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Snooze conversation</DialogTitle>
             <DialogDescription>
-              Choose when to be reminded about this conversation
+              Type a duration (e.g., "5m", "2h", "3d", "1w") or choose from presets
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            {snoozeOptions.map((option) => (
-              <Button
-                key={option.label}
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => snoozeMutation.mutate({ hours: option.hours, label: option.label })}
-                disabled={snoozeMutation.isPending}
-              >
-                <Clock className="h-4 w-4 mr-2" />
-                {option.label}
-              </Button>
-            ))}
+          
+          <div className="space-y-4">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={snoozeInput}
+                onChange={(e) => setSnoozeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && parseSnoozeInput(snoozeInput)) {
+                    handleSnoozeSubmit();
+                  }
+                }}
+                placeholder="Type duration... (5m, 2h, 3d, 1w)"
+                className="w-full pl-9 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+            </div>
+
+            {/* Filtered Options */}
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {filteredSnoozeOptions.map((option, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    snoozeMutation.mutate({ hours: option.hours, label: option.label });
+                    setSnoozeInput('');
+                  }}
+                  disabled={snoozeMutation.isPending}
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  {option.label}
+                  {(option as any).isCustom && (
+                    <span className="ml-auto text-xs text-muted-foreground">Custom</span>
+                  )}
+                </Button>
+              ))}
+              
+              {filteredSnoozeOptions.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No matching options. Try formats like "5m", "2h", "3d", or "1w"
+                </p>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
