@@ -983,34 +983,34 @@ export default function IntercomChatView({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Reply Box */}
+        {/* Reply Box - More compact */}
         {selectedAgent && (
-          <div className="border-t border-gray-200 bg-white px-6 py-4 space-y-3">
+          <div className="border-t border-gray-200 bg-white px-4 py-3 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Button
                   variant={isNote ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setIsNote(!isNote)}
-                  className={isNote ? 'bg-amber-500 hover:bg-amber-600' : ''}
+                  className={`h-7 text-xs ${isNote ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
                 >
-                  <MessageSquare className="h-4 w-4 mr-2" />
+                  <MessageSquare className="h-3 w-3 mr-1.5" />
                   {isNote ? 'Internal Note' : 'Reply to Customer'}
                 </Button>
                 
                 {!isAssigned && !isNote && (
-                  <p className="text-xs text-amber-600 font-medium">
-                    Assign ticket to reply to customers
+                  <p className="text-[10px] text-amber-600 font-medium">
+                    Assign ticket to reply
                   </p>
                 )}
               </div>
 
-              <div className="text-xs text-gray-400">
-                Press <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-mono">⌘</kbd> + <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-mono">Enter</kbd> to send
+              <div className="text-[10px] text-gray-400">
+                <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-200 rounded text-[9px] font-mono">⌘</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-200 rounded text-[9px] font-mono">↵</kbd> to send
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <Textarea
                 ref={messageInputRef}
                 value={message}
@@ -1019,13 +1019,13 @@ export default function IntercomChatView({
                 placeholder={isNote ? 'Add internal note...' : isAssigned ? 'Type your reply...' : 'Assign ticket first...'}
                 rows={3}
                 disabled={!isNote && !isAssigned}
-                className="flex-1 resize-none border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                className="flex-1 resize-none border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 text-sm"
               />
               <Button
                 onClick={handleSendMessage}
                 disabled={!message.trim() || replyMutation.isPending || (!isNote && !isAssigned)}
                 size="icon"
-                className="h-10 w-10 bg-indigo-500 hover:bg-indigo-600 self-end"
+                className="h-9 w-9 bg-indigo-500 hover:bg-indigo-600 self-end"
               >
                 {replyMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
