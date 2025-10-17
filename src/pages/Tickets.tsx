@@ -209,7 +209,8 @@ export default function Tickets() {
         </div>
       ) : (
         <>
-          <div className="max-w-7xl mx-auto mb-6">
+          <div className="flex justify-center mb-6">
+            <div className="w-full max-w-5xl">
             <FilterBar
               filters={filters}
               onFiltersChange={setFilters}
@@ -217,6 +218,7 @@ export default function Tickets() {
               assignees={assignees}
             />
           </div>
+        </div>
 
           <KanbanView
             tickets={filteredTickets}
