@@ -705,6 +705,11 @@ export default function IntercomChatView({
                   {conversation.state === 'open' && <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1" />}
                   {conversation.state}
                 </Badge>
+                {currentAssignee && currentAssignee !== 'Unassigned' && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-purple-50 text-purple-700 border-purple-200">
+                    👤 {currentAssignee}
+                  </Badge>
+                )}
                 <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${
                   priority === 'High' || priority === 'Urgent' 
                     ? 'bg-red-50 text-red-700 border-red-200'
