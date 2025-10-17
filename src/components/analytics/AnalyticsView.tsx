@@ -75,17 +75,15 @@ export default function AnalyticsView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Analytics</h1>
-        <Tabs defaultValue="agent" className="w-auto">
+      <Tabs defaultValue="agent" className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Analytics</h1>
           <TabsList>
             <TabsTrigger value="agent">Agent Performance</TabsTrigger>
             <TabsTrigger value="daily">Daily Metrics</TabsTrigger>
           </TabsList>
-        </Tabs>
-      </div>
+        </div>
 
-      <Tabs defaultValue="agent" className="space-y-6">
         <TabsContent value="agent" className="space-y-6">
           {/* Summary Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
