@@ -35,7 +35,7 @@ const INTERCOM_ASSIGNEE_MAP = {
 const INTERCOM_TAG_ID = 'qEOvf8oLOGrOAq0SUAAF';
 
 // Google Sheets Setup
-const SHEET_ID = process.env.GOOGLE_SHEET_ID_INTERCOM;
+const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const COUNTER_TAB = 'Intercom Counter';
 
 // Initialize Google Sheets
