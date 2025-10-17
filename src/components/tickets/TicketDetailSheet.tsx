@@ -173,16 +173,373 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
   if (!ticket) return null;
 
   // Check if this is an Intercom ticket
-  const isIntercomTicket = ticket.name.startsWith('[Intercom]');
+  const isIntercomTicket = ticket.ticketSource === "Intercom" || ticket.name.startsWith('[Intercom]');
+  const intercomConversationId = ticket.intercomConversationId; // We'll need to store this
+  
   console.log('🔍 Debug Intercom ticket:', { 
     isIntercomTicket, 
+    ticketSource: ticket.ticketSource,
     ticketName: ticket.name, 
-    intercomAgent: ticket.intercomAgent 
+    intercomAgent: ticket.intercomAgent,
+    intercomConversationId 
   });
+
+  // Ticket Details Content (will be reused)
+  const ticketDetailsContent = (
+    <div className="py-6 space-y-6">
+      {/* Stage / Opportunity Status / Priority / Category */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Pipeline Stage */}
+        <div>
+          <Label>Pipeline Stage</Label>
+          <Select
+            value={editedTicket.status}
+            onValueChange={(value) =>
+              setEditedTicket({ ...editedTicket, status: value as TicketStatus })
+            }
+          >
+            <SelectTrigger className="mt-1 bg-popover">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover z-[100]">
+              <SelectItem value="Open">Open</SelectItem>
+              <SelectItem value="In Progress">In Progress</SelectItem>
+              <SelectItem value="Escalated to Dev">Escalated to Dev</SelectItem>
+              <SelectItem value="Resolved">Resolved</SelectItem>
+              <SelectItem value="Closed">Closed</SelectItem>
+              <SelectItem value="Deleted">Deleted</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Opportunity Status */}
+        <div>
+          <Label>Opportunity Status</Label>
+          <Select
+            value={editedTicket.opportunityStatus || "open"}
+            onValueChange={(value) =>
+              setEditedTicket({ ...editedTicket, opportunityStatus: value as any })
+            }
+          >
+            <SelectTrigger className="mt-1 bg-popover">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover z-[100]">
+              <SelectItem value="open">Open</SelectItem>
+              <SelectItem value="won">Won</SelectItem>
+              <SelectItem value="lost">Lost</SelectItem>
+              <SelectItem value="abandoned">Abandoned</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Priority */}
+        <div>
+          <Label>Priority</Label>
+          <Select
+            value={editedTicket.priority}
+            onValueChange={(value) =>
+              setEditedTicket({ ...editedTicket, priority: value as TicketPriority })
+            }
+          >
+            <SelectTrigger className="mt-1 bg-popover">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover z-[100]">
+              {(["Low", "Medium", "High", "Urgent"] as TicketPriority[]).map((priority) => (
+                <SelectItem key={priority} value={priority}>
+                  {priority}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Category */}
+        <div>
+          <Label>Category</Label>
+          <Select
+            value={editedTicket.category}
+            onValueChange={(value) =>
+              setEditedTicket({ ...editedTicket, category: value as TicketCategory })
+            }
+          >
+            <SelectTrigger className="mt-1 bg-popover">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover z-[100]">
+              {CATEGORIES.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Contact Information */}
+      <div className="space-y-4">
+        <h3 className="font-semibold flex items-center gap-2">
+          <User className="h-4 w-4" />
+          Contact Information
+        </h3>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <Label className="text-muted-foreground">Name</Label>
+            <p className="font-medium">{ticket.contact.name || "N/A"}</p>
+          </div>
+          {ticket.contact.email && (
+            <div>
+              <Label className="text-muted-foreground flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                Email
+              </Label>
+              <p className="font-medium truncate">{ticket.contact.email}</p>
+            </div>
+          )}
+          {ticket.contact.phone && (
+            <div>
+              <Label className="text-muted-foreground flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                Phone
+              </Label>
+              <p className="font-medium">{ticket.contact.phone}</p>
+            </div>
+          )}
+          {ticket.agencyName && (
+            <div>
+              <Label className="text-muted-foreground flex items-center gap-1">
+                <Building2 className="h-3 w-3" />
+                Agency
+              </Label>
+              <p className="font-medium">{ticket.agencyName}</p>
+            </div>
+          )}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleViewConversations}
+          className="w-full"
+        >
+          <MessageSquare className="h-4 w-4 mr-2" />
+          View Contact in GHL
+          <ExternalLink className="h-3 w-3 ml-2" />
+        </Button>
+      </div>
+
+      <Separator />
+
+      {/* Ticket Owner */}
+      <div>
+        <Label>Ticket Owner</Label>
+        <Select
+          value={editedTicket.assignedTo || "unassigned"}
+          onValueChange={(value) =>
+            setEditedTicket({ ...editedTicket, assignedTo: value === "unassigned" ? "" : value })
+          }
+        >
+          <SelectTrigger className="mt-1 bg-popover">
+            <SelectValue placeholder="Select owner" />
+          </SelectTrigger>
+          <SelectContent className="bg-popover z-[100]">
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {users.map((user: any) => (
+              <SelectItem key={user.id} value={user.name}>
+                {user.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Intercom Ticket Owner - Read-only, only shown for Intercom tickets */}
+      {isIntercomTicket && (
+        <div>
+          <Label>Intercom Ticket Owner</Label>
+          <Input
+            value={ticket.intercomAgent || 'Unassigned'}
+            disabled
+            className="mt-1 bg-muted cursor-not-allowed"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            This is managed by Intercom and cannot be changed here.
+          </p>
+        </div>
+      )}
+
+      {/* Action Buttons for Intercom tickets */}
+      {isIntercomTicket && (
+        <div className="space-y-3">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setEditedTicket({ ...editedTicket, status: "Closed" });
+              handleSave();
+            }}
+          >
+            Close Ticket
+          </Button>
+          <Button variant="outline" className="w-full">
+            Snooze
+          </Button>
+        </div>
+      )}
+
+      {/* Description */}
+      <div>
+        <Label>Description</Label>
+        <Textarea
+          value={editedTicket.description || ""}
+          onChange={(e) =>
+            setEditedTicket({ ...editedTicket, description: e.target.value })
+          }
+          rows={4}
+          className="mt-1 bg-popover"
+          placeholder="Ticket description..."
+        />
+      </div>
+
+      {/* Internal Notes - Only for Intercom tickets */}
+      {isIntercomTicket && (
+        <div>
+          <Label className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Internal Notes
+          </Label>
+          <Textarea
+            placeholder="Add internal notes (not visible to customer)..."
+            rows={4}
+            className="mt-1 bg-popover"
+          />
+          <Button size="sm" className="mt-2">
+            Add Note
+          </Button>
+        </div>
+      )}
+
+      {/* Resolution Summary */}
+      <div>
+        <Label>Resolution Summary</Label>
+        <Textarea
+          value={editedTicket.resolutionSummary || ""}
+          onChange={(e) =>
+            setEditedTicket({ ...editedTicket, resolutionSummary: e.target.value })
+          }
+          rows={4}
+          className="mt-1 bg-popover"
+          placeholder="How was this resolved..."
+        />
+      </div>
+
+      {/* Tags */}
+      <div>
+        <Label>Tags</Label>
+        
+        {/* Selected Tags */}
+        <div className="flex flex-wrap gap-2 mt-2 mb-3 min-h-[36px] p-2 border rounded-md bg-background">
+          {(editedTicket.tags || []).map((tag) => (
+            <Badge key={tag} variant="secondary" className="gap-1">
+              {tag}
+              <button
+                onClick={() => handleRemoveTag(tag)}
+                className="ml-1 hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          {(editedTicket.tags || []).length === 0 && (
+            <span className="text-sm text-muted-foreground">No tags assigned</span>
+          )}
+        </div>
+
+        {/* Add Tags Popover */}
+        <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Tags
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-0" align="start">
+            <div className="p-2 border-b">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search / create tags"
+                  value={tagSearch}
+                  onChange={(e) => setTagSearch(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto p-2">
+              {filteredAvailableTags.length > 0 ? (
+                <div className="space-y-1">
+                  {filteredAvailableTags.map((tag) => {
+                    const isSelected = (editedTicket.tags || []).includes(tag.name);
+                    return (
+                      <div
+                        key={tag.id}
+                        className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+                        onClick={() => handleToggleTag(tag.name)}
+                      >
+                        <div className="flex-1">{tag.name}</div>
+                        {isSelected && <Check className="h-4 w-4 text-primary" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  No tags found
+                </div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <Separator />
+
+      {/* Metadata */}
+      <div className="space-y-3 text-sm">
+        <div className="flex items-start gap-2">
+          <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
+          <div>
+            <p className="text-xs text-muted-foreground">Created</p>
+            <p className="font-medium">
+              {format(new Date(ticket.createdAt), "MMM d, yyyy, h:mm a")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              ({formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })})
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-2">
+          <Clock className="h-4 w-4 mt-0.5 text-muted-foreground" />
+          <div>
+            <p className="text-xs text-muted-foreground">Updated</p>
+            <p className="font-medium">
+              {format(new Date(ticket.updatedAt), "MMM d, yyyy, h:mm a")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              ({formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true })})
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto bg-popover">
+      <SheetContent className={`overflow-y-auto bg-popover ${isIntercomTicket && intercomConversationId ? 'max-w-[95vw]' : 'w-full sm:max-w-2xl'}`}>
         <SheetHeader>
           <div className="flex items-center gap-2">
             {editingName ? (
@@ -218,321 +575,42 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
           <SheetDescription>View and edit ticket details</SheetDescription>
         </SheetHeader>
 
-        <div className="py-6 space-y-6">
-          {/* Stage / Opportunity Status / Priority / Category */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Pipeline Stage */}
-            <div>
-              <Label>Pipeline Stage</Label>
-              <Select
-                value={editedTicket.status}
-                onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, status: value as TicketStatus })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-popover">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Escalated to Dev">Escalated to Dev</SelectItem>
-                  <SelectItem value="Resolved">Resolved</SelectItem>
-                  <SelectItem value="Closed">Closed</SelectItem>
-                  <SelectItem value="Deleted">Deleted</SelectItem>
-                </SelectContent>
-              </Select>
+        {/* Conditional Layout */}
+        {isIntercomTicket && intercomConversationId ? (
+          // Side-by-side layout for Intercom tickets
+          <div className="flex gap-6 mt-6">
+            {/* Left: Ticket Details (40%) */}
+            <div className="w-2/5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+              {ticketDetailsContent}
             </div>
 
-            {/* Opportunity Status */}
-            <div>
-              <Label>Opportunity Status</Label>
-              <Select
-                value={editedTicket.opportunityStatus || "open"}
-                onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, opportunityStatus: value as any })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-popover">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="won">Won</SelectItem>
-                  <SelectItem value="lost">Lost</SelectItem>
-                  <SelectItem value="abandoned">Abandoned</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Priority */}
-            <div>
-              <Label>Priority</Label>
-              <Select
-                value={editedTicket.priority}
-                onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, priority: value as TicketPriority })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-popover">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
-                  {(["Low", "Medium", "High", "Urgent"] as TicketPriority[]).map((priority) => (
-                    <SelectItem key={priority} value={priority}>
-                      {priority}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Category */}
-            <div>
-              <Label>Category</Label>
-              <Select
-                value={editedTicket.category}
-                onValueChange={(value) =>
-                  setEditedTicket({ ...editedTicket, category: value as TicketCategory })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-popover">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
-                  {CATEGORIES.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Contact Information */}
-          <div className="space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Contact Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <Label className="text-muted-foreground">Name</Label>
-                <p className="font-medium">{ticket.contact.name || "N/A"}</p>
-              </div>
-              {ticket.contact.email && (
-                <div>
-                  <Label className="text-muted-foreground flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    Email
-                  </Label>
-                  <p className="font-medium truncate">{ticket.contact.email}</p>
+            {/* Right: Intercom Iframe (60%) */}
+            <div className="w-3/5 border-l pl-6">
+              <div className="h-full flex flex-col">
+                <div className="mb-4">
+                  <h3 className="font-semibold text-lg">Intercom Conversation</h3>
+                  <p className="text-sm text-muted-foreground">View and reply to customer messages</p>
                 </div>
-              )}
-              {ticket.contact.phone && (
-                <div>
-                  <Label className="text-muted-foreground flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    Phone
-                  </Label>
-                  <p className="font-medium">{ticket.contact.phone}</p>
+                
+                <div className="flex-1 bg-muted/20 rounded-lg border overflow-hidden">
+                  <iframe
+                    src={`https://app.intercom.com/a/inbox/bqo45ebi/inbox/shared/all/conversation/${intercomConversationId}`}
+                    className="w-full h-full"
+                    style={{ minHeight: "70vh" }}
+                    title="Intercom Conversation"
+                    allow="clipboard-write"
+                  />
                 </div>
-              )}
-              {ticket.agencyName && (
-                <div>
-                  <Label className="text-muted-foreground flex items-center gap-1">
-                    <Building2 className="h-3 w-3" />
-                    Agency
-                  </Label>
-                  <p className="font-medium">{ticket.agencyName}</p>
-                </div>
-              )}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleViewConversations}
-              className="w-full"
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              View Contact in GHL
-              <ExternalLink className="h-3 w-3 ml-2" />
-            </Button>
-          </div>
-
-          <Separator />
-
-          {/* Ticket Owner */}
-          <div>
-            <Label>Ticket Owner</Label>
-            <Select
-              value={editedTicket.assignedTo || "unassigned"}
-              onValueChange={(value) =>
-                setEditedTicket({ ...editedTicket, assignedTo: value === "unassigned" ? "" : value })
-              }
-            >
-              <SelectTrigger className="mt-1 bg-popover">
-                <SelectValue placeholder="Select owner" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover z-[100]">
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {users.map((user: any) => (
-                  <SelectItem key={user.id} value={user.name}>
-                    {user.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Intercom Ticket Owner - Read-only, only shown for Intercom tickets */}
-          {isIntercomTicket && (
-            <div>
-              <Label>Intercom Ticket Owner</Label>
-              <Input
-                value={ticket.intercomAgent || 'Unassigned'}
-                disabled
-                className="mt-1 bg-muted cursor-not-allowed"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                This is managed by Intercom and cannot be changed here.
-              </p>
-            </div>
-          )}
-
-          {/* Description */}
-          <div>
-            <Label>Description</Label>
-            <Textarea
-              value={editedTicket.description || ""}
-              onChange={(e) =>
-                setEditedTicket({ ...editedTicket, description: e.target.value })
-              }
-              rows={4}
-              className="mt-1 bg-popover"
-              placeholder="Ticket description..."
-            />
-          </div>
-
-          {/* Resolution Summary */}
-          <div>
-            <Label>Resolution Summary</Label>
-            <Textarea
-              value={editedTicket.resolutionSummary || ""}
-              onChange={(e) =>
-                setEditedTicket({ ...editedTicket, resolutionSummary: e.target.value })
-              }
-              rows={4}
-              className="mt-1 bg-popover"
-              placeholder="How was this resolved..."
-            />
-          </div>
-
-          {/* Tags */}
-          <div>
-            <Label>Tags</Label>
-            
-            {/* Selected Tags */}
-            <div className="flex flex-wrap gap-2 mt-2 mb-3 min-h-[36px] p-2 border rounded-md bg-background">
-              {(editedTicket.tags || []).map((tag) => (
-                <Badge key={tag} variant="secondary" className="gap-1">
-                  {tag}
-                  <button
-                    onClick={() => handleRemoveTag(tag)}
-                    className="ml-1 hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              {(editedTicket.tags || []).length === 0 && (
-                <span className="text-sm text-muted-foreground">No tags assigned</span>
-              )}
-            </div>
-
-            {/* Add Tags Popover */}
-            <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Tags
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="start">
-                <div className="p-2 border-b">
-                  <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search / create tags"
-                      value={tagSearch}
-                      onChange={(e) => setTagSearch(e.target.value)}
-                      className="pl-8"
-                    />
-                  </div>
-                </div>
-                <div className="max-h-[300px] overflow-y-auto p-2">
-                  {filteredAvailableTags.length > 0 ? (
-                    <div className="space-y-1">
-                      {filteredAvailableTags.map((tag) => {
-                        const isSelected = (editedTicket.tags || []).includes(tag.name);
-                        return (
-                          <div
-                            key={tag.id}
-                            className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
-                            onClick={() => handleToggleTag(tag.name)}
-                          >
-                            <div className="flex-1">{tag.name}</div>
-                            {isSelected && <Check className="h-4 w-4 text-primary" />}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      No tags found
-                    </div>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <Separator />
-
-          {/* Metadata */}
-          <div className="space-y-3 text-sm">
-            <div className="flex items-start gap-2">
-              <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Created</p>
-                <p className="font-medium">
-                  {format(new Date(ticket.createdAt), "MMM d, yyyy, h:mm a")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  ({formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })})
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Clock className="h-4 w-4 mt-0.5 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Updated</p>
-                <p className="font-medium">
-                  {format(new Date(ticket.updatedAt), "MMM d, yyyy, h:mm a")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  ({formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true })})
-                </p>
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          // Full-width layout for non-Intercom tickets
+          ticketDetailsContent
+        )}
 
         {/* Footer Actions */}
-        <div className="sticky bottom-0 bg-popover border-t pt-4 flex gap-2">
+        <div className="sticky bottom-0 bg-popover border-t pt-4 flex gap-2 mt-6">
           <Button onClick={() => onOpenChange(false)} variant="outline" className="flex-1">
             Cancel
           </Button>
