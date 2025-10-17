@@ -185,7 +185,56 @@ export default function Tickets() {
     }
   };
 
-return (
+  return viewMode === "kanban" ? (
+    // Full width layout for Kanban
+    <div className="w-full px-6 py-6">
+      <div className="flex flex-col items-center gap-4 mb-6">
+        <h1 className="text-2xl font-bold">Tickets</h1>
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+          <TabsList>
+            <TabsTrigger value="table">Table</TabsTrigger>
+            <TabsTrigger value="kanban">Kanban</TabsTrigger>
+            <TabsTrigger value="compact">Compact</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      <div className="max-w-7xl mx-auto mb-6">
+        <StatsCards stats={stats} isLoading={isLoading} />
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      ) : (
+        <>
+          <div className="max-w-7xl mx-auto mb-6">
+            <FilterBar
+              filters={filters}
+              onFiltersChange={setFilters}
+              agencies={agencies}
+              assignees={assignees}
+            />
+          </div>
+
+          <KanbanView
+            tickets={filteredTickets}
+            onTicketClick={handleTicketClick}
+            onStatusChange={handleStatusChange}
+          />
+        </>
+      )}
+
+      <TicketDetailSheet
+        ticket={selectedTicket}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onStatusChange={handleStatusChange}
+      />
+    </div>
+  ) : (
+    // Constrained layout for Table and Compact
     <div className="w-full px-6 py-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col items-center gap-4">
@@ -199,17 +248,14 @@ return (
           </Tabs>
         </div>
 
-        {/* Stats Cards */}
         <StatsCards stats={stats} isLoading={isLoading} />
 
-        {/* Loading State */}
         {isLoading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
         ) : (
           <>
-            {/* Filter Bar */}
             <FilterBar
               filters={filters}
               onFiltersChange={setFilters}
@@ -217,19 +263,7 @@ return (
               assignees={assignees}
             />
 
-            {/* Ticket Views */}
-            {viewMode === "kanban" ? (
-              // Kanban needs full width, break out of container
-              <div className="-mx-6">
-                <div className="px-6">
-                  <KanbanView
-                    tickets={filteredTickets}
-                    onTicketClick={handleTicketClick}
-                    onStatusChange={handleStatusChange}
-                  />
-                </div>
-              </div>
-            ) : viewMode === "table" ? (
+            {viewMode === "table" ? (
               <TableView
                 tickets={filteredTickets}
                 onTicketClick={handleTicketClick}
@@ -250,7 +284,6 @@ return (
           </>
         )}
 
-        {/* Ticket Detail Sheet */}
         <TicketDetailSheet
           ticket={selectedTicket}
           open={sheetOpen}
