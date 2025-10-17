@@ -33,7 +33,7 @@ export default function AnalyticsView() {
     queryKey: ['analytics'],
     queryFn: async () => {
       const token = await getAccessToken();
-      const response = await fetch('/api/analytics/overview', {
+      const response = await fetch('/api/overview', {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to fetch analytics');
