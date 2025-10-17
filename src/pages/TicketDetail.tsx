@@ -104,7 +104,7 @@ export default function TicketDetail() {
   }
 
   // Check if this is an Intercom ticket
-  const isIntercomTicket = ticket.source === 'Intercom' || ticket.name?.includes('[Intercom]');
+  const isIntercomTicket = ticket.ticketSource === 'Intercom' || ticket.name?.includes('[Intercom]');
   const intercomConversationId = ticket.intercomConversationId;
 
   return (
