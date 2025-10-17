@@ -526,7 +526,7 @@ export default function IntercomChatView({
             
             // Get initials for avatar
             const authorName = msg.author.name || 'Unknown';
-            const initials = authorName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+            const initials = authorName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
             
             return (
               <div
@@ -575,11 +575,12 @@ export default function IntercomChatView({
                       }
                       ${!isFirstInGroup && isCustomer ? 'rounded-tl-2xl' : ''}
                       ${!isFirstInGroup && !isCustomer ? 'rounded-tr-2xl' : ''}
+                      [&_a]:text-white [&_a]:underline [&_a]:font-semibold hover:[&_a]:text-white/90
                     `}
                   >
                     {messageBody && (
                       <div
-                        className={`text-[15px] leading-relaxed ${isCustomer ? 'prose-gray' : isNote ? 'prose-yellow' : 'prose-white'} prose prose-sm max-w-none [&>p]:my-0 [&>p]:leading-relaxed`}
+                        className="text-[15px] leading-relaxed prose prose-sm max-w-none [&>p]:my-0 [&>p]:leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: messageBody }}
                       />
                     )}
