@@ -5,6 +5,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const { type } = req.query;
+
+  if (!type || !['agent-performance', 'daily-metrics'].includes(type)) {
+    return res.status(400).json({ 
+      error: 'Invalid type parameter',
+      details: 'Use ?type=agent-performance or ?type=daily-metrics'
+    });
+  }
+
   try {
     // Parse the credentials - handle if it's already an object or a string
     let credentials;
@@ -39,6 +48,24 @@ export default async function handler(req, res) {
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
+    // Route to appropriate handler
+    if (type === 'agent-performance') {
+      return await handleAgentPerformance(sheets, spreadsheetId, res);
+    } else if (type === 'daily-metrics') {
+      return await handleDailyMetrics(sheets, spreadsheetId, res);
+    }
+
+  } catch (error) {
+    console.error('Error fetching analytics data:', error);
+    return res.status(500).json({ 
+      error: 'Failed to fetch analytics data',
+      details: error.message 
+    });
+  }
+}
+
+async function handleAgentPerformance(sheets, spreadsheetId, res) {
+  try {
     // Read from Agent Performance sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -86,6 +113,47 @@ export default async function handler(req, res) {
     console.error('Error fetching agent performance:', error);
     return res.status(500).json({ 
       error: 'Failed to fetch agent performance data',
+      details: error.message 
+    });
+  }
+}
+
+async function handleDailyMetrics(sheets, spreadsheetId, res) {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Daily Metrics!A:K',
+    });
+
+    const rows = response.data.values;
+
+    if (!rows || rows.length === 0) {
+      return res.status(200).json({ data: [] });
+    }
+
+    const headers = rows[0];
+    
+    const data = rows.slice(1).map(row => {
+      const obj = {};
+      headers.forEach((header, index) => {
+        obj[header] = row[index] || '';
+      });
+      return obj;
+    });
+
+    const sortedData = data.sort((a, b) => {
+      return new Date(b.Date) - new Date(a.Date);
+    });
+
+    return res.status(200).json({ 
+      success: true,
+      data: sortedData
+    });
+
+  } catch (error) {
+    console.error('Error fetching daily metrics:', error);
+    return res.status(500).json({ 
+      error: 'Failed to fetch daily metrics data',
       details: error.message 
     });
   }

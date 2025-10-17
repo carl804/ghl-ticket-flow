@@ -7,11 +7,7 @@
   ],
   "crons": [
     {
-      "path": "/api/agent-perf-cron",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/daily-metrics-cron",
+      "path": "/api/metrics-cron",
       "schedule": "0 2 * * *"
     }
   ]

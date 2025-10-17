@@ -46,7 +46,7 @@ export default function DailyMetricsDashboard() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch("https://hp-ticket-flow.vercel.app/api/get-daily-metrics");
+      const response = await fetch("https://hp-ticket-flow.vercel.app/api/analytics?type=daily-metrics");
       const result = await response.json();
       
       // Group by date only (YYYY-MM-DD), keep the latest entry per date

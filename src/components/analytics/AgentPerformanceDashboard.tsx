@@ -43,7 +43,7 @@ export default function AgentPerformanceDashboard() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch("https://hp-ticket-flow.vercel.app/api/get-agent-performance");
+      const response = await fetch("https://hp-ticket-flow.vercel.app/api/analytics?type=agent-performance");
       const result = await response.json();
       setLatestData(result.data || []);
     } catch (error) {
