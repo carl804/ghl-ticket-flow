@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
@@ -15,6 +16,7 @@ import { toast } from "sonner";
 type ViewMode = "table" | "kanban" | "compact";
 
 export default function Tickets() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>("kanban");
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
@@ -157,8 +159,17 @@ export default function Tickets() {
   }, [tickets]);
 
   const handleTicketClick = (ticket: Ticket) => {
-    setSelectedTicket(ticket);
-    setSheetOpen(true);
+    // Check if this is an Intercom ticket
+    const isIntercomTicket = ticket.source === 'Intercom' || ticket.name?.includes('[Intercom]');
+    
+    if (isIntercomTicket && ticket.intercomConversationId) {
+      // Navigate to full page for Intercom tickets (to show chat interface)
+      navigate(`/tickets/${ticket.id}`);
+    } else {
+      // Open sheet for non-Intercom tickets (quick view)
+      setSelectedTicket(ticket);
+      setSheetOpen(true);
+    }
   };
 
   const handleStatusChange = (ticketId: string, status: TicketStatus) => {
