@@ -476,7 +476,7 @@ export default function IntercomChatView({
                     {msg.attachments && msg.attachments.length > 0 && (
                       <div className="mt-2 space-y-2">
                         {msg.attachments.map((att: any, i: number) => (
-                          
+                            <a
                             key={i}
                             href={att.url}
                             target="_blank"
