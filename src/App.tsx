@@ -12,7 +12,6 @@ import { getAccessToken } from "@/integrations/ghl/oauth";
 import Index from "./pages/Index";
 import Tickets from "./pages/Tickets";
 import TicketDetail from "./pages/TicketDetail";
-import IntercomView from "./pages/IntercomView";
 import AnalyticsView from './components/analytics/AnalyticsView';
 import OAuthCallback from "./pages/OAuthCallback";
 import OAuthSuccess from "./pages/OAuthSuccess";
@@ -105,16 +104,6 @@ const App = () => {
                   <ProtectedRoute>
                     <AppLayout>
                       <TicketDetail />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/intercom"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <IntercomView />
                     </AppLayout>
                   </ProtectedRoute>
                 }
