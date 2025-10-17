@@ -10,11 +10,8 @@ import CompactView from "@/components/tickets/CompactView";
 import TicketDetailSheet from "@/components/tickets/TicketDetailSheet";
 import StatsCards from "@/components/tickets/StatsCards";
 import { FilterBar, type Filters } from "@/components/tickets/FilterBar";
-import AnalyticsView from "@/components/analytics/AnalyticsView";
-import { calculateAgentMetrics } from "@/lib/agentMetrics";
-import { toast } from "sonner";
 
-type ViewMode = "table" | "kanban" | "compact" | "analytics";
+type ViewMode = "table" | "kanban" | "compact";
 
 export default function Tickets() {
   const queryClient = useQueryClient();
@@ -28,7 +25,7 @@ export default function Tickets() {
     priority: "all",
     category: "all",
     assignedTo: "all",
-    source: "all", // ✅ ADDED: Source filter
+    source: "all",
   });
 
   const { data: tickets = [], isLoading } = useQuery({
@@ -124,9 +121,6 @@ export default function Tickets() {
       avgResolutionTime,
     };
   }, [tickets]);
-
-  // Calculate agent metrics
-  const agentMetrics = useMemo(() => calculateAgentMetrics(tickets), [tickets]);
   
   // Filter tickets based on filters
   const filteredTickets = useMemo(() => {
@@ -144,9 +138,9 @@ export default function Tickets() {
       const matchesPriority = filters.priority === "all" || ticket.priority === filters.priority;
       const matchesCategory = filters.category === "all" || ticket.category === filters.category;
       const matchesAssignedTo = filters.assignedTo === "all" || ticket.assignedTo === filters.assignedTo;
-      const matchesSource = filters.source === "all" || ticket.ticketSource === filters.source; // ✅ ADDED: Source filter logic
+      const matchesSource = filters.source === "all" || ticket.ticketSource === filters.source;
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesAssignedTo && matchesSource; // ✅ ADDED: && matchesSource
+      return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesAssignedTo && matchesSource;
     });
   }, [tickets, filters]);
 
@@ -199,12 +193,11 @@ export default function Tickets() {
             <TabsTrigger value="table">Table</TabsTrigger>
             <TabsTrigger value="kanban">Kanban</TabsTrigger>
             <TabsTrigger value="compact">Compact</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
-      {/* Stats Cards - Show on all views */}
+      {/* Stats Cards */}
       <StatsCards stats={stats} isLoading={isLoading} />
 
       {/* Loading State */}
@@ -212,12 +205,9 @@ export default function Tickets() {
         <div className="flex justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
-      ) : viewMode === "analytics" ? (
-        /* Agent Analytics View with Dashboard and Table */
-        <AnalyticsView metrics={agentMetrics} />
       ) : (
         <>
-          {/* Filter Bar - Only show on ticket views */}
+          {/* Filter Bar */}
           <div className="mb-6">
             <FilterBar
               filters={filters}
