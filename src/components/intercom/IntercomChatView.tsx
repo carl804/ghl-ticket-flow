@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { 
   Send, 
   Paperclip, 
@@ -19,15 +26,20 @@ import {
   X as CloseIcon, 
   MessageSquare,
   User,
-  Bot,
   AlertCircle,
   UserPlus,
-  Search
+  Search,
+  ChevronRight,
+  Info,
+  Mail,
+  Phone,
+  Tag,
+  Archive,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { format } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const AGENT_LIST = [
   { name: 'Aneela', fullName: 'Aneela Karim', intercomId: '6465865' },
@@ -64,13 +76,10 @@ function getSnoozeOptions() {
     const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
     if (diffDays === 0) {
-      // Today - just show time
       return format(date, 'h:mm a');
     } else if (diffDays < 7) {
-      // This week - show day and time
       return format(date, 'EEE h:mm a');
     } else {
-      // Further out - show full date and time
       return format(date, 'EEE, MMM d, h:mm a');
     }
   };
@@ -136,8 +145,10 @@ export default function IntercomChatView({
   const [showAgentSelector, setShowAgentSelector] = useState(false);
   const [showSnoozeDialog, setShowSnoozeDialog] = useState(false);
   const [snoozeInput, setSnoozeInput] = useState('');
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<StoredAgent | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
 
   // Load stored agent from localStorage
@@ -152,10 +163,38 @@ export default function IntercomChatView({
         console.error('Failed to parse stored agent:', e);
       }
     } else {
-      // Show agent selector on first use
       setShowAgentSelector(true);
     }
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K for quick actions
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSnoozeDialog(true);
+      }
+      // Cmd/Ctrl + Enter to send
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSendMessage();
+      }
+      // Cmd/Ctrl + W to close
+      if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+        e.preventDefault();
+        if (isAssigned) closeMutation.mutate();
+      }
+      // Cmd/Ctrl + I for customer info
+      if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+        e.preventDefault();
+        setShowCustomerDetails(!showCustomerDetails);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [message, isNote, showCustomerDetails]);
 
   // Check if ticket is assigned
   const isAssigned = currentAssignee && currentAssignee !== 'Unassigned' && currentAssignee.trim() !== '';
@@ -172,7 +211,7 @@ export default function IntercomChatView({
       const data = await response.json();
       return data.conversation;
     },
-    refetchInterval: 10000, // Poll every 10 seconds
+    refetchInterval: 10000,
     retry: 3,
   });
 
@@ -183,7 +222,6 @@ export default function IntercomChatView({
         throw new Error('No agent selected');
       }
 
-      // Assign in Intercom
       const intercomResponse = await fetch('/api/intercom/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -199,7 +237,6 @@ export default function IntercomChatView({
         throw new Error('Failed to assign in Intercom');
       }
 
-      // Add audit log note
       await fetch('/api/intercom/reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -212,7 +249,6 @@ export default function IntercomChatView({
         }),
       }).catch(err => console.error('Failed to add audit log:', err));
 
-      // Also update in GHL if callback provided
       if (onAssignmentChange) {
         onAssignmentChange(selectedAgent.name);
       }
@@ -259,6 +295,7 @@ export default function IntercomChatView({
       setIsNote(false);
       toast.success(isNote ? 'Note added' : 'Reply sent');
       queryClient.invalidateQueries({ queryKey: ['intercom-conversation', conversationId] });
+      messageInputRef.current?.focus();
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to send message');
@@ -287,7 +324,6 @@ export default function IntercomChatView({
         throw new Error('Failed to close conversation');
       }
 
-      // Add audit log note
       await fetch('/api/intercom/reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -336,13 +372,12 @@ export default function IntercomChatView({
         throw new Error('Failed to snooze conversation');
       }
 
-      // Add audit log note
       await fetch('/api/intercom/reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversationId,
-          message: `Snoozed for ${label} by ${selectedAgent.name}`,
+          message: `Snoozed ${label} by ${selectedAgent.name}`,
           isNote: true,
           agentName: selectedAgent.name,
           intercomAdminId: selectedAgent.intercomId,
@@ -352,7 +387,7 @@ export default function IntercomChatView({
       return response.json();
     },
     onSuccess: (_, variables) => {
-      toast.success(`Snoozed for ${variables.label}`);
+      toast.success(`Snoozed ${variables.label}`);
       queryClient.invalidateQueries({ queryKey: ['intercom-conversation', conversationId] });
       setShowSnoozeDialog(false);
     },
@@ -382,7 +417,7 @@ export default function IntercomChatView({
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !(e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -392,39 +427,6 @@ export default function IntercomChatView({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Loading conversation...</p>
-      </div>
-    );
-  }
-
-  if (!conversation) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Conversation not found</p>
-      </div>
-    );
-  }
-
-  const conversationParts = conversation.conversation_parts?.conversation_parts || [];
-  const allMessages = [
-    {
-      type: 'message',
-      author: conversation.source.author,
-      body: conversation.source.body,
-      created_at: conversation.created_at,
-    },
-    ...conversationParts.map((part: any) => ({
-      type: part.part_type,
-      author: part.author,
-      body: part.body,
-      created_at: part.created_at,
-      attachments: part.attachments,
-    })),
-  ];
 
   const snoozeOptions = getSnoozeOptions();
 
@@ -478,7 +480,6 @@ export default function IntercomChatView({
   const getFilteredSnoozeOptions = () => {
     if (!snoozeInput.trim()) return snoozeOptions;
 
-    // Check if input is just a number (without unit)
     const numberMatch = snoozeInput.match(/^(\d+)$/);
     if (numberMatch) {
       const value = parseInt(numberMatch[1]);
@@ -496,10 +497,8 @@ export default function IntercomChatView({
         }
       };
 
-      // Generate suggestions for all time units
       const suggestions = [];
       
-      // Minutes
       const minuteDate = new Date(now.getTime() + value * 60 * 1000);
       suggestions.push({
         label: `for ${value} minute${value !== 1 ? 's' : ''}`,
@@ -508,7 +507,6 @@ export default function IntercomChatView({
         isCustom: true
       });
 
-      // Hours
       const hourDate = new Date(now.getTime() + value * 60 * 60 * 1000);
       suggestions.push({
         label: `for ${value} hour${value !== 1 ? 's' : ''}`,
@@ -517,7 +515,6 @@ export default function IntercomChatView({
         isCustom: true
       });
 
-      // Days
       const dayDate = new Date(now.getTime() + value * 24 * 60 * 60 * 1000);
       suggestions.push({
         label: `for ${value} day${value !== 1 ? 's' : ''}`,
@@ -526,7 +523,6 @@ export default function IntercomChatView({
         isCustom: true
       });
 
-      // Weeks
       const weekDate = new Date(now.getTime() + value * 7 * 24 * 60 * 60 * 1000);
       suggestions.push({
         label: `for ${value} week${value !== 1 ? 's' : ''}`,
@@ -538,7 +534,6 @@ export default function IntercomChatView({
       return suggestions;
     }
 
-    // If input has a unit specified, parse it
     const customDuration = parseSnoozeInput(snoozeInput);
     if (customDuration) {
       return [
@@ -549,7 +544,6 @@ export default function IntercomChatView({
       ];
     }
 
-    // Otherwise filter presets by text
     return snoozeOptions.filter(opt => 
       opt.label.toLowerCase().includes(snoozeInput.toLowerCase())
     );
@@ -565,15 +559,59 @@ export default function IntercomChatView({
 
   const filteredSnoozeOptions = getFilteredSnoozeOptions();
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full bg-gray-50/50">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mx-auto" />
+          <p className="text-sm text-gray-500">Loading conversation...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!conversation) {
+    return (
+      <div className="flex items-center justify-center h-full bg-gray-50/50">
+        <div className="text-center space-y-3">
+          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto" />
+          <p className="text-sm text-gray-500">Conversation not found</p>
+        </div>
+      </div>
+    );
+  }
+
+  const conversationParts = conversation.conversation_parts?.conversation_parts || [];
+  const allMessages = [
+    {
+      type: 'message',
+      author: conversation.source.author,
+      body: conversation.source.body,
+      created_at: conversation.created_at,
+    },
+    ...conversationParts.map((part: any) => ({
+      type: part.part_type,
+      author: part.author,
+      body: part.body,
+      created_at: part.created_at,
+      attachments: part.attachments,
+    })),
+  ];
+
+  const customerName = conversation.source.author.name || 'Customer';
+  const customerEmail = conversation.source.author.email;
+  const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+
   return (
     <>
       {/* Agent Selector Dialog */}
       <Dialog open={showAgentSelector} onOpenChange={setShowAgentSelector}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Who are you?</DialogTitle>
             <DialogDescription>
-              Select your name to identify yourself when replying to customers in Intercom.
+              Select your name to identify yourself when replying to customers
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -581,11 +619,13 @@ export default function IntercomChatView({
               <Button
                 key={agent.intercomId}
                 variant="outline"
-                className="w-full justify-start"
+                className="w-full justify-start h-auto py-3 hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
                 onClick={() => handleSaveAgent(agent)}
               >
-                <User className="h-4 w-4 mr-2" />
-                {agent.fullName}
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-sm font-medium mr-3">
+                  {agent.name.slice(0, 2).toUpperCase()}
+                </div>
+                <span className="font-medium">{agent.fullName}</span>
               </Button>
             ))}
           </div>
@@ -597,18 +637,17 @@ export default function IntercomChatView({
         setShowSnoozeDialog(open);
         if (!open) setSnoozeInput('');
       }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Snooze conversation</DialogTitle>
             <DialogDescription>
-              Type a duration (e.g., "5m", "2h", "3d", "1w") or choose from presets
+              Type a duration or choose from presets
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
-            {/* Search Input */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 value={snoozeInput}
@@ -619,18 +658,17 @@ export default function IntercomChatView({
                   }
                 }}
                 placeholder="Type duration... (5m, 2h, 3d, 1w)"
-                className="w-full pl-9 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                 autoFocus
               />
             </div>
 
-            {/* Filtered Options */}
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {filteredSnoozeOptions.map((option, index) => (
                 <Button
                   key={index}
                   variant="outline"
-                  className="w-full justify-between h-auto py-3"
+                  className="w-full justify-between h-auto py-3 hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
                   onClick={() => {
                     snoozeMutation.mutate({ hours: option.hours, label: option.label });
                     setSnoozeInput('');
@@ -638,146 +676,248 @@ export default function IntercomChatView({
                   disabled={snoozeMutation.isPending}
                 >
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span>{option.label}</span>
+                    <Clock className="h-4 w-4 text-gray-500" />
+                    <span className="font-medium text-gray-900">{option.label}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">{option.time}</span>
+                    <span className="text-sm text-gray-500">{option.time}</span>
                     {(option as any).isCustom && (
-                      <Badge variant="secondary" className="text-xs">Custom</Badge>
+                      <Badge variant="secondary" className="text-xs bg-indigo-100 text-indigo-700 border-0">Custom</Badge>
                     )}
                   </div>
                 </Button>
               ))}
               
               {filteredSnoozeOptions.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No matching options. Try formats like "5m", "2h", "3d", or "1w"
-                </p>
+                <div className="text-center py-8">
+                  <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">No matching options</p>
+                  <p className="text-xs text-gray-400 mt-1">Try formats like "5m", "2h", "3d", or "1w"</p>
+                </div>
               )}
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="p-4 border-b space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-lg">
-                {conversation.source.author.name || 'Customer'}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {conversation.source.author.email}
-              </p>
+      {/* Customer Details Sidebar */}
+      <Sheet open={showCustomerDetails} onOpenChange={setShowCustomerDetails}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Customer Details</SheetTitle>
+            <SheetDescription>
+              Information about {customerName}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-lg font-medium">
+                {initials}
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">{customerName}</h3>
+                <p className="text-sm text-gray-500">{customerEmail}</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {selectedAgent && (
-                <Badge variant="secondary" className="gap-1">
-                  <User className="h-3 w-3" />
-                  {selectedAgent.name}
+
+            <div className="space-y-3 pt-4 border-t">
+              <div className="flex items-start gap-3">
+                <Mail className="h-4 w-4 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Email</p>
+                  <p className="text-sm text-gray-900 mt-0.5">{customerEmail}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Tag className="h-4 w-4 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tags</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    <Badge variant="secondary" className="text-xs">Customer</Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <MessageSquare className="h-4 w-4 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Conversation</p>
+                  <p className="text-sm text-gray-900 mt-0.5 capitalize">{conversation.state}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="flex flex-col h-full bg-gray-50/30">
+        {/* Compact Sticky Header */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+          {/* Main Header Row */}
+          <div className="px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              <button
+                onClick={onClose}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
+              >
+                <ChevronRight className="h-4 w-4 rotate-180 group-hover:-translate-x-1 transition-transform" />
+                <span className="text-sm font-medium">Back</span>
+              </button>
+
+              <div className="h-6 w-px bg-gray-200" />
+
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <button
+                  onClick={() => setShowCustomerDetails(true)}
+                  className="flex items-center gap-3 hover:bg-gray-50 rounded-lg px-2 py-1 -ml-2 transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm truncate">{customerName}</h3>
+                    <p className="text-xs text-gray-500 truncate">{customerEmail}</p>
+                  </div>
+                  <Info className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Badge 
+                  variant={conversation.state === 'open' ? 'default' : 'secondary'} 
+                  className={`text-xs font-medium ${
+                    conversation.state === 'open' 
+                      ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                      : 'bg-gray-100 text-gray-600 border-gray-200'
+                  }`}
+                >
+                  {conversation.state === 'open' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />}
+                  {conversation.state}
                 </Badge>
+                <Badge variant="outline" className="text-xs font-medium bg-amber-50 text-amber-700 border-amber-200">
+                  Medium
+                </Badge>
+                <Badge variant="outline" className="text-xs font-medium bg-blue-50 text-blue-700 border-blue-200">
+                  General Questions
+                </Badge>
+              </div>
+            </div>
+
+            {/* Right Actions */}
+            <div className="flex items-center gap-2 ml-4">
+              {selectedAgent && (
+                <button
+                  onClick={() => setShowAgentSelector(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors group"
+                >
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-xs font-medium">
+                    {selectedAgent.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">{selectedAgent.name}</span>
+                </button>
               )}
-              <Badge variant={conversation.state === 'closed' ? 'secondary' : 'default'}>
-                {conversation.state}
-              </Badge>
+
+              {isAssigned && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowSnoozeDialog(true)}
+                    disabled={snoozeMutation.isPending}
+                    className="gap-2 hover:bg-gray-100"
+                    title="Snooze (⌘K)"
+                  >
+                    <Clock className="h-4 w-4" />
+                    <span className="hidden sm:inline">Snooze</span>
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => closeMutation.mutate()}
+                    disabled={closeMutation.isPending || conversation.state === 'closed'}
+                    className="gap-2 hover:bg-gray-100"
+                    title="Close (⌘W)"
+                  >
+                    {closeMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    <span className="hidden sm:inline">Close</span>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Assignment Warning */}
+          {/* Assignment Alert */}
           {!isAssigned && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="flex items-center justify-between">
-                <span>This ticket is unassigned. Assign it to yourself to reply to customers.</span>
-                <Button
-                  size="sm"
-                  onClick={() => assignMutation.mutate()}
-                  disabled={assignMutation.isPending || !selectedAgent}
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Assign to Me
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Action Buttons */}
-          {isAssigned && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => closeMutation.mutate()}
-                disabled={closeMutation.isPending || conversation.state === 'closed'}
-                className="flex-1"
-              >
-                <CloseIcon className="h-4 w-4 mr-2" />
-                Close
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSnoozeDialog(true)}
-                disabled={snoozeMutation.isPending}
-                className="flex-1"
-              >
-                <Clock className="h-4 w-4 mr-2" />
-                Snooze
-              </Button>
+            <div className="px-6 pb-3">
+              <Alert className="bg-amber-50 border-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="flex items-center justify-between text-amber-800">
+                  <span className="text-sm">This ticket is unassigned. Assign it to reply to customers.</span>
+                  <Button
+                    size="sm"
+                    onClick={() => assignMutation.mutate()}
+                    disabled={assignMutation.isPending || !selectedAgent}
+                    className="ml-4 bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                  >
+                    {assignMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <UserPlus className="h-3 w-3" />
+                    )}
+                    Assign to Me
+                  </Button>
+                </AlertDescription>
+              </Alert>
             </div>
           )}
         </div>
 
-        {/* Messages - Apple Messages Style */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-1 bg-gradient-to-b from-white to-gray-50 dark:from-gray-950 dark:to-gray-900">
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-1">
           {allMessages.map((msg, index) => {
             const isCustomer = msg.author.type === 'user' || msg.author.type === 'lead';
             const isNote = msg.type === 'note';
             const messageBody = msg.body || '';
             
-            // Skip rendering if completely empty
             if (!messageBody.trim() && (!msg.attachments || msg.attachments.length === 0)) {
               return null;
             }
 
-            // Check if this message is from the same author as the previous one
             const prevMsg = index > 0 ? allMessages[index - 1] : null;
             const isSameAuthor = prevMsg && prevMsg.author.id === msg.author.id && prevMsg.type === msg.type;
             const isFirstInGroup = !isSameAuthor;
             
-            // Get initials for avatar
             const authorName = msg.author.name || 'Unknown';
             const initials = authorName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
             
             return (
               <div
                 key={index}
-                className={`flex gap-2 ${isCustomer ? 'justify-start' : 'justify-end'} ${
-                  isFirstInGroup ? 'mt-4' : 'mt-0.5'
+                className={`flex gap-3 ${isCustomer ? 'justify-start' : 'justify-end'} ${
+                  isFirstInGroup ? 'mt-6' : 'mt-1'
                 }`}
               >
-                {/* Avatar - only show for first message in group */}
                 {isCustomer && isFirstInGroup && (
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-medium shadow-sm">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-medium shadow-sm">
                     {initials}
                   </div>
                 )}
-                {isCustomer && !isFirstInGroup && (
-                  <div className="w-7" /> 
-                )}
+                {isCustomer && !isFirstInGroup && <div className="w-8" />}
 
-                <div className={`flex flex-col ${isCustomer ? 'items-start' : 'items-end'} max-w-[75%]`}>
-                  {/* Author name and timestamp - only for first message in group */}
+                <div className={`flex flex-col ${isCustomer ? 'items-start' : 'items-end'} max-w-[70%]`}>
                   {isFirstInGroup && (
-                    <div className={`flex items-center gap-2 mb-1 px-1 ${isCustomer ? 'flex-row' : 'flex-row-reverse'}`}>
-                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <div className={`flex items-center gap-2 mb-1.5 px-1 ${isCustomer ? 'flex-row' : 'flex-row-reverse'}`}>
+                      <span className="text-xs font-semibold text-gray-700">
                         {authorName}
                       </span>
                       {isNote && (
-                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-gray-300 text-gray-600">
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-amber-50 border-amber-200 text-amber-700">
                           Note
                         </Badge>
                       )}
@@ -787,15 +927,14 @@ export default function IntercomChatView({
                     </div>
                   )}
 
-                  {/* Message bubble */}
                   <div
                     className={`
-                      px-4 py-2.5 rounded-2xl shadow-sm
+                      px-4 py-3 rounded-2xl shadow-sm transition-all hover:shadow-md
                       ${isCustomer 
-                        ? 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm' 
+                        ? 'bg-white border border-gray-200 text-gray-900 rounded-tl-md' 
                         : isNote
-                        ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-100 border border-yellow-200/50 dark:border-yellow-700/50 rounded-tr-sm'
-                        : 'bg-blue-500 text-white rounded-tr-sm'
+                        ? 'bg-amber-50 text-amber-900 border border-amber-200/50 rounded-tr-md'
+                        : 'bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-md'
                       }
                       ${!isFirstInGroup && isCustomer ? 'rounded-tl-2xl' : ''}
                       ${!isFirstInGroup && !isCustomer ? 'rounded-tr-2xl' : ''}
@@ -809,7 +948,6 @@ export default function IntercomChatView({
                       />
                     )}
 
-                    {/* Attachments */}
                     {msg.attachments && msg.attachments.length > 0 && (
                       <div className={`${messageBody ? 'mt-2' : ''} space-y-1.5`}>
                         {msg.attachments.map((att: any, i: number) => (
@@ -818,10 +956,10 @@ export default function IntercomChatView({
                             href={att.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className={`flex items-center gap-2 text-xs font-medium px-2 py-1.5 rounded-lg transition-colors ${
+                            className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
                               isCustomer 
-                                ? 'bg-gray-300/50 hover:bg-gray-300 dark:bg-gray-700/50 dark:hover:bg-gray-700' 
-                                : 'bg-white/20 hover:bg-white/30'
+                                ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' 
+                                : 'bg-white/20 hover:bg-white/30 text-white'
                             }`}
                           >
                             <Paperclip className="h-3 w-3" />
@@ -833,56 +971,67 @@ export default function IntercomChatView({
                   </div>
                 </div>
 
-                {/* Avatar for agent - only show for first message in group */}
                 {!isCustomer && isFirstInGroup && (
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white text-xs font-medium shadow-sm">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-xs font-medium shadow-sm">
                     {initials}
                   </div>
                 )}
-                {!isCustomer && !isFirstInGroup && (
-                  <div className="w-7" />
-                )}
+                {!isCustomer && !isFirstInGroup && <div className="w-8" />}
               </div>
             );
           })}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Reply Box - Always show if agent is selected */}
+        {/* Reply Box */}
         {selectedAgent && (
-          <div className="p-4 border-t space-y-3">
-            <div className="flex items-center gap-2">
-              <Button
-                variant={isNote ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setIsNote(!isNote)}
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                {isNote ? 'Internal Note' : 'Reply to Customer'}
-              </Button>
-              
-              {!isAssigned && !isNote && (
-                <p className="text-xs text-muted-foreground">
-                  You can add internal notes. Assign the ticket to reply to customers.
-                </p>
-              )}
+          <div className="border-t border-gray-200 bg-white px-6 py-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={isNote ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsNote(!isNote)}
+                  className={isNote ? 'bg-amber-500 hover:bg-amber-600' : ''}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  {isNote ? 'Internal Note' : 'Reply to Customer'}
+                </Button>
+                
+                {!isAssigned && !isNote && (
+                  <p className="text-xs text-amber-600 font-medium">
+                    Assign ticket to reply to customers
+                  </p>
+                )}
+              </div>
+
+              <div className="text-xs text-gray-400">
+                Press <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-mono">⌘</kbd> + <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-mono">Enter</kbd> to send
+              </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Textarea
+                ref={messageInputRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder={isNote ? 'Add internal note...' : isAssigned ? 'Type your reply...' : 'Assign ticket to reply to customers'}
+                placeholder={isNote ? 'Add internal note...' : isAssigned ? 'Type your reply...' : 'Assign ticket first...'}
                 rows={3}
-                className="flex-1"
+                disabled={!isNote && !isAssigned}
+                className="flex-1 resize-none border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={!message.trim() || replyMutation.isPending}
+                disabled={!message.trim() || replyMutation.isPending || (!isNote && !isAssigned)}
                 size="icon"
+                className="h-10 w-10 bg-indigo-500 hover:bg-indigo-600 self-end"
               >
-                <Send className="h-4 w-4" />
+                {replyMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
