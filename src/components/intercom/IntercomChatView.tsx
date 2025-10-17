@@ -458,7 +458,7 @@ export default function IntercomChatView({
                     </span>
                   </div>
 
-                 <div
+                  <div
                     className={`rounded-lg p-3 ${
                       isCustomer
                         ? 'bg-muted'
