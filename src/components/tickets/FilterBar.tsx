@@ -16,7 +16,7 @@ export interface Filters {
   priority: string;
   category: string;
   assignedTo: string;
-  source: string; // ✅ NEW: Added source filter
+  source: string;
 }
 
 interface FilterBarProps {
@@ -33,7 +33,7 @@ export function FilterBar({ filters, onFiltersChange, agencies, assignees }: Fil
     filters.priority !== "all" ||
     filters.category !== "all" ||
     filters.assignedTo !== "all" ||
-    filters.source !== "all"; // ✅ NEW: Include source in active filters check
+    filters.source !== "all";
 
   const clearFilters = () => {
     onFiltersChange({
@@ -42,7 +42,7 @@ export function FilterBar({ filters, onFiltersChange, agencies, assignees }: Fil
       priority: "all",
       category: "all",
       assignedTo: "all",
-      source: "all", // ✅ NEW: Clear source filter
+      source: "all",
     });
   };
 
@@ -61,7 +61,7 @@ export function FilterBar({ filters, onFiltersChange, agencies, assignees }: Fil
 
       {/* Filter dropdowns */}
       <div className="flex flex-wrap gap-3">
-        {/* Source Filter - NEW */}
+        {/* Source Filter */}
         <Select
           value={filters.source}
           onValueChange={(value) => onFiltersChange({ ...filters, source: value })}
@@ -88,10 +88,12 @@ export function FilterBar({ filters, onFiltersChange, agencies, assignees }: Fil
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="open">Open</SelectItem>
-            <SelectItem value="won">In Progress</SelectItem>
-            <SelectItem value="lost">Resolved</SelectItem>
-            <SelectItem value="abandoned">Closed</SelectItem>
+            <SelectItem value="Open">Open</SelectItem>
+            <SelectItem value="In Progress">In Progress</SelectItem>
+            <SelectItem value="Escalated to Dev">Escalated to Dev</SelectItem>
+            <SelectItem value="Resolved">Resolved</SelectItem>
+            <SelectItem value="Closed">Closed</SelectItem>
+            <SelectItem value="Deleted">Deleted</SelectItem>
           </SelectContent>
         </Select>
 

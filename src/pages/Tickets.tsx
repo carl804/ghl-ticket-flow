@@ -185,7 +185,7 @@ export default function Tickets() {
     }
   };
 
-  return (
+return (
     <div className="w-full px-6 py-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col items-center gap-4">
@@ -218,7 +218,18 @@ export default function Tickets() {
             />
 
             {/* Ticket Views */}
-            {viewMode === "table" ? (
+            {viewMode === "kanban" ? (
+              // Kanban needs full width, break out of container
+              <div className="-mx-6">
+                <div className="px-6">
+                  <KanbanView
+                    tickets={filteredTickets}
+                    onTicketClick={handleTicketClick}
+                    onStatusChange={handleStatusChange}
+                  />
+                </div>
+              </div>
+            ) : viewMode === "table" ? (
               <TableView
                 tickets={filteredTickets}
                 onTicketClick={handleTicketClick}
@@ -227,12 +238,6 @@ export default function Tickets() {
                 selectedTickets={selectedTickets}
                 onSelectTicket={handleSelectTicket}
                 onSelectAll={handleSelectAll}
-              />
-            ) : viewMode === "kanban" ? (
-              <KanbanView
-                tickets={filteredTickets}
-                onTicketClick={handleTicketClick}
-                onStatusChange={handleStatusChange}
               />
             ) : (
               <CompactView
@@ -255,4 +260,3 @@ export default function Tickets() {
       </div>
     </div>
   );
-}
