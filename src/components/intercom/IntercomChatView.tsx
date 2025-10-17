@@ -478,6 +478,67 @@ export default function IntercomChatView({
   const getFilteredSnoozeOptions = () => {
     if (!snoozeInput.trim()) return snoozeOptions;
 
+    // Check if input is just a number (without unit)
+    const numberMatch = snoozeInput.match(/^(\d+)$/);
+    if (numberMatch) {
+      const value = parseInt(numberMatch[1]);
+      const now = new Date();
+      
+      const formatSnoozeTime = (date: Date) => {
+        const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) {
+          return format(date, 'h:mm a');
+        } else if (diffDays < 7) {
+          return format(date, 'EEE h:mm a');
+        } else {
+          return format(date, 'EEE, MMM d, h:mm a');
+        }
+      };
+
+      // Generate suggestions for all time units
+      const suggestions = [];
+      
+      // Minutes
+      const minuteDate = new Date(now.getTime() + value * 60 * 1000);
+      suggestions.push({
+        label: `for ${value} minute${value !== 1 ? 's' : ''}`,
+        time: formatSnoozeTime(minuteDate),
+        hours: value / 60,
+        isCustom: true
+      });
+
+      // Hours
+      const hourDate = new Date(now.getTime() + value * 60 * 60 * 1000);
+      suggestions.push({
+        label: `for ${value} hour${value !== 1 ? 's' : ''}`,
+        time: formatSnoozeTime(hourDate),
+        hours: value,
+        isCustom: true
+      });
+
+      // Days
+      const dayDate = new Date(now.getTime() + value * 24 * 60 * 60 * 1000);
+      suggestions.push({
+        label: `for ${value} day${value !== 1 ? 's' : ''}`,
+        time: formatSnoozeTime(dayDate),
+        hours: value * 24,
+        isCustom: true
+      });
+
+      // Weeks
+      const weekDate = new Date(now.getTime() + value * 7 * 24 * 60 * 60 * 1000);
+      suggestions.push({
+        label: `for ${value} week${value !== 1 ? 's' : ''}`,
+        time: formatSnoozeTime(weekDate),
+        hours: value * 168,
+        isCustom: true
+      });
+
+      return suggestions;
+    }
+
+    // If input has a unit specified, parse it
     const customDuration = parseSnoozeInput(snoozeInput);
     if (customDuration) {
       return [
@@ -488,6 +549,7 @@ export default function IntercomChatView({
       ];
     }
 
+    // Otherwise filter presets by text
     return snoozeOptions.filter(opt => 
       opt.label.toLowerCase().includes(snoozeInput.toLowerCase())
     );
