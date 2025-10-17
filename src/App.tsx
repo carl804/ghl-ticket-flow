@@ -13,7 +13,7 @@ import Index from "./pages/Index";
 import Tickets from "./pages/Tickets";
 import TicketDetail from "./pages/TicketDetail";
 import IntercomView from "./pages/IntercomView";
-import Analytics from "./pages/Analytics";
+import AnalyticsView from './components/analytics/AnalyticsView';
 import OAuthCallback from "./pages/OAuthCallback";
 import OAuthSuccess from "./pages/OAuthSuccess";
 import NotFound from "./pages/NotFound";
@@ -124,7 +124,7 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <AppLayout>
-                      <Analytics />
+                      <AnalyticsView />
                     </AppLayout>
                   </ProtectedRoute>
                 }
@@ -148,4 +148,3 @@ const App = () => {
 };
 
 export default App;
-// Force rebuild
