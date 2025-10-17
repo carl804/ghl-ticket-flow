@@ -3,7 +3,7 @@ export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Esc
 export type OpportunityStatus = "open" | "won" | "lost" | "abandoned";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
 export type TicketCategory = string;
-export type TicketSource = "Intercom" | "Email" | "Manual" | "Phone"; // ✅ NEW
+export type TicketSource = "Intercom" | "Email" | "Manual" | "Phone";
 
 export interface Ticket {
   id: string;
@@ -29,8 +29,9 @@ export interface Ticket {
   dueDate?: string;
   description?: string;
   tags?: string[];
-  ticketSource?: TicketSource; // ✅ NEW: Added ticket source field
-  intercomAgent?: string; // ✅ NEW: Intercom ticket owner (from custom field TIkNFiv8JUDvj0FMVF0E)
+  ticketSource?: TicketSource;
+  intercomAgent?: string;
+  intercomConversationId?: string; // ✅ ADDED: Intercom conversation ID for chat integration
 }
 
 export interface Stats {
@@ -50,6 +51,8 @@ export interface Stats {
   closedTrend?: number;
   deletedTrend?: number;
   resolvedTodayTrend?: number;
+  escalated?: number;
+  pendingCustomer?: number;
 }
 
 export interface FieldMap {
@@ -57,6 +60,7 @@ export interface FieldMap {
   category?: string;
   resolutionSummary?: string;
   agencyName?: string;
-  ticketSource?: string; // ✅ NEW: Added for API mapping
-  intercomAgent?: string; // ✅ NEW: Added for Intercom agent mapping
+  ticketSource?: string;
+  intercomAgent?: string;
+  intercomConversationId?: string; // ✅ ADDED
 }

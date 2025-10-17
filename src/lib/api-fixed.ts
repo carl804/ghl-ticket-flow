@@ -23,7 +23,9 @@ const CUSTOM_FIELD_IDS = {
   ticketOwner: 'VYv1QpVAAgns13227Pii',
   agencyName: '32NhsYp2R2zpExXr8TO1',
   category: 'eCjK3IHuhErwlkyWJ4Wx',
-  intercomAgent: 'TIkNFiv8JUDvj0FMVF0E', // ✅ NEW: Intercom Assigned Agent
+  intercomAgent: 'TIkNFiv8JUDvj0FMVF0E',
+  ticketSource: 'ZfA3rPJQiSU8wRuEFWYP', // ✅ NEW: Ticket Source (Intercom/Email/Manual/Phone)
+  intercomConversationId: 'gk2kXQuactrb8OdIJ3El', // ✅ NEW: Intercom Conversation ID
 };
 
 // Stage ID to name mapping
@@ -89,6 +91,8 @@ export async function initializeFieldMap(): Promise<void> {
     resolutionSummary: fields.find((f) => f.fieldKey === "resolutionSummary")?.id,
     agencyName: fields.find((f) => f.fieldKey === "agencyName")?.id,
     intercomAgent: fields.find((f) => f.fieldKey === "intercomAgent")?.id,
+    ticketSource: fields.find((f) => f.fieldKey === "ticketSource")?.id,
+    intercomConversationId: fields.find((f) => f.fieldKey === "intercomConversationId")?.id,
   };
 }
 
@@ -143,10 +147,22 @@ export async function fetchTickets(): Promise<Ticket[]> {
       const ticketOwner = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketOwner);
       const agencyName = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.agencyName);
       const category = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.category) || "General Questions";
-      const intercomAgent = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomAgent); // ✅ NEW
+      const intercomAgent = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomAgent);
+      const ticketSource = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketSource); // ✅ NEW
+      const intercomConversationId = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomConversationId); // ✅ NEW
       
       console.log('🎫 Mapping opportunity:', opp.id);
-      console.log('📋 Extracted custom fields:', { description, priority, resolutionSummary, ticketOwner, agencyName, category, intercomAgent });
+      console.log('📋 Extracted custom fields:', { 
+        description, 
+        priority, 
+        resolutionSummary, 
+        ticketOwner, 
+        agencyName, 
+        category, 
+        intercomAgent,
+        ticketSource, // ✅ NEW
+        intercomConversationId // ✅ NEW
+      });
       
       return {
         id: opp.id,
@@ -172,7 +188,9 @@ export async function fetchTickets(): Promise<Ticket[]> {
         dueDate: opp.dueDate || "",
         description: description || "",
         tags: Array.isArray(opp.contact?.tags) ? opp.contact.tags : [],
-        intercomAgent: intercomAgent || undefined, // ✅ NEW: Add Intercom agent to ticket
+        intercomAgent: intercomAgent || undefined,
+        ticketSource: ticketSource || undefined, // ✅ NEW
+        intercomConversationId: intercomConversationId || undefined, // ✅ NEW
       } as Ticket;
     });
 
@@ -315,7 +333,8 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
     customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
   }
 
-  // Note: We don't allow updating intercomAgent from the UI - it's managed by webhooks only
+  // Note: We don't allow updating intercomAgent, ticketSource, or intercomConversationId from the UI 
+  // These are managed by webhooks only
 
   if (customFields.length > 0) {
     body.customFields = customFields;
