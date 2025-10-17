@@ -175,7 +175,7 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
 
   // Check if this is an Intercom ticket
   const isIntercomTicket = ticket.ticketSource === "Intercom" || ticket.name.startsWith('[Intercom]');
-  const intercomConversationId = ticket.intercomConversationId; // We'll need to store this
+  const intercomConversationId = ticket.intercomConversationId;
   
   console.log('🔍 Debug Intercom ticket:', { 
     isIntercomTicket, 
@@ -372,25 +372,6 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
         </div>
       )}
 
-      {/* Action Buttons for Intercom tickets */}
-      {isIntercomTicket && (
-        <div className="space-y-3">
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-              setEditedTicket({ ...editedTicket, status: "Closed" });
-              handleSave();
-            }}
-          >
-            Close Ticket
-          </Button>
-          <Button variant="outline" className="w-full">
-            Snooze
-          </Button>
-        </div>
-      )}
-
       {/* Description */}
       <div>
         <Label>Description</Label>
@@ -404,24 +385,6 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
           placeholder="Ticket description..."
         />
       </div>
-
-      {/* Internal Notes - Only for Intercom tickets */}
-      {isIntercomTicket && (
-        <div>
-          <Label className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Internal Notes
-          </Label>
-          <Textarea
-            placeholder="Add internal notes (not visible to customer)..."
-            rows={4}
-            className="mt-1 bg-popover"
-          />
-          <Button size="sm" className="mt-2">
-            Add Note
-          </Button>
-        </div>
-      )}
 
       {/* Resolution Summary */}
       <div>
@@ -576,53 +539,27 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
           <SheetDescription>View and edit ticket details</SheetDescription>
         </SheetHeader>
 
-       {/* Conditional Layout */}
-{isIntercomTicket && intercomConversationId ? (
-  // Side-by-side layout for Intercom tickets
-  <div className="flex gap-6 mt-6">
-    {/* Left: Ticket Details (40%) */}
-    <div className="w-2/5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-      {ticketDetailsContent}
-    </div>
+        {/* Conditional Layout */}
+        {isIntercomTicket && intercomConversationId ? (
+          // Side-by-side layout for Intercom tickets
+          <div className="flex gap-6 mt-6">
+            {/* Left: Ticket Details (40%) */}
+            <div className="w-2/5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+              {ticketDetailsContent}
+            </div>
 
-    {/* Right: Intercom Chat View (60%) */}
-    <div className="w-3/5 border-l pl-6">
-      <IntercomChatView 
-        conversationId={intercomConversationId}
-        ticketId={ticket.id}
-        currentAssignee={ticket.assignedTo}
-        onClose={() => onOpenChange(false)}
-        onAssignmentChange={(assignee) => {
-          // Update ticket assignee in GHL
-          setEditedTicket({ ...editedTicket, assignedTo: assignee });
-          handleSave();
-        }}
-      />
-    </div>
-  </div>
-) : (
-  // Full-width layout for non-Intercom tickets
-  ticketDetailsContent
-)}
-
-            {/* Right: Intercom Iframe (60%) */}
+            {/* Right: Intercom Chat View (60%) */}
             <div className="w-3/5 border-l pl-6">
-              <div className="h-full flex flex-col">
-                <div className="mb-4">
-                  <h3 className="font-semibold text-lg">Intercom Conversation</h3>
-                  <p className="text-sm text-muted-foreground">View and reply to customer messages</p>
-                </div>
-                
-                <div className="flex-1 bg-muted/20 rounded-lg border overflow-hidden">
-                  <iframe
-                    src={`https://app.intercom.com/a/inbox/bqo45ebi/inbox/shared/all/conversation/${intercomConversationId}`}
-                    className="w-full h-full"
-                    style={{ minHeight: "70vh" }}
-                    title="Intercom Conversation"
-                    allow="clipboard-write"
-                  />
-                </div>
-              </div>
+              <IntercomChatView 
+                conversationId={intercomConversationId}
+                ticketId={ticket.id}
+                currentAssignee={ticket.assignedTo}
+                onClose={() => onOpenChange(false)}
+                onAssignmentChange={(assignee) => {
+                  setEditedTicket({ ...editedTicket, assignedTo: assignee });
+                  handleSave();
+                }}
+              />
             </div>
           </div>
         ) : (
