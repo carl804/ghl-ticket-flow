@@ -25,6 +25,7 @@ import {
   Search
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
@@ -58,13 +59,54 @@ function getSnoozeOptions() {
   
   const oneMonth = new Date(now);
   oneMonth.setMonth(now.getMonth() + 1);
+
+  const formatSnoozeTime = (date: Date) => {
+    const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      // Today - just show time
+      return format(date, 'h:mm a');
+    } else if (diffDays < 7) {
+      // This week - show day and time
+      return format(date, 'EEE h:mm a');
+    } else {
+      // Further out - show full date and time
+      return format(date, 'EEE, MMM d, h:mm a');
+    }
+  };
   
   return [
-    { label: 'Later today', hours: 4 },
-    { label: 'Tomorrow', hours: Math.round((tomorrow.getTime() - now.getTime()) / (1000 * 60 * 60)) },
-    { label: 'Monday', hours: Math.round((nextMonday.getTime() - now.getTime()) / (1000 * 60 * 60)), hide: now.getDay() === 1 },
-    { label: 'One week', hours: 168 },
-    { label: 'One month', hours: 720 },
+    { 
+      label: 'for 5 minutes',
+      time: formatSnoozeTime(new Date(now.getTime() + 5 * 60 * 1000)),
+      hours: 5 / 60 
+    },
+    { 
+      label: 'for 4 hours',
+      time: formatSnoozeTime(laterToday),
+      hours: 4 
+    },
+    { 
+      label: 'for 1 day',
+      time: formatSnoozeTime(tomorrow),
+      hours: Math.round((tomorrow.getTime() - now.getTime()) / (1000 * 60 * 60)) 
+    },
+    { 
+      label: 'for 1 week',
+      time: formatSnoozeTime(nextMonday),
+      hours: Math.round((nextMonday.getTime() - now.getTime()) / (1000 * 60 * 60)),
+      hide: now.getDay() === 1 
+    },
+    { 
+      label: 'for 1 week',
+      time: formatSnoozeTime(oneWeek),
+      hours: 168 
+    },
+    { 
+      label: 'for 1 month',
+      time: formatSnoozeTime(oneMonth),
+      hours: 720 
+    },
   ].filter(opt => !opt.hide);
 }
 
@@ -387,7 +429,7 @@ export default function IntercomChatView({
   const snoozeOptions = getSnoozeOptions();
 
   // Parse snooze input for custom duration
-  const parseSnoozeInput = (input: string): { hours: number; label: string } | null => {
+  const parseSnoozeInput = (input: string): { hours: number; label: string; time: string } | null => {
     const match = input.match(/^(\d+)\s*(m|h|d|w|min|mins|minute|minutes|hour|hours|day|days|week|weeks)?$/i);
     if (!match) return null;
 
@@ -396,22 +438,40 @@ export default function IntercomChatView({
 
     let hours = 0;
     let label = '';
+    const now = new Date();
+    let snoozeUntil = new Date(now);
 
     if (unit.startsWith('m')) {
       hours = value / 60;
-      label = `${value} minute${value !== 1 ? 's' : ''}`;
+      label = `for ${value} minute${value !== 1 ? 's' : ''}`;
+      snoozeUntil.setMinutes(now.getMinutes() + value);
     } else if (unit.startsWith('h')) {
       hours = value;
-      label = `${value} hour${value !== 1 ? 's' : ''}`;
+      label = `for ${value} hour${value !== 1 ? 's' : ''}`;
+      snoozeUntil.setHours(now.getHours() + value);
     } else if (unit.startsWith('d')) {
       hours = value * 24;
-      label = `${value} day${value !== 1 ? 's' : ''}`;
+      label = `for ${value} day${value !== 1 ? 's' : ''}`;
+      snoozeUntil.setDate(now.getDate() + value);
     } else if (unit.startsWith('w')) {
       hours = value * 168;
-      label = `${value} week${value !== 1 ? 's' : ''}`;
+      label = `for ${value} week${value !== 1 ? 's' : ''}`;
+      snoozeUntil.setDate(now.getDate() + (value * 7));
     }
 
-    return hours > 0 ? { hours, label } : null;
+    const formatSnoozeTime = (date: Date) => {
+      const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        return format(date, 'h:mm a');
+      } else if (diffDays < 7) {
+        return format(date, 'EEE h:mm a');
+      } else {
+        return format(date, 'EEE, MMM d, h:mm a');
+      }
+    };
+
+    return hours > 0 ? { hours, label, time: formatSnoozeTime(snoozeUntil) } : null;
   };
 
   // Get filtered snooze suggestions based on input
@@ -508,18 +568,23 @@ export default function IntercomChatView({
                 <Button
                   key={index}
                   variant="outline"
-                  className="w-full justify-start"
+                  className="w-full justify-between h-auto py-3"
                   onClick={() => {
                     snoozeMutation.mutate({ hours: option.hours, label: option.label });
                     setSnoozeInput('');
                   }}
                   disabled={snoozeMutation.isPending}
                 >
-                  <Clock className="h-4 w-4 mr-2" />
-                  {option.label}
-                  {(option as any).isCustom && (
-                    <span className="ml-auto text-xs text-muted-foreground">Custom</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <span>{option.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{option.time}</span>
+                    {(option as any).isCustom && (
+                      <Badge variant="secondary" className="text-xs">Custom</Badge>
+                    )}
+                  </div>
                 </Button>
               ))}
               
