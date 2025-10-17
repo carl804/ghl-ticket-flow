@@ -507,8 +507,8 @@ export default function IntercomChatView({
           )}
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Messages - Apple Messages Style */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-1 bg-gradient-to-b from-white to-gray-50 dark:from-gray-950 dark:to-gray-900">
           {allMessages.map((msg, index) => {
             const isCustomer = msg.author.type === 'user' || msg.author.type === 'lead';
             const isNote = msg.type === 'note';
@@ -518,70 +518,105 @@ export default function IntercomChatView({
             if (!messageBody.trim() && (!msg.attachments || msg.attachments.length === 0)) {
               return null;
             }
+
+            // Check if this message is from the same author as the previous one
+            const prevMsg = index > 0 ? allMessages[index - 1] : null;
+            const isSameAuthor = prevMsg && prevMsg.author.id === msg.author.id && prevMsg.type === msg.type;
+            const isFirstInGroup = !isSameAuthor;
+            
+            // Get initials for avatar
+            const authorName = msg.author.name || 'Unknown';
+            const initials = authorName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
             
             return (
               <div
                 key={index}
-                className={`flex gap-3 ${isCustomer ? '' : 'flex-row-reverse'} ${
-                  isNote ? 'opacity-70' : ''
+                className={`flex gap-2 ${isCustomer ? 'justify-start' : 'justify-end'} ${
+                  isFirstInGroup ? 'mt-4' : 'mt-0.5'
                 }`}
               >
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>
-                    {isCustomer ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className={`flex-1 max-w-[70%] ${isCustomer ? '' : 'items-end'}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium">
-                      {msg.author.name || 'Unknown'}
-                    </span>
-                    {isNote && (
-                      <Badge variant="secondary" className="text-xs">
-                        Internal Note
-                      </Badge>
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(msg.created_at * 1000), { addSuffix: true })}
-                    </span>
+                {/* Avatar - only show for first message in group */}
+                {isCustomer && isFirstInGroup && (
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-medium shadow-sm">
+                    {initials}
                   </div>
+                )}
+                {isCustomer && !isFirstInGroup && (
+                  <div className="w-7" /> 
+                )}
 
+                <div className={`flex flex-col ${isCustomer ? 'items-start' : 'items-end'} max-w-[75%]`}>
+                  {/* Author name and timestamp - only for first message in group */}
+                  {isFirstInGroup && (
+                    <div className={`flex items-center gap-2 mb-1 px-1 ${isCustomer ? 'flex-row' : 'flex-row-reverse'}`}>
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                        {authorName}
+                      </span>
+                      {isNote && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-gray-300 text-gray-600">
+                          Note
+                        </Badge>
+                      )}
+                      <span className="text-[10px] text-gray-400">
+                        {formatDistanceToNow(new Date(msg.created_at * 1000), { addSuffix: true })}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Message bubble */}
                   <div
-                    className={`rounded-lg p-3 ${
-                      isCustomer
-                        ? 'bg-muted'
+                    className={`
+                      px-4 py-2.5 rounded-2xl shadow-sm
+                      ${isCustomer 
+                        ? 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm' 
                         : isNote
-                        ? 'bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800'
-                        : 'bg-primary text-primary-foreground'
-                    }`}
+                        ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-100 border border-yellow-200/50 dark:border-yellow-700/50 rounded-tr-sm'
+                        : 'bg-blue-500 text-white rounded-tr-sm'
+                      }
+                      ${!isFirstInGroup && isCustomer ? 'rounded-tl-2xl' : ''}
+                      ${!isFirstInGroup && !isCustomer ? 'rounded-tr-2xl' : ''}
+                    `}
                   >
                     {messageBody && (
                       <div
-                        className="text-sm whitespace-pre-wrap prose prose-sm max-w-none"
+                        className={`text-[15px] leading-relaxed ${isCustomer ? 'prose-gray' : isNote ? 'prose-yellow' : 'prose-white'} prose prose-sm max-w-none [&>p]:my-0 [&>p]:leading-relaxed`}
                         dangerouslySetInnerHTML={{ __html: messageBody }}
                       />
                     )}
 
                     {/* Attachments */}
                     {msg.attachments && msg.attachments.length > 0 && (
-                      <div className="mt-2 space-y-2">
+                      <div className={`${messageBody ? 'mt-2' : ''} space-y-1.5`}>
                         {msg.attachments.map((att: any, i: number) => (
                           <a
                             key={i}
                             href={att.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-xs underline"
+                            className={`flex items-center gap-2 text-xs font-medium px-2 py-1.5 rounded-lg transition-colors ${
+                              isCustomer 
+                                ? 'bg-gray-300/50 hover:bg-gray-300 dark:bg-gray-700/50 dark:hover:bg-gray-700' 
+                                : 'bg-white/20 hover:bg-white/30'
+                            }`}
                           >
                             <Paperclip className="h-3 w-3" />
-                            {att.name}
+                            <span className="truncate">{att.name}</span>
                           </a>
                         ))}
                       </div>
                     )}
                   </div>
                 </div>
+
+                {/* Avatar for agent - only show for first message in group */}
+                {!isCustomer && isFirstInGroup && (
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white text-xs font-medium shadow-sm">
+                    {initials}
+                  </div>
+                )}
+                {!isCustomer && !isFirstInGroup && (
+                  <div className="w-7" />
+                )}
               </div>
             );
           })}
