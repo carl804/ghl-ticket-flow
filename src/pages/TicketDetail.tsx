@@ -48,8 +48,6 @@ const statusConfig: Record<TicketStatus, { color: string }> = {
   "Pending Customer": { color: "bg-status-pending text-white" },
   Resolved: { color: "bg-status-resolved text-white" },
   Closed: { color: "bg-gray-500 text-white" },
-  "Escalated to Dev": { color: "bg-orange-500 text-white" },  // ADD THIS
-  Deleted: { color: "bg-red-500 text-white" },  // ADD THIS
 };
 
 export default function TicketDetail() {
@@ -146,12 +144,6 @@ export default function TicketDetail() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-2xl">{ticket.name}</CardTitle>
-                  {isIntercomTicket && (
-                    <Badge variant="outline" className="gap-1">
-                      <MessageSquare className="h-3 w-3" />
-                      Intercom
-                    </Badge>
-                  )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge className={statusConfig[ticket.status]?.color || statusConfig.Open.color}>
