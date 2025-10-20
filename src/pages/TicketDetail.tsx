@@ -93,7 +93,16 @@ export default function TicketDetail() {
 
   if (!ticket) {
     return (
-      <div className="min-h-screen bg-dashboard-bg p-6 flex items-center justify-center">
+      <div 
+        className="min-h-screen p-6 flex items-center justify-center"
+        style={{
+          background: `
+            radial-gradient(at 0% 0%, #e0f2fe 0%, transparent 50%),
+            radial-gradient(at 100% 100%, #ede9fe 0%, transparent 50%),
+            #ffffff
+          `
+        }}
+      >
         <Card className="max-w-md w-full">
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground mb-4">Ticket not found</p>
@@ -109,7 +118,16 @@ export default function TicketDetail() {
   const intercomConversationId = ticket.intercomConversationId;
 
   return (
-    <div className="min-h-screen bg-dashboard-bg p-6">
+    <div 
+      className="min-h-screen p-6"
+      style={{
+        background: `
+          radial-gradient(at 0% 0%, #e0f2fe 0%, transparent 50%),
+          radial-gradient(at 100% 100%, #ede9fe 0%, transparent 50%),
+          #ffffff
+        `
+      }}
+    >
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
