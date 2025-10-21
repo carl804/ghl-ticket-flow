@@ -34,8 +34,19 @@ export function ThemeProvider({
 
   useEffect(() => {
     const root = window.document.documentElement;
+    
+    // Disable transitions temporarily
+    root.classList.add('[&_*]:!transition-none');
     root.classList.remove("light", "dark");
     root.classList.add(theme);
+    
+    // Force a reflow to apply the transition-none class
+    void root.offsetHeight;
+    
+    // Re-enable transitions after a brief delay
+    setTimeout(() => {
+      root.classList.remove('[&_*]:!transition-none');
+    }, 0);
   }, [theme]);
 
   const value = {
@@ -65,4 +76,4 @@ export const useTheme = () => {
     throw new Error("useTheme must be used within a ThemeProvider");
 
   return context;
-};
+}
