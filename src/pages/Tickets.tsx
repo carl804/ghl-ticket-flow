@@ -197,15 +197,12 @@ export default function Tickets() {
   };
 
   return (
-    <div 
-      className="min-h-screen"
-      style={{ background: '#1a1d29' }}
-    >
+    <div className="min-h-screen bg-background">
       {viewMode === "kanban" ? (
         // Full width layout for Kanban
         <div className="w-full px-6 py-6">
           <div className="flex flex-col items-center gap-4 mb-6">
-            <h1 className="text-2xl font-bold text-white">Tickets</h1>
+            <h1 className="text-2xl font-bold text-foreground">Tickets</h1>
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
               <TabsList>
                 <TabsTrigger value="table">Table</TabsTrigger>
@@ -221,7 +218,7 @@ export default function Tickets() {
 
           {isLoading ? (
             <div className="flex justify-center py-20">
-              <Loader2 className="h-6 w-6 animate-spin text-white" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : (
             <>
@@ -255,7 +252,7 @@ export default function Tickets() {
         <div className="w-full px-6 py-6">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex flex-col items-center gap-4">
-              <h1 className="text-2xl font-bold text-white">Tickets</h1>
+              <h1 className="text-2xl font-bold text-foreground">Tickets</h1>
               <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
                 <TabsList>
                   <TabsTrigger value="table">Table</TabsTrigger>
@@ -269,7 +266,7 @@ export default function Tickets() {
 
             {isLoading ? (
               <div className="flex justify-center py-20">
-                <Loader2 className="h-6 w-6 animate-spin text-white" />
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
             ) : (
               <>

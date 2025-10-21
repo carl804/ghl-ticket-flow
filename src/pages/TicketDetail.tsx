@@ -95,10 +95,7 @@ export default function TicketDetail() {
 
   if (!ticket) {
     return (
-      <div 
-        className="min-h-screen p-6 flex items-center justify-center"
-        style={{ background: '#1a1d29' }}
-      >
+      <div className="min-h-screen p-6 flex items-center justify-center bg-background">
         <Card className="max-w-md w-full">
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground mb-4">Ticket not found</p>
@@ -114,14 +111,11 @@ export default function TicketDetail() {
   const intercomConversationId = ticket.intercomConversationId;
 
   return (
-    <div 
-      className="min-h-screen p-6"
-      style={{ background: '#1a1d29' }}
-    >
+    <div className="min-h-screen p-6 bg-background">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate("/tickets")} className="text-white hover:text-white">
+          <Button variant="ghost" onClick={() => navigate("/tickets")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Tickets
           </Button>
