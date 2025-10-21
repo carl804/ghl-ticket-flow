@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ErrorLog from "@/components/ErrorLog";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { getAccessToken } from "@/integrations/ghl/oauth";
 
 import Index from "./pages/Index";
@@ -62,7 +63,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (status === "checking") {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-gray-500">Checking authentication…</p>
+        <p className="text-muted-foreground">Checking authentication…</p>
       </div>
     );
   }
@@ -73,57 +74,59 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 const App = () => {
   try {
     return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          {/* Toast systems */}
-          <Toaster />
-          <Sonner />
-          <ErrorLog />
-          <BrowserRouter>
-            <Routes>
-              {/* Public routes - no sidebar */}
-              <Route path="/" element={<Index />} />
-              <Route path="/callback" element={<OAuthCallback />} />
-              <Route path="/oauth/callback" element={<OAuthCallback />} />
-              <Route path="/oauth/success" element={<OAuthSuccess />} />
-              
-              {/* Protected routes - with sidebar */}
-              <Route
-                path="/tickets"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <Tickets />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/tickets/:id"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <TicketDetail />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/analytics"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <AnalyticsView />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-              
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
+      <ThemeProvider defaultTheme="light" storageKey="hp-ticketing-theme">
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            {/* Toast systems */}
+            <Toaster />
+            <Sonner />
+            <ErrorLog />
+            <BrowserRouter>
+              <Routes>
+                {/* Public routes - no sidebar */}
+                <Route path="/" element={<Index />} />
+                <Route path="/callback" element={<OAuthCallback />} />
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
+                <Route path="/oauth/success" element={<OAuthSuccess />} />
+                
+                {/* Protected routes - with sidebar */}
+                <Route
+                  path="/tickets"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Tickets />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tickets/:id"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <TicketDetail />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/analytics"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <AnalyticsView />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
     );
   } catch (error) {
     console.error("App render error:", error);

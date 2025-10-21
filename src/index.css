@@ -2,43 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Premium Dark Theme Design System - Hot Prospector Edition
-   All colors MUST be HSL format for consistency
+/* Production-Ready Theme System - Hot Prospector Ticketing
+   Light mode default, dark mode optional
+   All colors in HSL format for consistency
 */
 
 @layer base {
   :root {
-    /* Light mode (keeping your original) */
-    --background: 0 0% 100%;
-    --foreground: 217 33% 17%;
+    /* ===== LIGHT THEME (DEFAULT) ===== */
+    
+    /* Backgrounds - Clean, professional white/grays */
+    --background: 0 0% 100%;                /* #FFFFFF - Page background */
+    --foreground: 222 47% 11%;              /* #1a1f2e - Text */
 
-    --card: 0 0% 100%;
-    --card-foreground: 217 33% 17%;
-
+    /* Cards & Surfaces - Subtle elevation */
+    --card: 0 0% 100%;                      /* #FFFFFF - Card background */
+    --card-foreground: 222 47% 11%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 217 33% 17%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 217 91% 60%;
+    /* Hot Prospector Blue - Primary Brand Color */
+    --primary: 214 92% 62%;                 /* #4890F8 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 214 32% 91%;
-    --secondary-foreground: 217 33% 17%;
+    /* Secondary surfaces */
+    --secondary: 214 32% 96%;               /* Light blue-gray */
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 214 32% 91%;
-    --muted-foreground: 215 16% 47%;
+    /* Muted elements */
+    --muted: 214 32% 96%;
+    --muted-foreground: 215 16% 47%;        /* Mid gray */
 
-    --accent: 217 91% 60%;
+    /* Accent - Brand blue */
+    --accent: 214 92% 62%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 88%;
-    --input: 214 32% 88%;
-    --ring: 217 91% 60%;
+    /* Borders & Inputs */
+    --border: 214 32% 91%;                  /* Light border */
+    --input: 214 32% 96%;
+    --ring: 214 92% 62%;                    /* Focus ring */
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;                      /* 12px default radius */
 
+    /* Status colors - Vibrant but professional */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
     
@@ -48,58 +58,58 @@
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
     
-    --status-resolved: 142 76% 36%;
-    --status-pending: 38 92% 50%;
-    --status-in-progress: 217 91% 60%;
-    --status-closed: 215 16% 47%;
+    /* Ticket statuses */
+    --status-open: 214 92% 62%;             /* Hot Prospector Blue */
+    --status-in-progress: 38 92% 50%;       /* Orange */
+    --status-pending: 280 87% 65%;          /* Purple */
+    --status-resolved: 142 76% 36%;         /* Green */
+    --status-closed: 215 16% 47%;           /* Gray */
+    --status-escalated: 0 84% 60%;          /* Red */
     
+    /* Priority colors */
     --priority-urgent: 0 84% 60%;
     --priority-high: 25 95% 53%;
     --priority-medium: 38 92% 50%;
     --priority-low: 142 76% 45%;
 
-    --dashboard-bg: 0 0% 98%;
-    --status-open: 215 16% 47%;
-    --kanban-column: 0 0% 100%;
-    --drag-hover: 217 91% 60% / 0.1;
-
+    /* Layout specific */
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 214 92% 62%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 32% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 214 92% 62%;
   }
 
   .dark {
-    /* ===== PREMIUM DARK THEME - ENHANCED ===== */
+    /* ===== DARK THEME ===== */
     
-    /* Base backgrounds - Deep navy like Karciz */
-    --background: 222 28% 15%;              /* #1e2532 - Main background (darker) */
-    --foreground: 0 0% 98%;                 /* #FAFAFA - Text (brighter) */
+    /* Backgrounds - Professional dark navy */
+    --background: 222 28% 15%;              /* #1e2532 - Main background */
+    --foreground: 0 0% 98%;                 /* #FAFAFA - Text */
 
-    /* Card styling - Professional depth */
-    --card: 222 28% 19%;                    /* #262d3d - Card background */
-    --card-foreground: 0 0% 98%;            /* Bright white text */
+    /* Cards - Elevated surfaces */
+    --card: 222 28% 19%;                    /* #262d3d */
+    --card-foreground: 0 0% 98%;
 
     --popover: 222 28% 19%;
     --popover-foreground: 0 0% 98%;
 
-    /* Hot Prospector Blue - Primary accent (keeping your color) */
-    --primary: 214 92% 62%;                 /* #4890F8 - Hot Prospector Blue */
+    /* Hot Prospector Blue - Stays same */
+    --primary: 214 92% 62%;                 /* #4890F8 */
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary elements - Elevated surfaces */
-    --secondary: 222 28% 23%;               /* #2d3748 - Lighter than cards */
+    /* Secondary surfaces */
+    --secondary: 222 28% 23%;               /* #2d3748 */
     --secondary-foreground: 0 0% 98%;
 
-    /* Muted elements - For less emphasis */
+    /* Muted elements */
     --muted: 222 28% 23%;
-    --muted-foreground: 215 20% 65%;        /* #8B95A8 - Muted gray text */
+    --muted-foreground: 215 20% 65%;        /* Light gray text */
 
-    /* Accent - Using Hot Prospector Blue */
+    /* Accent */
     --accent: 214 92% 62%;
     --accent-foreground: 0 0% 100%;
 
@@ -107,73 +117,41 @@
     --destructive-foreground: 0 0% 100%;
 
     /* Borders - Subtle on dark */
-    --border: 222 28% 25%;                  /* Subtle border */
-    --input: 222 28% 19%;                   /* Input background */
-    --ring: 214 92% 62%;                    /* Hot Prospector Blue focus ring */
-    
-    /* Status colors - Vibrant for dark backgrounds */
-    --success: 142 71% 45%;                 /* Brighter green */
+    --border: 222 28% 25%;
+    --input: 222 28% 19%;
+    --ring: 214 92% 62%;
+
+    /* Status colors - More vibrant for dark */
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
     
-    --warning: 45 93% 47%;                  /* Brighter yellow */
+    --warning: 45 93% 47%;
     --warning-foreground: 0 0% 100%;
     
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
     
-    --status-resolved: 142 71% 45%;         /* Green */
-    --status-pending: 280 87% 65%;          /* Purple */
-    --status-in-progress: 38 92% 50%;       /* Orange */
-    --status-open: 214 92% 62%;             /* Hot Prospector Blue */
-    --status-closed: 215 15% 50%;           /* Gray */
-    --status-escalated: 0 84% 60%;          /* Red */
+    --status-open: 214 92% 62%;
+    --status-in-progress: 38 92% 50%;
+    --status-pending: 280 87% 65%;
+    --status-resolved: 142 71% 45%;
+    --status-closed: 215 15% 50%;
+    --status-escalated: 0 84% 60%;
     
-    /* Priority colors - High contrast */
-    --priority-urgent: 0 84% 60%;           /* Red */
-    --priority-high: 25 95% 53%;            /* Orange */
-    --priority-medium: 45 93% 47%;          /* Yellow */
-    --priority-low: 142 71% 45%;            /* Green */
+    --priority-urgent: 0 84% 60%;
+    --priority-high: 25 95% 53%;
+    --priority-medium: 45 93% 47%;
+    --priority-low: 142 71% 45%;
 
-    /* Dashboard specific - Premium dark */
-    --dashboard-bg: 222 28% 15%;            /* Match main background */
-    --kanban-column: 222 28% 17%;           /* Slightly lighter for columns */
-    --drag-hover: 214 92% 62% / 0.2;        /* Blue glow on hover */
-
-    /* Sidebar - Dark with Hot Prospector Blue accents */
-    --sidebar-background: 222 28% 13%;      /* Even darker for sidebar */
+    /* Sidebar dark */
+    --sidebar-background: 222 28% 13%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 214 92% 62%;         /* Hot Prospector Blue */
+    --sidebar-primary: 214 92% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 222 28% 19%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 222 28% 20%;
     --sidebar-ring: 214 92% 62%;
-
-    /* ===== ADDITIONAL PREMIUM VARIABLES ===== */
-    
-    /* Elevated surfaces */
-    --elevated: 222 28% 21%;                /* For hover states */
-    --elevated-hover: 222 28% 25%;
-    
-    /* Shadows for depth */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.5);
-    --shadow-blue: 0 10px 30px -5px rgb(72 144 248 / 0.3);
-    
-    /* Category colors */
-    --category-billing: 280 87% 65%;        /* Purple */
-    --category-tech: 214 92% 62%;           /* Hot Prospector Blue */
-    --category-sales: 173 58% 39%;          /* Teal */
-    --category-onboarding: 142 71% 45%;     /* Green */
-    --category-outage: 0 84% 60%;           /* Red */
-    --category-general: 215 15% 50%;        /* Gray */
-    
-    /* Text hierarchy */
-    --text-primary: 0 0% 98%;
-    --text-secondary: 215 20% 65%;
-    --text-tertiary: 215 15% 50%;
   }
 }
 
@@ -188,90 +166,29 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
-  /* Premium dark scrollbars */
-  .dark ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+
+  /* Professional scrollbars */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
   }
   
-  .dark ::-webkit-scrollbar-track {
-    background: hsl(var(--background));
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
   }
   
-  .dark ::-webkit-scrollbar-thumb {
-    background: hsl(var(--elevated));
-    border-radius: 4px;
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted rounded-lg;
   }
   
-  .dark ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--elevated-hover));
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
   }
 }
 
 @layer utilities {
-  /* Premium card styling */
-  .card-dark {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    box-shadow: var(--shadow-md);
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  .card-dark:hover {
-    background: hsl(var(--elevated));
-    box-shadow: var(--shadow-lg);
-  }
-  
-  /* Glassmorphism effect */
-  .glass {
-    background: hsl(var(--card) / 0.8);
-    backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--border));
-  }
-  
-  /* Blue accent utilities */
-  .accent-blue {
-    color: hsl(var(--primary));
-  }
-  
-  .bg-accent-blue {
-    background: hsl(var(--primary));
-  }
-  
-  .border-accent-blue {
-    border-color: hsl(var(--primary));
-  }
-  
-  .glow-blue {
-    box-shadow: var(--shadow-blue);
-  }
-  
-  /* Text utilities */
-  .text-primary {
-    color: hsl(var(--text-primary));
-  }
-  
-  .text-secondary {
-    color: hsl(var(--text-secondary));
-  }
-  
-  .text-tertiary {
-    color: hsl(var(--text-tertiary));
-  }
-  
-  /* Smooth transitions */
-  .transition-smooth {
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  /* Status badge styles */
-  .status-badge {
-    @apply px-3 py-1.5 rounded-lg text-xs font-semibold text-white shadow-md;
-  }
-  
-  /* Gradient backgrounds */
-  .gradient-blue {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(214 92% 55%) 100%);
+  /* Smooth transitions for theme switching */
+  * {
+    @apply transition-colors duration-200;
   }
 }

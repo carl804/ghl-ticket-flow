@@ -1,5 +1,6 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 interface AppLayoutProps {
@@ -42,6 +43,11 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="relative min-h-screen">
+      {/* Theme Toggle - Fixed position top-right */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+
       {/* Main Content - Adjusted for sidebar */}
       <div
         className={cn(
