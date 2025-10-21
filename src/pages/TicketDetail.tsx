@@ -48,6 +48,8 @@ const statusConfig: Record<TicketStatus, { color: string }> = {
   "Pending Customer": { color: "bg-status-pending text-white" },
   Resolved: { color: "bg-status-resolved text-white" },
   Closed: { color: "bg-gray-500 text-white" },
+  Deleted: { color: "bg-gray-500 text-white" },
+  "Escalated to Dev": { color: "bg-red-600 text-white" },
 };
 
 export default function TicketDetail() {

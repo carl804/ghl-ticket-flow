@@ -13,34 +13,38 @@ interface TicketCardProps {
 const priorityConfig = {
   Low: { 
     gradient: "from-green-400 to-emerald-600",
-    glow: "shadow-green-500/30",
+    shadow: "shadow-green-500/20",
+    glow: "group-hover:shadow-green-500/30",
     icon: "🟢"
   },
   Medium: { 
     gradient: "from-yellow-400 to-amber-600",
-    glow: "shadow-yellow-500/30",
+    shadow: "shadow-yellow-500/20",
+    glow: "group-hover:shadow-yellow-500/30",
     icon: "🟡"
   },
   High: { 
     gradient: "from-orange-400 to-red-600",
-    glow: "shadow-orange-500/30",
+    shadow: "shadow-orange-500/20",
+    glow: "group-hover:shadow-orange-500/30",
     icon: "🟠"
   },
   Urgent: { 
     gradient: "from-red-500 to-rose-700",
-    glow: "shadow-red-500/50",
+    shadow: "shadow-red-500/30",
+    glow: "group-hover:shadow-red-500/40",
     icon: "🔴"
   },
 };
 
-const statusConfig: Record<string, { gradient: string; glow: string }> = {
-  Open: { gradient: "from-blue-500 to-indigo-600", glow: "shadow-blue-500/30" },
-  "In Progress": { gradient: "from-amber-500 to-orange-600", glow: "shadow-amber-500/30" },
-  "Pending Customer": { gradient: "from-purple-500 to-pink-600", glow: "shadow-purple-500/30" },
-  Resolved: { gradient: "from-emerald-500 to-teal-600", glow: "shadow-emerald-500/30" },
-  Closed: { gradient: "from-slate-500 to-gray-700", glow: "shadow-slate-500/30" },
-  "Escalated to Dev": { gradient: "from-red-600 to-rose-700", glow: "shadow-red-500/40" },
-  Deleted: { gradient: "from-gray-500 to-slate-600", glow: "shadow-gray-500/30" },
+const statusConfig: Record<string, { gradient: string; shadow: string }> = {
+  Open: { gradient: "from-blue-500 to-indigo-600", shadow: "shadow-blue-500/20" },
+  "In Progress": { gradient: "from-orange-500 to-amber-600", shadow: "shadow-orange-500/20" },
+  "Pending Customer": { gradient: "from-purple-500 to-pink-600", shadow: "shadow-purple-500/20" },
+  Resolved: { gradient: "from-emerald-500 to-teal-600", shadow: "shadow-emerald-500/20" },
+  Closed: { gradient: "from-gray-500 to-slate-700", shadow: "shadow-gray-500/20" },
+  "Escalated to Dev": { gradient: "from-red-600 to-rose-700", shadow: "shadow-red-500/30" },
+  Deleted: { gradient: "from-gray-500 to-slate-600", shadow: "shadow-gray-500/20" },
 };
 
 const categoryColors: Record<string, { gradient: string; icon: string }> = {
@@ -69,126 +73,141 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
   
   return (
     <Card 
-      className={`relative overflow-hidden backdrop-blur-sm bg-white/90 dark:bg-gray-900/90 border-0 transition-all duration-300 ${
-        isDragging 
-          ? "opacity-60 rotate-3 scale-105 shadow-2xl" 
-          : "hover:shadow-xl hover:scale-[1.02] cursor-pointer"
-      } ${priorityData.glow}`}
+      className={`
+        relative overflow-hidden group
+        bg-[hsl(var(--card))] border border-[hsl(var(--border))]
+        transition-all duration-300
+        ${isDragging 
+          ? "opacity-60 rotate-2 scale-105 shadow-2xl" 
+          : "hover:bg-[hsl(var(--elevated))] hover:shadow-xl hover:scale-[1.02] cursor-pointer"
+        }
+        ${priorityData.shadow} ${priorityData.glow}
+      `}
       onClick={onClick}
     >
-      {/* Gradient accent bar */}
-      <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${priorityData.gradient}`} />
+      {/* Gradient accent bar - thicker and more prominent */}
+      <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${priorityData.gradient}`} />
       
       {/* Intercom ticket special indicator */}
       {isIntercomTicket && (
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-3 right-3 z-10">
           <div className="relative">
-            <Sparkles className="h-4 w-4 text-indigo-500 animate-pulse" />
-            <div className="absolute -inset-1 bg-indigo-500/20 rounded-full blur" />
+            <Sparkles className="h-4 w-4 text-blue-400 animate-pulse" />
+            <div className="absolute -inset-1 bg-blue-500/20 rounded-full blur" />
           </div>
         </div>
       )}
       
-      {/* Subtle gradient overlay */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${priorityData.gradient} opacity-[0.02] group-hover:opacity-[0.05] transition-opacity`} />
+      {/* Subtle gradient overlay on hover */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${priorityData.gradient} opacity-0 group-hover:opacity-[0.03] transition-opacity duration-300`} />
       
       <CardContent className="p-5 space-y-4 relative">
         {/* Header with drag handle */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0 space-y-2.5">
+            <div className="flex items-center gap-2.5">
               <span className="text-lg">{priorityData.icon}</span>
-              <h3 className="font-bold text-base text-gray-900 dark:text-gray-100 truncate">
+              <h3 className="font-bold text-base text-[hsl(var(--text-primary))] truncate">
                 {ticket.name}
               </h3>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-lg">
+            <div className="flex items-center gap-2.5">
+              <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${priorityData.gradient} flex items-center justify-center text-white text-sm font-bold shadow-lg ${priorityData.shadow}`}>
                 {ticket.contact.name?.charAt(0) || '?'}
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{ticket.contact.name}</p>
+              <p className="text-sm text-[hsl(var(--text-secondary))] truncate font-medium">
+                {ticket.contact.name}
+              </p>
             </div>
           </div>
           
           <button
             type="button"
             {...dragHandleProps}
-            className="cursor-grab active:cursor-grabbing p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors touch-none"
+            className="cursor-grab active:cursor-grabbing p-2 hover:bg-[hsl(var(--elevated-hover))] rounded-lg transition-colors touch-none"
             onClick={(e) => e.stopPropagation()}
             aria-label="Drag to move ticket"
           >
-            <GripVertical className="h-5 w-5 text-gray-400" />
+            <GripVertical className="h-5 w-5 text-[hsl(var(--text-tertiary))]" />
           </button>
         </div>
 
-        {/* Badges with glassmorphism */}
+        {/* Badges with premium styling */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg backdrop-blur-sm bg-gradient-to-r ${statusData.gradient} text-white text-xs font-semibold shadow-lg ${statusData.glow}`}>
+          <div className={`
+            relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg 
+            bg-gradient-to-r ${statusData.gradient} 
+            text-white text-xs font-semibold shadow-lg ${statusData.shadow}
+          `}>
             <span className="relative z-10">{ticket.status}</span>
-            <div className="absolute inset-0 bg-white/20 rounded-lg" />
+            <div className="absolute inset-0 bg-white/10 rounded-lg" />
           </div>
           
-          <div className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg backdrop-blur-sm bg-gradient-to-r ${categoryData.gradient} text-white text-xs font-semibold shadow-lg`}>
+          <div className={`
+            relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg 
+            bg-gradient-to-r ${categoryData.gradient} 
+            text-white text-xs font-semibold shadow-lg
+          `}>
             <span>{categoryData.icon}</span>
             <span className="relative z-10">{ticket.category}</span>
-            <div className="absolute inset-0 bg-white/20 rounded-lg" />
+            <div className="absolute inset-0 bg-white/10 rounded-lg" />
           </div>
         </div>
 
-        {/* Contact Info with icons */}
+        {/* Contact Info with modern icons */}
         <div className="space-y-2.5 text-sm">
           {ticket.contact.email && (
-            <div className="flex items-center gap-2.5 text-gray-600 dark:text-gray-400 group/item">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-sm group-hover/item:scale-110 transition-transform">
-                <Mail className="h-3.5 w-3.5 text-white" />
+            <div className="flex items-center gap-2.5 text-[hsl(var(--text-secondary))] group/item">
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md shadow-blue-500/20 group-hover/item:scale-110 transition-transform`}>
+                <Mail className="h-4 w-4 text-white" />
               </div>
-              <span className="truncate text-xs">{ticket.contact.email}</span>
+              <span className="truncate text-xs font-medium">{ticket.contact.email}</span>
             </div>
           )}
           
           {ticket.contact.phone && (
-            <div className="flex items-center gap-2.5 text-gray-600 dark:text-gray-400 group/item">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-sm group-hover/item:scale-110 transition-transform">
-                <Phone className="h-3.5 w-3.5 text-white" />
+            <div className="flex items-center gap-2.5 text-[hsl(var(--text-secondary))] group/item">
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-md shadow-green-500/20 group-hover/item:scale-110 transition-transform`}>
+                <Phone className="h-4 w-4 text-white" />
               </div>
-              <span className="text-xs">{ticket.contact.phone}</span>
+              <span className="text-xs font-medium">{ticket.contact.phone}</span>
             </div>
           )}
           
           {ticket.agencyName && (
-            <div className="flex items-center gap-2.5 text-gray-600 dark:text-gray-400 group/item">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-sm group-hover/item:scale-110 transition-transform">
-                <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex items-center gap-2.5 text-[hsl(var(--text-secondary))] group/item">
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-500/20 group-hover/item:scale-110 transition-transform`}>
+                <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
-              <span className="truncate text-xs">{ticket.agencyName}</span>
+              <span className="truncate text-xs font-medium">{ticket.agencyName}</span>
             </div>
           )}
           
           {(ticket.assignedTo || ticket.intercomAgent) && (
-            <div className="flex items-center gap-2.5 text-gray-600 dark:text-gray-400 group/item">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center shadow-sm group-hover/item:scale-110 transition-transform">
-                <User className="h-3.5 w-3.5 text-white" />
+            <div className="flex items-center gap-2.5 text-[hsl(var(--text-secondary))] group/item">
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover/item:scale-110 transition-transform`}>
+                <User className="h-4 w-4 text-white" />
               </div>
-              <span className="truncate text-xs">{ticket.assignedTo || ticket.intercomAgent}</span>
+              <span className="truncate text-xs font-medium">{ticket.assignedTo || ticket.intercomAgent}</span>
             </div>
           )}
         </div>
 
-        {/* Description with fade effect */}
+        {/* Description with modern fade */}
         {ticket.description && (
-          <div className="relative pt-3 border-t border-gray-200/50 dark:border-gray-700/50">
-            <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed">
+          <div className="relative pt-3 border-t border-[hsl(var(--border))]">
+            <p className="text-xs text-[hsl(var(--text-secondary))] line-clamp-2 leading-relaxed">
               {ticket.description}
             </p>
-            <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white dark:from-gray-900 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-[hsl(var(--card))] to-transparent pointer-events-none" />
           </div>
         )}
       </CardContent>
       
       {/* Animated shine effect on hover */}
-      <div className="absolute inset-0 -translate-x-full hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
     </Card>
   );
 }
