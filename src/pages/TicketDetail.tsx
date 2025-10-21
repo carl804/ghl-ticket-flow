@@ -95,9 +95,7 @@ export default function TicketDetail() {
     return (
       <div 
         className="min-h-screen p-6 flex items-center justify-center"
-        style={{
-          background: '#1a1d29'
-        }}
+        style={{ background: '#1a1d29' }}
       >
         <Card className="max-w-md w-full">
           <CardContent className="py-12 text-center">
@@ -116,14 +114,12 @@ export default function TicketDetail() {
   return (
     <div 
       className="min-h-screen p-6"
-      style={{
-        background: '#1a1d29'
-      }}
+      style={{ background: '#1a1d29' }}
     >
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate("/tickets")}>
+          <Button variant="ghost" onClick={() => navigate("/tickets")} className="text-white hover:text-white">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Tickets
           </Button>

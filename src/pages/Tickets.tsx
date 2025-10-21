@@ -196,113 +196,120 @@ export default function Tickets() {
     }
   };
 
-  return viewMode === "kanban" ? (
-    // Full width layout for Kanban
-    <div className="w-full px-6 py-6">
-      <div className="flex flex-col items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Tickets</h1>
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-          <TabsList>
-            <TabsTrigger value="table">Table</TabsTrigger>
-            <TabsTrigger value="kanban">Kanban</TabsTrigger>
-            <TabsTrigger value="compact">Compact</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
-      <div className="max-w-7xl mx-auto mb-6">
-        <StatsCards stats={stats} isLoading={isLoading} />
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
-      ) : (
-        <>
-          <div className="max-w-7xl mx-auto mb-6">
-            <FilterBar
-              filters={filters}
-              onFiltersChange={setFilters}
-              agencies={agencies}
-              assignees={assignees}
-              centerFilters={true}
-            />
+  return (
+    <div 
+      className="min-h-screen"
+      style={{ background: '#1a1d29' }}
+    >
+      {viewMode === "kanban" ? (
+        // Full width layout for Kanban
+        <div className="w-full px-6 py-6">
+          <div className="flex flex-col items-center gap-4 mb-6">
+            <h1 className="text-2xl font-bold text-white">Tickets</h1>
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+              <TabsList>
+                <TabsTrigger value="table">Table</TabsTrigger>
+                <TabsTrigger value="kanban">Kanban</TabsTrigger>
+                <TabsTrigger value="compact">Compact</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
-          <KanbanView
-            tickets={filteredTickets}
-            onTicketClick={handleTicketClick}
+          <div className="max-w-7xl mx-auto mb-6">
+            <StatsCards stats={stats} isLoading={isLoading} />
+          </div>
+
+          {isLoading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="h-6 w-6 animate-spin text-white" />
+            </div>
+          ) : (
+            <>
+              <div className="max-w-7xl mx-auto mb-6">
+                <FilterBar
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  agencies={agencies}
+                  assignees={assignees}
+                  centerFilters={true}
+                />
+              </div>
+
+              <KanbanView
+                tickets={filteredTickets}
+                onTicketClick={handleTicketClick}
+                onStatusChange={handleStatusChange}
+              />
+            </>
+          )}
+
+          <TicketDetailSheet
+            ticket={selectedTicket}
+            open={sheetOpen}
+            onOpenChange={setSheetOpen}
             onStatusChange={handleStatusChange}
           />
-        </>
-      )}
-
-      <TicketDetailSheet
-        ticket={selectedTicket}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onStatusChange={handleStatusChange}
-      />
-    </div>
-  ) : (
-    // Constrained layout for Table and Compact
-    <div className="w-full px-6 py-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col items-center gap-4">
-          <h1 className="text-2xl font-bold">Tickets</h1>
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-            <TabsList>
-              <TabsTrigger value="table">Table</TabsTrigger>
-              <TabsTrigger value="kanban">Kanban</TabsTrigger>
-              <TabsTrigger value="compact">Compact</TabsTrigger>
-            </TabsList>
-          </Tabs>
         </div>
+      ) : (
+        // Constrained layout for Table and Compact
+        <div className="w-full px-6 py-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-col items-center gap-4">
+              <h1 className="text-2xl font-bold text-white">Tickets</h1>
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+                <TabsList>
+                  <TabsTrigger value="table">Table</TabsTrigger>
+                  <TabsTrigger value="kanban">Kanban</TabsTrigger>
+                  <TabsTrigger value="compact">Compact</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 
-        <StatsCards stats={stats} isLoading={isLoading} />
+            <StatsCards stats={stats} isLoading={isLoading} />
 
-        {isLoading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
-        ) : (
-          <>
-            <FilterBar
-              filters={filters}
-              onFiltersChange={setFilters}
-              agencies={agencies}
-              assignees={assignees}
-            />
-
-            {viewMode === "table" ? (
-              <TableView
-                tickets={filteredTickets}
-                onTicketClick={handleTicketClick}
-                onStatusChange={handleStatusChange}
-                onPriorityChange={handlePriorityChange}
-                selectedTickets={selectedTickets}
-                onSelectTicket={handleSelectTicket}
-                onSelectAll={handleSelectAll}
-              />
+            {isLoading ? (
+              <div className="flex justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
+              </div>
             ) : (
-              <CompactView
-                tickets={filteredTickets}
-                onTicketClick={handleTicketClick}
-                onStatusChange={handleStatusChange}
-                onPriorityChange={handlePriorityChange}
-              />
-            )}
-          </>
-        )}
+              <>
+                <FilterBar
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  agencies={agencies}
+                  assignees={assignees}
+                />
 
-        <TicketDetailSheet
-          ticket={selectedTicket}
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
-          onStatusChange={handleStatusChange}
-        />
-      </div>
+                {viewMode === "table" ? (
+                  <TableView
+                    tickets={filteredTickets}
+                    onTicketClick={handleTicketClick}
+                    onStatusChange={handleStatusChange}
+                    onPriorityChange={handlePriorityChange}
+                    selectedTickets={selectedTickets}
+                    onSelectTicket={handleSelectTicket}
+                    onSelectAll={handleSelectAll}
+                  />
+                ) : (
+                  <CompactView
+                    tickets={filteredTickets}
+                    onTicketClick={handleTicketClick}
+                    onStatusChange={handleStatusChange}
+                    onPriorityChange={handlePriorityChange}
+                  />
+                )}
+              </>
+            )}
+
+            <TicketDetailSheet
+              ticket={selectedTicket}
+              open={sheetOpen}
+              onOpenChange={setSheetOpen}
+              onStatusChange={handleStatusChange}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
