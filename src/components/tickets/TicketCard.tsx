@@ -96,10 +96,10 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
               </h3>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+              <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold border border-primary/20">
                 {ticket.contact.name?.charAt(0) || '?'}
               </div>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-sm font-medium text-foreground truncate">
                 {ticket.contact.name}
               </p>
             </div>
