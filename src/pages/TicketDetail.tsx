@@ -96,11 +96,7 @@ export default function TicketDetail() {
       <div 
         className="min-h-screen p-6 flex items-center justify-center"
         style={{
-          background: `
-            radial-gradient(at 0% 0%, #e0f2fe 0%, transparent 50%),
-            radial-gradient(at 100% 100%, #ede9fe 0%, transparent 50%),
-            #ffffff
-          `
+          background: '#1a1d29'
         }}
       >
         <Card className="max-w-md w-full">
@@ -121,11 +117,7 @@ export default function TicketDetail() {
     <div 
       className="min-h-screen p-6"
       style={{
-        background: `
-          radial-gradient(at 0% 0%, #e0f2fe 0%, transparent 50%),
-          radial-gradient(at 100% 100%, #ede9fe 0%, transparent 50%),
-          #ffffff
-        `
+        background: '#1a1d29'
       }}
     >
       <div className="max-w-7xl mx-auto space-y-6">
