@@ -25,7 +25,7 @@ interface Filters {
 export default function Tickets() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [viewMode, setViewMode] = useState<ViewMode>("kanban");
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);

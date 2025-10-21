@@ -1,0 +1,40 @@
+[1mdiff --git a/src/pages/TicketDetail.tsx b/src/pages/TicketDetail.tsx[m
+[1mindex 6e1343e..8139861 100644[m
+[1m--- a/src/pages/TicketDetail.tsx[m
+[1m+++ b/src/pages/TicketDetail.tsx[m
+[36m@@ -321,7 +321,7 @@[m [mexport default function TicketDetail() {[m
+                         <div className="flex items-center gap-2 text-sm">[m
+                           <Mail className="h-4 w-4 text-muted-foreground" />[m
+                           [m
+[31m-                            href={`mailto:${ticket.contact.email}`}[m
+[32m+[m[32m                            <a href={`mailto:${ticket.contact.email}`}[m
+                             className="text-primary hover:underline"[m
+                           >[m
+                             {ticket.contact.email}[m
+[36m@@ -332,7 +332,7 @@[m [mexport default function TicketDetail() {[m
+                         <div className="flex items-center gap-2 text-sm">[m
+                           <Phone className="h-4 w-4 text-muted-foreground" />[m
+                           [m
+[31m-                            href={`tel:${ticket.contact.phone}`}[m
+[32m+[m[32m                            <a href={`tel:${ticket.contact.phone}`}[m
+                             className="text-primary hover:underline"[m
+                           >[m
+                             {ticket.contact.phone}[m
+[36m@@ -478,7 +478,7 @@[m [mexport default function TicketDetail() {[m
+                     <div className="flex items-center gap-2 text-sm">[m
+                       <Mail className="h-4 w-4 text-muted-foreground" />[m
+                       [m
+[31m-                        href={`mailto:${ticket.contact.email}`}[m
+[32m+[m[32m                        <a href={`mailto:${ticket.contact.email}`}[m
+                         className="text-primary hover:underline"[m
+                       >[m
+                         {ticket.contact.email}[m
+[36m@@ -489,7 +489,7 @@[m [mexport default function TicketDetail() {[m
+                     <div className="flex items-center gap-2 text-sm">[m
+                       <Phone className="h-4 w-4 text-muted-foreground" />[m
+                       [m
+[31m-                        href={`tel:${ticket.contact.phone}`}[m
+[32m+[m[32m                        <a href={`tel:${ticket.contact.phone}`}[m
+                         className="text-primary hover:underline"[m
+                       >[m
+                         {ticket.contact.phone}[m
