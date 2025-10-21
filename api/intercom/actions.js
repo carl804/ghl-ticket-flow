@@ -15,6 +15,14 @@ const AGENT_INTERCOM_MAP = {
   'Mark Helton': '1755792',
 };
 
+// GHL Config
+const GHL_API_BASE = 'https://services.leadconnectorhq.com';
+const GHL_ACCESS_TOKEN = process.env.GHL_ACCESS_TOKEN || process.env.GHL_ACCESS_TOKEN_TEMP;
+const GHL_LOCATION_ID = process.env.VITE_GHL_LOCATION_ID || process.env.GHL_LOCATION_ID;
+const GHL_PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk';
+const CUSTOM_FIELD_INTERCOM_CONVERSATION_ID = 'gk2kXQuactrb8OdIJ3El';
+const CUSTOM_FIELD_INTERCOM_TICKET_OWNER = 'TIkNFiv8JUDvj0FMVF0E';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -56,7 +64,9 @@ export default async function handler(req, res) {
         snoozed_until: snoozedUntil || Math.floor(Date.now() / 1000) + (3600 * 24)
       };
     } else if (action === 'assign') {
-      // Assign conversation to admin
+      console.log(`🔄 Assigning conversation ${conversationId} to ${agentName}`);
+      
+      // Assign conversation to admin in Intercom
       const assignResponse = await fetch(
         `https://api.intercom.io/conversations/${conversationId}`,
         {
@@ -79,6 +89,77 @@ export default async function handler(req, res) {
       }
 
       const assignData = await assignResponse.json();
+      console.log('✅ Assigned in Intercom');
+
+      // ✅ NOW UPDATE GHL OPPORTUNITY
+      if (agentName && GHL_ACCESS_TOKEN) {
+        try {
+          console.log('🔍 Searching for GHL ticket...');
+          
+          // Search for ticket by Intercom conversation ID
+          const searchUrl = `${GHL_API_BASE}/opportunities/search?location_id=${GHL_LOCATION_ID}&pipeline_id=${GHL_PIPELINE_ID}`;
+          const searchResponse = await fetch(searchUrl, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+              'Content-Type': 'application/json',
+              Version: '2021-07-28',
+            },
+          });
+
+          if (!searchResponse.ok) {
+            throw new Error('GHL search failed');
+          }
+
+          const searchData = await searchResponse.json();
+          
+          // Find ticket with matching Intercom conversation ID
+          const matchingTicket = searchData.opportunities?.find(opp => {
+            const intercomIdField = opp.customFields?.find(
+              field => field.id === CUSTOM_FIELD_INTERCOM_CONVERSATION_ID
+            );
+            const ticketIntercomId = intercomIdField?.fieldValueString || intercomIdField?.value;
+            return ticketIntercomId === conversationId;
+          });
+
+          if (matchingTicket) {
+            console.log(`✅ Found ticket: ${matchingTicket.id}`);
+            
+            // Update Intercom Ticket Owner custom field
+            const updateResponse = await fetch(
+              `${GHL_API_BASE}/opportunities/${matchingTicket.id}`,
+              {
+                method: 'PUT',
+                headers: {
+                  Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+                  'Content-Type': 'application/json',
+                  Version: '2021-07-28',
+                },
+                body: JSON.stringify({
+                  customFields: [
+                    {
+                      id: CUSTOM_FIELD_INTERCOM_TICKET_OWNER,
+                      field_value: agentName,
+                    },
+                  ],
+                }),
+              }
+            );
+
+            if (updateResponse.ok) {
+              console.log(`✅ Updated GHL ticket owner to: ${agentName}`);
+            } else {
+              console.error('❌ Failed to update GHL');
+            }
+          } else {
+            console.warn('⚠️ No GHL ticket found');
+          }
+        } catch (ghlError) {
+          console.error('❌ GHL update error:', ghlError);
+          // Don't fail - Intercom assignment succeeded
+        }
+      }
+
       return res.status(200).json({ success: true, data: assignData });
     } else {
       return res.status(400).json({ error: 'Invalid action' });
