@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, MessageSquare, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutGrid, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
@@ -25,11 +25,6 @@ export function Sidebar({ className }: SidebarProps) {
       icon: LayoutGrid,
       label: "Tickets",
       path: "/tickets",
-    },
-    {
-      icon: MessageSquare,
-      label: "Intercom",
-      path: "/intercom",
     },
     {
       icon: BarChart3,
@@ -72,7 +67,7 @@ export function Sidebar({ className }: SidebarProps) {
         {menuItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
-
+          
           return (
             <button
               key={item.path}
