@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, ArrowUpDown } from "lucide-react";
+import { MoreHorizontal, ArrowUpDown, User, Mail, Phone, Building2 } from "lucide-react";
 import type { Ticket, TicketStatus, TicketPriority } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
 
@@ -34,19 +34,32 @@ type SortField = "name" | "status" | "priority" | "createdAt" | "assignedTo";
 type SortDirection = "asc" | "desc";
 
 const priorityConfig = {
-  Low: { color: "bg-priority-low/10 text-priority-low border-priority-low/20" },
-  Medium: { color: "bg-priority-medium/10 text-priority-medium border-priority-medium/20" },
-  High: { color: "bg-priority-high/10 text-priority-high border-priority-high/20" },
-  Urgent: { color: "bg-priority-urgent/10 text-priority-urgent border-priority-urgent/20" },
+  Low: { 
+    color: "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400",
+    dot: "bg-green-500"
+  },
+  Medium: { 
+    color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/50 dark:text-yellow-400",
+    dot: "bg-yellow-500"
+  },
+  High: { 
+    color: "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400",
+    dot: "bg-orange-500"
+  },
+  Urgent: { 
+    color: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400",
+    dot: "bg-red-500"
+  },
 };
 
-const statusConfig = {
-  Open: { color: "bg-blue-600 text-white" },
-  "In Progress": { color: "bg-yellow-600 text-white" },
-  "Escalated to Dev": { color: "bg-red-600 text-white" },  // ← ADD THIS
-  Resolved: { color: "bg-green-600 text-white" },
-  Closed: { color: "bg-gray-600 text-white" },
-  Deleted: { color: "bg-gray-400 text-white" },
+const statusConfig: Record<TicketStatus, { color: string; dot: string }> = {
+  Open: { color: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400", dot: "bg-blue-500" },
+  "In Progress": { color: "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400", dot: "bg-orange-500" },
+  "Pending Customer": { color: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400", dot: "bg-purple-500" },
+  "Escalated to Dev": { color: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400", dot: "bg-red-500" },
+  Resolved: { color: "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400", dot: "bg-green-500" },
+  Closed: { color: "bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-400", dot: "bg-gray-500" },
+  Deleted: { color: "bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-400", dot: "bg-gray-400" },
 };
 
 export default function TableView({
@@ -94,52 +107,49 @@ export default function TableView({
     <Button
       variant="ghost"
       size="sm"
-      className="-ml-3 h-8 data-[state=open]:bg-accent"
+      className="h-8 font-semibold hover:bg-transparent"
       onClick={() => handleSort(field)}
     >
       {children}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
+      <ArrowUpDown className="ml-2 h-3.5 w-3.5" />
     </Button>
   );
 
   return (
-    <div className="rounded-md border bg-card">
+    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">
+          <TableRow className="border-b border-border bg-muted/30 hover:bg-muted/30">
+            <TableHead className="w-12 py-4">
               <Checkbox
                 checked={selectedTickets.length === tickets.length && tickets.length > 0}
                 onCheckedChange={onSelectAll}
               />
             </TableHead>
-            <TableHead>
-              <SortButton field="name">Ticket ID</SortButton>
+            <TableHead className="py-4">
+              <SortButton field="name">Ticket</SortButton>
             </TableHead>
-            <TableHead>Contact</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Agency</TableHead>
-            <TableHead>
+            <TableHead className="py-4">Contact</TableHead>
+            <TableHead className="py-4">
               <SortButton field="status">Status</SortButton>
             </TableHead>
-            <TableHead>
+            <TableHead className="py-4">
               <SortButton field="priority">Priority</SortButton>
             </TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>
+            <TableHead className="py-4">Category</TableHead>
+            <TableHead className="py-4">
               <SortButton field="assignedTo">Assigned To</SortButton>
             </TableHead>
-            <TableHead>
+            <TableHead className="py-4">
               <SortButton field="createdAt">Created</SortButton>
             </TableHead>
-            <TableHead className="w-12" />
+            <TableHead className="w-12 py-4" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {sortedTickets.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                 No tickets found
               </TableCell>
             </TableRow>
@@ -147,46 +157,92 @@ export default function TableView({
             sortedTickets.map((ticket) => (
               <TableRow
                 key={ticket.id}
-                className="cursor-pointer hover:bg-muted/50"
+                className="cursor-pointer hover:bg-muted/50 border-b border-border/50 transition-colors"
                 onClick={() => onTicketClick(ticket)}
               >
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={selectedTickets.includes(ticket.id)}
                     onCheckedChange={() => onSelectTicket(ticket.id)}
                   />
                 </TableCell>
-                <TableCell className="font-medium">{ticket.name}</TableCell>
-                <TableCell>{ticket.contact.name}</TableCell>
-                <TableCell className="text-muted-foreground">{ticket.contact.email || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{ticket.contact.phone || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{ticket.agencyName || "-"}</TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                
+                {/* Ticket Name */}
+                <TableCell className="py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold border border-primary/20">
+                      {ticket.contact.name?.charAt(0) || '?'}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-foreground text-sm">{ticket.name}</div>
+                      <div className="text-xs text-muted-foreground">#{ticket.id.slice(-6)}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                
+                {/* Contact Info */}
+                <TableCell className="py-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      {ticket.contact.name}
+                    </div>
+                    {ticket.contact.email && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Mail className="h-3 w-3" />
+                        {ticket.contact.email}
+                      </div>
+                    )}
+                    {ticket.contact.phone && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Phone className="h-3 w-3" />
+                        {ticket.contact.phone}
+                      </div>
+                    )}
+                    {ticket.agencyName && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Building2 className="h-3 w-3" />
+                        {ticket.agencyName}
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
+                
+                {/* Status */}
+                <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Badge className={`${statusConfig[ticket.status]?.color || "bg-muted text-muted-foreground"} cursor-pointer`}>
+                      <Badge 
+                        variant="outline" 
+                        className={`${statusConfig[ticket.status]?.color} border-transparent cursor-pointer font-medium px-3 py-1`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full mr-2 ${statusConfig[ticket.status]?.dot}`} />
                         {ticket.status}
                       </Badge>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
-                      {(["Open", "In Progress", "Resolved", "Closed", "Deleted"] as TicketStatus[]).map((status) => (
+                      {(["Open", "In Progress", "Escalated to Dev", "Resolved", "Closed", "Deleted"] as TicketStatus[]).map((status) => (
                         <DropdownMenuItem
                           key={status}
                           onClick={() => onStatusChange(ticket.id, status)}
                         >
+                          <span className={`w-1.5 h-1.5 rounded-full mr-2 ${statusConfig[status]?.dot}`} />
                           {status}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                
+                {/* Priority */}
+                <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Badge
                         variant="outline"
-                        className={`${priorityConfig[ticket.priority]?.color || "bg-muted text-muted-foreground border-muted"} cursor-pointer border`}
+                        className={`${priorityConfig[ticket.priority]?.color} border-transparent cursor-pointer font-medium px-3 py-1`}
                       >
+                        <span className={`w-1.5 h-1.5 rounded-full mr-2 ${priorityConfig[ticket.priority]?.dot}`} />
                         {ticket.priority}
                       </Badge>
                     </DropdownMenuTrigger>
@@ -196,20 +252,42 @@ export default function TableView({
                           key={priority}
                           onClick={() => onPriorityChange(ticket.id, priority)}
                         >
+                          <span className={`w-1.5 h-1.5 rounded-full mr-2 ${priorityConfig[priority]?.dot}`} />
                           {priority}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{ticket.category}</Badge>
+                
+                {/* Category */}
+                <TableCell className="py-4">
+                  <Badge variant="outline" className="font-normal">{ticket.category}</Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{ticket.assignedTo || "Unassigned"}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">
+                
+                {/* Assigned To */}
+                <TableCell className="py-4">
+                  <div className="flex items-center gap-2">
+                    {ticket.assignedTo ? (
+                      <>
+                        <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-semibold">
+                          {ticket.assignedTo.charAt(0)}
+                        </div>
+                        <span className="text-sm font-medium text-foreground">{ticket.assignedTo}</span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Unassigned</span>
+                    )}
+                  </div>
+                </TableCell>
+                
+                {/* Created */}
+                <TableCell className="py-4 text-sm text-muted-foreground">
                   {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}
                 </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                
+                {/* Actions */}
+                <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
