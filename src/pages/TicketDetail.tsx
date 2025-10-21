@@ -321,7 +321,7 @@ export default function TicketDetail() {
                         <div className="flex items-center gap-2 text-sm">
                           <Mail className="h-4 w-4 text-muted-foreground" />
                           
-                            href={`mailto:${ticket.contact.email}`}
+                            <a href={`mailto:${ticket.contact.email}`}
                             className="text-primary hover:underline"
                           >
                             {ticket.contact.email}
@@ -332,7 +332,7 @@ export default function TicketDetail() {
                         <div className="flex items-center gap-2 text-sm">
                           <Phone className="h-4 w-4 text-muted-foreground" />
                           
-                            href={`tel:${ticket.contact.phone}`}
+                            <a href={`tel:${ticket.contact.phone}`}
                             className="text-primary hover:underline"
                           >
                             {ticket.contact.phone}
@@ -478,7 +478,7 @@ export default function TicketDetail() {
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       
-                        href={`mailto:${ticket.contact.email}`}
+                        <a href={`mailto:${ticket.contact.email}`}
                         className="text-primary hover:underline"
                       >
                         {ticket.contact.email}
@@ -489,7 +489,7 @@ export default function TicketDetail() {
                     <div className="flex items-center gap-2 text-sm">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       
-                        href={`tel:${ticket.contact.phone}`}
+                        <a href={`tel:${ticket.contact.phone}`}
                         className="text-primary hover:underline"
                       >
                         {ticket.contact.phone}
