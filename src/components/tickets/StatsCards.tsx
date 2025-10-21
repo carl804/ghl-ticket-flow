@@ -11,55 +11,61 @@ const statConfigs = [
   {
     key: "open",
     label: "Open",
-    gradient: "from-blue-500 to-blue-600",
-    bgGlow: "bg-blue-500/10",
-    borderGlow: "border-blue-500/20",
-    shadowGlow: "shadow-blue-500/20",
+    color: "blue",
+    bgLight: "bg-blue-50",
+    bgDark: "dark:bg-blue-950/30",
+    textColor: "text-blue-600 dark:text-blue-400",
+    borderColor: "border-blue-200 dark:border-blue-800",
     icon: "🎯",
   },
   {
     key: "inProgress",
     label: "In Progress",
-    gradient: "from-orange-500 to-orange-600",
-    bgGlow: "bg-orange-500/10",
-    borderGlow: "border-orange-500/20",
-    shadowGlow: "shadow-orange-500/20",
+    color: "orange",
+    bgLight: "bg-orange-50",
+    bgDark: "dark:bg-orange-950/30",
+    textColor: "text-orange-600 dark:text-orange-400",
+    borderColor: "border-orange-200 dark:border-orange-800",
     icon: "⚡",
   },
   {
     key: "escalated",
     label: "Escalated",
-    gradient: "from-red-500 to-red-600",
-    bgGlow: "bg-red-500/10",
-    borderGlow: "border-red-500/20",
-    shadowGlow: "shadow-red-500/20",
+    color: "red",
+    bgLight: "bg-red-50",
+    bgDark: "dark:bg-red-950/30",
+    textColor: "text-red-600 dark:text-red-400",
+    borderColor: "border-red-200 dark:border-red-800",
     icon: "🚨",
   },
   {
     key: "resolved",
     label: "Resolved",
-    gradient: "from-green-500 to-green-600",
-    bgGlow: "bg-green-500/10",
-    borderGlow: "border-green-500/20",
-    shadowGlow: "shadow-green-500/20",
+    color: "green",
+    bgLight: "bg-green-50",
+    bgDark: "dark:bg-green-950/30",
+    textColor: "text-green-600 dark:text-green-400",
+    borderColor: "border-green-200 dark:border-green-800",
     icon: "✅",
   },
   {
     key: "closed",
     label: "Closed",
-    gradient: "from-gray-500 to-gray-600",
-    bgGlow: "bg-gray-500/10",
-    borderGlow: "border-gray-500/20",
-    shadowGlow: "shadow-gray-500/20",
+    color: "gray",
+    bgLight: "bg-gray-50",
+    bgDark: "dark:bg-gray-800/30",
+    textColor: "text-gray-600 dark:text-gray-400",
+    borderColor: "border-gray-200 dark:border-gray-700",
     icon: "🔒",
   },
   {
     key: "deleted",
     label: "Deleted",
-    gradient: "from-gray-400 to-gray-500",
-    bgGlow: "bg-gray-400/10",
-    borderGlow: "border-gray-400/20",
-    shadowGlow: "shadow-gray-400/20",
+    color: "gray",
+    bgLight: "bg-gray-50",
+    bgDark: "dark:bg-gray-800/30",
+    textColor: "text-gray-600 dark:text-gray-400",
+    borderColor: "border-gray-200 dark:border-gray-700",
     icon: "🗑️",
   },
 ];
@@ -83,47 +89,42 @@ export default function StatsCards({ stats, isLoading }: StatsCardsProps) {
           <Card
             key={config.key}
             className={`
-              relative overflow-hidden group cursor-pointer
-              bg-[hsl(var(--card))] border border-[hsl(var(--border))]
-              hover:bg-[hsl(var(--elevated))]
-              transition-all duration-300 hover:scale-105
-              shadow-lg hover:shadow-xl
+              relative overflow-hidden
+              bg-card hover:bg-accent/5
+              border border-border
+              transition-all duration-200
+              hover:shadow-lg hover:scale-[1.02]
+              cursor-pointer
             `}
           >
-            {/* Subtle gradient overlay on hover */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-            
-            {/* Colored top border accent */}
-            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${config.gradient}`} />
-            
-            <div className="relative p-5">
-              {/* Icon with gradient background */}
+            <div className="p-6 space-y-3">
+              {/* Icon */}
               <div className={`
                 inline-flex items-center justify-center 
-                w-12 h-12 rounded-xl mb-4
-                bg-gradient-to-br ${config.gradient}
-                shadow-lg ${config.shadowGlow}
-                transform group-hover:scale-110 group-hover:rotate-6 
-                transition-all duration-300
+                w-12 h-12 rounded-xl
+                ${config.bgLight} ${config.bgDark}
+                ${config.textColor}
+                transition-transform duration-200
+                hover:scale-110
               `}>
                 <span className="text-2xl">{config.icon}</span>
               </div>
               
               {/* Label */}
-              <p className="text-xs font-semibold text-[hsl(var(--text-secondary))] uppercase tracking-wider mb-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {config.label}
               </p>
               
-              {/* Value with trend */}
+              {/* Value */}
               <div className="flex items-baseline gap-2">
-                <p className={`text-4xl font-bold bg-gradient-to-r ${config.gradient} bg-clip-text text-transparent`}>
+                <p className={`text-4xl font-bold ${config.textColor}`}>
                   {value}
                 </p>
                 
                 {/* Trend indicator */}
                 {trend !== undefined && typeof trend === 'number' && trend !== 0 && (
                   <div className={`flex items-center gap-1 text-xs font-semibold ${
-                    trend > 0 ? 'text-green-500' : 'text-red-500'
+                    trend > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                   }`}>
                     {trend > 0 ? (
                       <TrendingUp className="h-3 w-3" />
@@ -136,8 +137,8 @@ export default function StatsCards({ stats, isLoading }: StatsCardsProps) {
               </div>
             </div>
             
-            {/* Animated shine effect on hover */}
-            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
+            {/* Top accent border */}
+            <div className={`absolute top-0 left-0 right-0 h-1 ${config.bgLight} ${config.bgDark}`} />
           </Card>
         );
       })}
