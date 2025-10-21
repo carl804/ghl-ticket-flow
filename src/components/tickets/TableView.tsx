@@ -182,25 +182,21 @@ export default function TableView({
                 {/* Contact Info */}
                 <TableCell className="py-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div className="text-sm font-medium text-foreground">
                       {ticket.contact.name}
                     </div>
                     {ticket.contact.email && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Mail className="h-3 w-3" />
+                      <div className="text-xs text-muted-foreground">
                         {ticket.contact.email}
                       </div>
                     )}
                     {ticket.contact.phone && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Phone className="h-3 w-3" />
+                      <div className="text-xs text-muted-foreground">
                         {ticket.contact.phone}
                       </div>
                     )}
                     {ticket.agencyName && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Building2 className="h-3 w-3" />
+                      <div className="text-xs text-muted-foreground">
                         {ticket.agencyName}
                       </div>
                     )}
