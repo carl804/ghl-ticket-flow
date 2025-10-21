@@ -175,7 +175,6 @@ export default function TableView({
                     </div>
                     <div>
                       <div className="font-semibold text-foreground text-sm">{ticket.name}</div>
-                      <div className="text-xs text-muted-foreground">#{ticket.id.slice(-6)}</div>
                     </div>
                   </div>
                 </TableCell>
