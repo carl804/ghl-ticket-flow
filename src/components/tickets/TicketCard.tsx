@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { User, Phone, Mail, GripVertical, Sparkles } from "lucide-react";
+import { User, Phone, Mail, GripVertical } from "lucide-react";
 import type { Ticket } from "@/lib/types";
 
 interface TicketCardProps {
@@ -68,7 +68,6 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
   };
   const priorityData = priorityConfig[ticket.priority];
   const statusData = statusConfig[ticket.status] || statusConfig.Open;
-  const isIntercomTicket = ticket.name.startsWith('[Intercom]');
   
   return (
     <Card 
@@ -78,7 +77,7 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
         transition-all duration-200
         ${isDragging 
           ? "opacity-60 rotate-1 scale-105 shadow-2xl" 
-          : "hover:shadow-lg hover:scale-[1.01] cursor-pointer hover:border-primary/50"
+          : "hover:shadow-md hover:border-primary/50 cursor-pointer"
         }
       `}
       onClick={onClick}
@@ -86,28 +85,21 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
       {/* Priority accent bar */}
       <div className={`absolute top-0 left-0 right-0 h-1 ${priorityData.color.split(' ')[0]}`} />
       
-      {/* Intercom indicator */}
-      {isIntercomTicket && (
-        <div className="absolute top-3 right-3 z-10">
-          <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-        </div>
-      )}
-      
-      <CardContent className="p-5 space-y-4">
+      <CardContent className="p-4 space-y-3">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0 space-y-2.5">
-            <div className="flex items-center gap-2.5">
-              <span className="text-lg">{priorityData.icon}</span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-base">{priorityData.icon}</span>
               <h3 className="font-semibold text-sm text-foreground truncate leading-tight">
                 {ticket.name}
               </h3>
             </div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
                 {ticket.contact.name?.charAt(0) || '?'}
               </div>
-              <p className="text-sm text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {ticket.contact.name}
               </p>
             </div>
@@ -116,75 +108,58 @@ export function TicketCard({ ticket, onClick, isDragging, dragHandleProps }: Tic
           <button
             type="button"
             {...dragHandleProps}
-            className="cursor-grab active:cursor-grabbing p-2 hover:bg-accent rounded-lg transition-colors touch-none"
+            className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-accent rounded transition-colors touch-none flex-shrink-0"
             onClick={(e) => e.stopPropagation()}
             aria-label="Drag to move ticket"
           >
-            <GripVertical className="h-5 w-5 text-muted-foreground" />
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
 
         {/* Badges */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className={`${statusData.color} border-transparent text-xs font-medium px-2.5 py-0.5`}>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Badge variant="outline" className={`${statusData.color} border-transparent text-xs font-medium px-2 py-0.5`}>
             {ticket.status}
           </Badge>
           
-          <Badge variant="outline" className={`${categoryData.color} border-transparent text-xs font-medium px-2.5 py-0.5`}>
+          <Badge variant="outline" className={`${categoryData.color} border-transparent text-xs font-medium px-2 py-0.5`}>
             <span className="mr-1">{categoryData.icon}</span>
             {ticket.category}
           </Badge>
         </div>
 
-        {/* Contact Info */}
-        <div className="space-y-2 text-sm">
+        {/* Contact Info - Compact */}
+        <div className="space-y-1.5 text-xs">
           {ticket.contact.email && (
-            <div className="flex items-center gap-2.5 text-muted-foreground">
-              <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950/30 flex items-center justify-center">
-                <Mail className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <span className="truncate text-xs">{ticket.contact.email}</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Mail className="h-3 w-3 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+              <span className="truncate">{ticket.contact.email}</span>
             </div>
           )}
           
           {ticket.contact.phone && (
-            <div className="flex items-center gap-2.5 text-muted-foreground">
-              <div className="w-7 h-7 rounded-lg bg-green-100 dark:bg-green-950/30 flex items-center justify-center">
-                <Phone className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-              </div>
-              <span className="text-xs">{ticket.contact.phone}</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Phone className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <span className="truncate">{ticket.contact.phone}</span>
             </div>
           )}
           
           {ticket.agencyName && (
-            <div className="flex items-center gap-2.5 text-muted-foreground">
-              <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-950/30 flex items-center justify-center">
-                <svg className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <span className="truncate text-xs">{ticket.agencyName}</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <svg className="h-3 w-3 text-purple-600 dark:text-purple-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span className="truncate">{ticket.agencyName}</span>
             </div>
           )}
           
           {(ticket.assignedTo || ticket.intercomAgent) && (
-            <div className="flex items-center gap-2.5 text-muted-foreground">
-              <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-950/30 flex items-center justify-center">
-                <User className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <span className="truncate text-xs">{ticket.assignedTo || ticket.intercomAgent}</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <User className="h-3 w-3 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+              <span className="truncate">{ticket.assignedTo || ticket.intercomAgent}</span>
             </div>
           )}
         </div>
-
-        {/* Description */}
-        {ticket.description && (
-          <div className="pt-3 border-t border-border">
-            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-              {ticket.description}
-            </p>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

@@ -87,15 +87,19 @@ function DroppableColumn({
   return (
     <div 
       ref={setNodeRef}
-      className={`flex flex-col h-full transition-all duration-200 rounded-lg flex-shrink-0 ${
+      className={`flex flex-col h-full transition-all duration-200 rounded-lg ${
         isOver ? "ring-2 ring-primary bg-primary/5" : ""
       }`}
-      style={{ width: '320px' }}
+      style={{ 
+        flex: '1 1 280px',
+        minWidth: '240px',
+        maxWidth: '320px'
+      }}
     >
-      <div className="bg-primary/10 px-4 py-3 rounded-t-lg flex-shrink-0">
-        <h3 className="font-semibold text-foreground">{status} ({tickets.length})</h3>
+      <div className="bg-muted/50 border-b border-border px-3 py-2.5 rounded-t-lg flex-shrink-0">
+        <h3 className="font-semibold text-sm text-foreground">{status} ({tickets.length})</h3>
       </div>
-      <div className="flex-1 overflow-y-auto space-y-3 p-3 bg-muted/5 rounded-b-lg min-h-[200px]">
+      <div className="flex-1 overflow-y-auto space-y-2.5 p-2.5 bg-muted/20 rounded-b-lg min-h-[200px]">
         <SortableContext items={tickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tickets.map((ticket) => (
             <SortableTicketCard
@@ -236,7 +240,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
       onDragOver={handleDragOver} 
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)]">
+      <div className="flex gap-3 overflow-x-auto pb-4 h-[calc(100vh-320px)]">
         {COLUMNS.map((status) => (
           <DroppableColumn
             key={status}
@@ -249,7 +253,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
       </div>
       <DragOverlay>
         {activeTicket && (
-          <div style={{ width: '320px' }}>
+          <div style={{ width: '280px', maxWidth: '320px' }}>
             <TicketCard ticket={activeTicket} />
           </div>
         )}
