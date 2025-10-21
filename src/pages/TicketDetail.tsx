@@ -246,7 +246,7 @@ export default function TicketDetail() {
                 <IntercomChatView
                   conversationId={intercomConversationId}
                   ticketId={ticket.id}
-                  currentAssignee={ticket.assignedTo}
+                  intercomTicketOwner={ticket.intercomAgent || ticket.assignedTo}
                   priority={ticket.priority}
                   category={ticket.category}
                   onAssignmentChange={handleAssignmentChange}
@@ -320,7 +320,7 @@ export default function TicketDetail() {
                       {ticket.contact.email && (
                         <div className="flex items-center gap-2 text-sm">
                           <Mail className="h-4 w-4 text-muted-foreground" />
-                          <a
+                          
                             href={`mailto:${ticket.contact.email}`}
                             className="text-primary hover:underline"
                           >
@@ -331,7 +331,7 @@ export default function TicketDetail() {
                       {ticket.contact.phone && (
                         <div className="flex items-center gap-2 text-sm">
                           <Phone className="h-4 w-4 text-muted-foreground" />
-                          <a
+                          
                             href={`tel:${ticket.contact.phone}`}
                             className="text-primary hover:underline"
                           >
@@ -355,8 +355,8 @@ export default function TicketDetail() {
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Assigned To</span>
-                        <span className="font-medium">{ticket.assignedTo || "Unassigned"}</span>
+                        <span className="text-muted-foreground">Intercom Ticket Owner</span>
+                        <span className="font-medium">{ticket.intercomAgent || "Unassigned"}</span>
                       </div>
                       {ticket.value !== undefined && (
                         <div className="flex items-center justify-between">
@@ -477,7 +477,7 @@ export default function TicketDetail() {
                   {ticket.contact.email && (
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a
+                      
                         href={`mailto:${ticket.contact.email}`}
                         className="text-primary hover:underline"
                       >
@@ -488,7 +488,7 @@ export default function TicketDetail() {
                   {ticket.contact.phone && (
                     <div className="flex items-center gap-2 text-sm">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a
+                      
                         href={`tel:${ticket.contact.phone}`}
                         className="text-primary hover:underline"
                       >

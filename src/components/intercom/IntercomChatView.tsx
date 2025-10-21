@@ -119,7 +119,7 @@ function getSnoozeOptions() {
 interface IntercomChatViewProps {
   conversationId: string;
   ticketId: string;
-  currentAssignee?: string;
+  intercomTicketOwner?: string;
   priority?: string;
   category?: string;
   onClose?: () => void;
@@ -135,7 +135,7 @@ interface StoredAgent {
 export default function IntercomChatView({ 
   conversationId, 
   ticketId,
-  currentAssignee,
+  intercomTicketOwner,
   priority = 'Medium',
   category = 'General Questions',
   onClose,
@@ -193,7 +193,7 @@ export default function IntercomChatView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [message, isNote, showCustomerDetails]);
 
-  const isAssigned = currentAssignee && currentAssignee !== 'Unassigned' && currentAssignee.trim() !== '';
+  const isAssigned = intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && intercomTicketOwner.trim() !== '';
 
   const { data: conversation, isLoading } = useQuery({
     queryKey: ['intercom-conversation', conversationId],
@@ -705,9 +705,9 @@ export default function IntercomChatView({
                   {conversation.state === 'open' && <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1" />}
                   {conversation.state}
                 </Badge>
-                {currentAssignee && currentAssignee !== 'Unassigned' && (
+                {intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && (
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-purple-50 text-purple-700 border-purple-200">
-                    👤 {currentAssignee}
+                    👤 {intercomTicketOwner}
                   </Badge>
                 )}
                 <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${
@@ -839,7 +839,7 @@ export default function IntercomChatView({
                     {msg.attachments && msg.attachments.length > 0 && (
                       <div className={`${messageBody ? 'mt-2' : ''} space-y-1.5`}>
                         {msg.attachments.map((att: any, i: number) => (
-                          <a
+                          
                             key={i}
                             href={att.url}
                             target="_blank"
