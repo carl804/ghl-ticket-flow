@@ -1,4 +1,4 @@
-// Fetch live analytics from GHL instead of Google Sheets
+// Fetch live analytics from GHL with correct Ticket Owner field
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -6,7 +6,7 @@ export default async function handler(req, res) {
 
   try {
     // Get GHL credentials from environment or request
-    const accessToken = process.env.GHL_ACCESS_TOKEN || req.headers.authorization?.replace('Bearer ', '');
+    const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP || process.env.GHL_ACCESS_TOKEN || req.headers.authorization?.replace('Bearer ', '');
     const locationId = process.env.GHL_LOCATION_ID;
 
     if (!accessToken || !locationId) {
@@ -37,6 +37,36 @@ export default async function handler(req, res) {
     const data = await response.json();
     const opportunities = data.opportunities || [];
 
+    // Fetch full details for each opportunity to get custom fields
+    const fullOpportunities = await Promise.all(
+      opportunities.map(async (opp) => {
+        try {
+          const oppResponse = await fetch(
+            `https://services.leadconnectorhq.com/opportunities/${opp.id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Version': '2021-07-28',
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          if (!oppResponse.ok) {
+            console.error(`Failed to fetch opportunity ${opp.id}: ${oppResponse.statusText}`);
+            return null;
+          }
+          const oppData = await oppResponse.json();
+          return oppData.opportunity;
+        } catch (err) {
+          console.error(`Error fetching opportunity ${opp.id}:`, err);
+          return null;
+        }
+      })
+    );
+
+    const validOpportunities = fullOpportunities.filter(opp => opp !== null);
+    console.log(`Fetched ${validOpportunities.length} opportunities with full details`);
+
     // Stage mapping
     const STAGE_MAP = {
       "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
@@ -47,7 +77,7 @@ export default async function handler(req, res) {
       "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
     };
 
-    // Custom field ID for ticket owner
+    // CORRECT Custom field ID for Ticket Owner (NOT Intercom Agent)
     const TICKET_OWNER_FIELD_ID = 'VYv1QpVAAgns13227Pii';
 
     // Helper to get custom field value
@@ -57,8 +87,8 @@ export default async function handler(req, res) {
       return field?.fieldValue || field?.value || field?.field_value || '';
     }
 
-    // Map tickets with status and assignee
-    const tickets = opportunities.map(opp => ({
+    // Map tickets with status and assignee (Ticket Owner, NOT Intercom Agent)
+    const tickets = validOpportunities.map(opp => ({
       id: opp.id,
       status: STAGE_MAP[opp.pipelineStageId] || "Open",
       assignedTo: getCustomFieldValue(opp, TICKET_OWNER_FIELD_ID) || "Unassigned",
