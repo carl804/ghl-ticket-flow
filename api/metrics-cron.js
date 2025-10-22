@@ -6,7 +6,7 @@ function getGHLTokens() {
   // For now, we'll fetch tickets directly using the location ID
   return {
     locationId: process.env.GHL_LOCATION_ID,
-    accessToken: process.env.GHL_ACCESS_TOKEN
+    accessToken: process.env.GHL_ACCESS_TOKEN_TEMP // Changed from GHL_ACCESS_TOKEN to GHL_ACCESS_TOKEN_TEMP
   };
 }
 
@@ -137,7 +137,7 @@ async function writeToGoogleSheets(metrics) {
   // Append to sheet
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: 'Sheet1!A:K', // Adjust sheet name if needed
+    range: 'Daily Metrics!A:K', // Changed from 'Sheet1!A:K' to 'Daily Metrics!A:K'
     valueInputOption: 'USER_ENTERED',
     requestBody: {
       values: [row]
