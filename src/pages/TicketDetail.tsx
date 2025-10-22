@@ -139,16 +139,15 @@ export default function TicketDetail() {
           </div>
         </div>
 
-        {/* Title Card */}
+        {/* Compressed Title Header with AI Summary */}
         <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-2xl">{ticket.name}</CardTitle>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className={statusConfig[ticket.status]?.color || statusConfig.Open.color}>
+          <CardHeader className="pb-3">
+            {/* Single Line: Title + Badges */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <CardTitle className="text-xl truncate">{ticket.name}</CardTitle>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Badge className={`text-xs ${statusConfig[ticket.status]?.color || statusConfig.Open.color}`}>
                     {isEditing ? (
                       <Select
                         value={editedTicket.status}
@@ -175,7 +174,7 @@ export default function TicketDetail() {
                   </Badge>
                   <Badge
                     variant="outline"
-                    className={`border ${priorityConfig[ticket.priority].color}`}
+                    className={`text-xs border ${priorityConfig[ticket.priority].color}`}
                   >
                     {isEditing ? (
                       <Select
@@ -199,7 +198,7 @@ export default function TicketDetail() {
                       ticket.priority
                     )}
                   </Badge>
-                  <Badge variant="outline">
+                  <Badge variant="outline" className="text-xs">
                     {isEditing ? (
                       <Select
                         value={editedTicket.category}
@@ -228,6 +227,39 @@ export default function TicketDetail() {
               </div>
             </div>
           </CardHeader>
+          
+          {/* AI Summary Bar - Always Visible */}
+          <div className="px-6 pb-4">
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-100">AI Summary</span>
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border-0">
+                      Beta
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    Customer needs help syncing 123 leads to the dialer system. Multiple help articles were shared regarding lead sync functionality.
+                  </p>
+                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-600 dark:text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                      Sentiment: <strong className="text-gray-900 dark:text-gray-100">Neutral</strong>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      Intent: <strong className="text-gray-900 dark:text-gray-100">Technical Support</strong>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </Card>
 
         {/* Main Content with Tabs for Intercom tickets */}
@@ -320,8 +352,8 @@ export default function TicketDetail() {
                       {ticket.contact.email && (
                         <div className="flex items-center gap-2 text-sm">
                           <Mail className="h-4 w-4 text-muted-foreground" />
-                          
-                            <a href={`mailto:${ticket.contact.email}`}
+                          <a
+                            href={`mailto:${ticket.contact.email}`}
                             className="text-primary hover:underline"
                           >
                             {ticket.contact.email}
@@ -331,8 +363,8 @@ export default function TicketDetail() {
                       {ticket.contact.phone && (
                         <div className="flex items-center gap-2 text-sm">
                           <Phone className="h-4 w-4 text-muted-foreground" />
-                          
-                            <a href={`tel:${ticket.contact.phone}`}
+                          <a
+                            href={`tel:${ticket.contact.phone}`}
                             className="text-primary hover:underline"
                           >
                             {ticket.contact.phone}
@@ -477,8 +509,8 @@ export default function TicketDetail() {
                   {ticket.contact.email && (
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      
-                        <a href={`mailto:${ticket.contact.email}`}
+                      <a
+                        href={`mailto:${ticket.contact.email}`}
                         className="text-primary hover:underline"
                       >
                         {ticket.contact.email}
@@ -488,8 +520,8 @@ export default function TicketDetail() {
                   {ticket.contact.phone && (
                     <div className="flex items-center gap-2 text-sm">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      
-                        <a href={`tel:${ticket.contact.phone}`}
+                      <a
+                        href={`tel:${ticket.contact.phone}`}
                         className="text-primary hover:underline"
                       >
                         {ticket.contact.phone}
