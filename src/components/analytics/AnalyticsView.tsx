@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getAccessToken } from "@/integrations/ghl/oauth";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Users, TrendingUp, Clock, Target } from "lucide-react";
+import DailyMetricsDashboard from "@/components/analytics/DailyMetricsDashboard";
 
 const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#14b8a6'];
 
@@ -226,14 +227,7 @@ export default function AnalyticsView() {
           </TabsContent>
 
           <TabsContent value="daily" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Daily Metrics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Daily metrics coming soon...</p>
-              </CardContent>
-            </Card>
+            <DailyMetricsDashboard />
           </TabsContent>
         </Tabs>
       </div>
