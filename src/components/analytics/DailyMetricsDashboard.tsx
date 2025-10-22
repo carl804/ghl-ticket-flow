@@ -273,7 +273,7 @@ export default function DailyMetricsDashboard() {
               <tbody>
                 {(selectedDate === "all" ? data.slice(0, 14) : filteredData).map((day, index) => {
                   return (
-                    <tr key={index} className="border-b hover:bg-gray-50">
+                    <tr key={index} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="p-2">{new Date(day.Date).toLocaleDateString()}</td>
                       <td className="text-right p-2">{day["Total Tickets"]}</td>
                       <td className="text-right p-2">{day["New Today"]}</td>
