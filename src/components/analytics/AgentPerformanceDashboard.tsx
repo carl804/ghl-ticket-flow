@@ -14,27 +14,33 @@ import {
   Cell,
 } from "recharts";
 import { Users, TrendingUp, Clock, Target } from "lucide-react";
+import { getAccessToken } from "@/integrations/ghl/oauth";
 
-interface AgentData {
-  Timestamp: string;
-  Agent: string;
-  "Total Tickets": string;
-  Open: string;
-  "In Progress": string;
-  Escalated: string;
-  Resolved: string;
-  Closed: string;
-  "Close %": string;
-  "Avg Close Time": string;
-  "Avg Time in Stage": string;
-  "Escalation %": string;
-  "Active Tickets": string;
+interface AgentMetrics {
+  agent: string;
+  total: number;
+  open: number;
+  inProgress: number;
+  escalated: number;
+  resolved: number;
+  closed: number;
+  closeRate: number;
+  avgCloseTime: string;
+  active: number;
+}
+
+interface AnalyticsData {
+  totalTickets: number;
+  totalAgents: number;
+  avgCloseRate: number;
+  avgEscalationRate: number;
+  agentMetrics: AgentMetrics[];
 }
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
 export default function AgentPerformanceDashboard() {
-  const [latestData, setLatestData] = useState<AgentData[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,46 +49,21 @@ export default function AgentPerformanceDashboard() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch("https://hp-ticket-flow.vercel.app/api/analytics?type=agent-performance");
-      const result = await response.json();
-      setLatestData(result.data || []);
+      const token = await getAccessToken();
+      const response = await fetch('/api/overview', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch analytics');
+      
+      const data = await response.json();
+      setAnalytics(data);
     } catch (error) {
       console.error("Error fetching agent data:", error);
     } finally {
       setLoading(false);
     }
   };
-
-  const totalTickets = latestData.reduce(
-    (sum, agent) => sum + parseInt(agent["Total Tickets"] || "0"),
-    0
-  );
-  const totalAgents = latestData.length;
-  const avgCloseRate =
-    latestData.reduce(
-      (sum, agent) => sum + parseFloat(agent["Close %"].replace("%", "") || "0"),
-      0
-    ) / (totalAgents || 1);
-  const avgEscalationRate =
-    latestData.reduce(
-      (sum, agent) => sum + parseFloat(agent["Escalation %"].replace("%", "") || "0"),
-      0
-    ) / (totalAgents || 1);
-
-  const barChartData = latestData.map((agent) => ({
-    name: agent.Agent,
-    "Total Tickets": parseInt(agent["Total Tickets"] || "0"),
-    Open: parseInt(agent.Open || "0"),
-    "In Progress": parseInt(agent["In Progress"] || "0"),
-    Escalated: parseInt(agent.Escalated || "0"),
-    Resolved: parseInt(agent.Resolved || "0"),
-    Closed: parseInt(agent.Closed || "0"),
-  }));
-
-  const pieChartData = latestData.map((agent) => ({
-    name: agent.Agent,
-    value: parseInt(agent["Total Tickets"] || "0"),
-  }));
 
   if (loading) {
     return (
@@ -91,6 +72,29 @@ export default function AgentPerformanceDashboard() {
       </div>
     );
   }
+
+  if (!analytics) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-lg text-muted-foreground">No analytics data available</div>
+      </div>
+    );
+  }
+
+  const barChartData = analytics.agentMetrics.map((agent) => ({
+    name: agent.agent,
+    "Total Tickets": agent.total,
+    Open: agent.open,
+    "In Progress": agent.inProgress,
+    Escalated: agent.escalated,
+    Resolved: agent.resolved,
+    Closed: agent.closed,
+  }));
+
+  const pieChartData = analytics.agentMetrics.map((agent) => ({
+    name: agent.agent,
+    value: agent.total,
+  }));
 
   return (
     <div className="space-y-6">
@@ -102,7 +106,7 @@ export default function AgentPerformanceDashboard() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalTickets}</div>
+            <div className="text-2xl font-bold">{analytics.totalTickets}</div>
           </CardContent>
         </Card>
 
@@ -112,7 +116,7 @@ export default function AgentPerformanceDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalAgents}</div>
+            <div className="text-2xl font-bold">{analytics.totalAgents}</div>
           </CardContent>
         </Card>
 
@@ -122,7 +126,7 @@ export default function AgentPerformanceDashboard() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{avgCloseRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{analytics.avgCloseRate.toFixed(1)}%</div>
           </CardContent>
         </Card>
 
@@ -132,7 +136,7 @@ export default function AgentPerformanceDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{avgEscalationRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{analytics.avgEscalationRate.toFixed(1)}%</div>
           </CardContent>
         </Card>
       </div>
@@ -216,18 +220,18 @@ export default function AgentPerformanceDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {latestData.map((agent, index) => (
-                  <tr key={index} className="border-b hover:bg-gray-50">
-                    <td className="p-2 font-medium">{agent.Agent}</td>
-                    <td className="text-right p-2">{agent["Total Tickets"]}</td>
-                    <td className="text-right p-2">{agent.Open}</td>
-                    <td className="text-right p-2">{agent["In Progress"]}</td>
-                    <td className="text-right p-2">{agent.Escalated}</td>
-                    <td className="text-right p-2">{agent.Resolved}</td>
-                    <td className="text-right p-2">{agent.Closed}</td>
-                    <td className="text-right p-2">{agent["Close %"]}</td>
-                    <td className="text-right p-2">{agent["Avg Close Time"]}</td>
-                    <td className="text-right p-2">{agent["Active Tickets"]}</td>
+                {analytics.agentMetrics.map((agent) => (
+                  <tr key={agent.agent} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="p-2 font-medium">{agent.agent}</td>
+                    <td className="text-right p-2">{agent.total}</td>
+                    <td className="text-right p-2">{agent.open}</td>
+                    <td className="text-right p-2">{agent.inProgress}</td>
+                    <td className="text-right p-2">{agent.escalated}</td>
+                    <td className="text-right p-2">{agent.resolved}</td>
+                    <td className="text-right p-2">{agent.closed}</td>
+                    <td className="text-right p-2">{agent.closeRate}%</td>
+                    <td className="text-right p-2">{agent.avgCloseTime}</td>
+                    <td className="text-right p-2">{agent.active}</td>
                   </tr>
                 ))}
               </tbody>
