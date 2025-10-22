@@ -745,7 +745,7 @@ export default function IntercomChatView({
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowSnoozeDialog(true)}
-                    className="gap-1.5 h-7 px-2 text-xs"
+                    className="gap-1.5 h-7 px-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                     title="Snooze (⌘K)"
                   >
                     <Clock className="h-3.5 w-3.5" />
@@ -757,7 +757,7 @@ export default function IntercomChatView({
                     size="sm"
                     onClick={() => closeMutation.mutate()}
                     disabled={closeMutation.isPending || conversation.state === 'closed'}
-                    className="gap-1.5 h-7 px-2 text-xs"
+                    className="gap-1.5 h-7 px-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                     title="Close (⌘W)"
                   >
                     {closeMutation.isPending ? (
