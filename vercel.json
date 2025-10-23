@@ -7,7 +7,7 @@
   ],
   "crons": [
     {
-      "path": "/api/metrics-cron",
+      "path": "/api/analytics?action=cron",
       "schedule": "0 * * * *"
     }
   ]
