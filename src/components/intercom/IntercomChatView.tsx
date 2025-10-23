@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
+import ConversationSummary from './ConversationSummary';
 
 const AGENT_LIST = [
   { name: 'Aneela', fullName: 'Aneela Karim', intercomId: '6465865' },
@@ -122,6 +123,7 @@ interface IntercomChatViewProps {
   intercomTicketOwner?: string;
   priority?: string;
   category?: string;
+  opportunityId?: string;
   onClose?: () => void;
   onAssignmentChange?: (assignee: string) => void;
 }
@@ -138,6 +140,7 @@ export default function IntercomChatView({
   intercomTicketOwner,
   priority = 'Medium',
   category = 'General Questions',
+  opportunityId,
   onClose,
   onAssignmentChange 
 }: IntercomChatViewProps) {
@@ -796,6 +799,13 @@ export default function IntercomChatView({
 
         {/* Messages - MAXIMUM SPACE */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+          {/* AI Summary */}
+          <ConversationSummary 
+            conversationId={conversationId} 
+            messages={allMessages}
+            opportunityId={opportunityId}
+          />
+          
           {allMessages.map((msg, index) => {
             const isCustomer = msg.author.type === 'user' || msg.author.type === 'lead';
             const isNote = msg.type === 'note';

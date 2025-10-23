@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import {
 interface ConversationSummaryProps {
   conversationId: string;
   messages: any[];
+  opportunityId?: string;
 }
 
 interface Summary {
@@ -36,13 +37,14 @@ const sentimentConfig = {
   urgent: { color: 'bg-red-100 text-red-700 border-red-200', icon: '🚨', label: 'Urgent' },
 };
 
-export default function ConversationSummary({ conversationId, messages }: ConversationSummaryProps) {
+export default function ConversationSummary({ conversationId, messages, opportunityId }: ConversationSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCached, setIsCached] = useState(false);
 
-  const generateSummary = async () => {
+  const generateSummary = async (forceRegenerate = false) => {
     setIsLoading(true);
     setError(null);
     
@@ -50,7 +52,12 @@ export default function ConversationSummary({ conversationId, messages }: Conver
       const response = await fetch('/api/intercom/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId, messages }),
+        body: JSON.stringify({ 
+          conversationId, 
+          messages,
+          opportunityId,
+          forceRegenerate
+        }),
       });
 
       if (!response.ok) {
@@ -59,6 +66,7 @@ export default function ConversationSummary({ conversationId, messages }: Conver
 
       const data = await response.json();
       setSummary(data.summary);
+      setIsCached(data.cached || false);
     } catch (err) {
       console.error('Error generating summary:', err);
       setError('Failed to generate summary. Please try again.');
@@ -68,17 +76,17 @@ export default function ConversationSummary({ conversationId, messages }: Conver
   };
 
   // Auto-generate on mount
-  useState(() => {
+  useEffect(() => {
     if (messages.length > 0) {
       generateSummary();
     }
-  });
+  }, [conversationId]); // Only run when conversation changes
 
   if (!summary && !isLoading && !error) {
     return (
       <div className="px-4 py-3 border-b bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-950">
         <Button
-          onClick={generateSummary}
+          onClick={() => generateSummary()}
           size="sm"
           variant="outline"
           className="w-full gap-2 hover:bg-white dark:hover:bg-gray-800"
@@ -99,15 +107,21 @@ export default function ConversationSummary({ conversationId, messages }: Conver
             <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">AI Summary</h3>
             {isLoading && <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />}
+            {isCached && !isLoading && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-200">
+                Cached
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {summary && (
               <Button
-                onClick={generateSummary}
+                onClick={() => generateSummary(true)}
                 size="sm"
                 variant="ghost"
                 className="h-6 px-2 text-xs"
                 disabled={isLoading}
+                title="Force regenerate summary"
               >
                 Refresh
               </Button>
