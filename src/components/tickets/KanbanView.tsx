@@ -147,6 +147,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
       const ageDays = Math.round((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
       
       const payload = {
+        action: 'log-ticket',
         ticketId: ticket.id,
         ticketName: ticket.name || 'Unnamed Ticket',
         agent: ticket.assignedTo || 'Unassigned',
@@ -161,7 +162,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
 
       console.log('Sending to Google Sheets:', payload);
       
-      const response = await fetch('/api/log-ticket', {
+      const response = await fetch('/api/logging', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

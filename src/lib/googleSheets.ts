@@ -16,12 +16,15 @@ interface StageTransitionData {
  */
 export async function logStageTransition(data: StageTransitionData): Promise<void> {
   try {
-    const response = await fetch('/api/log-transition', {
+    const response = await fetch('/api/logging', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        action: 'log-transition'
+      }),
     });
 
     if (!response.ok) {
