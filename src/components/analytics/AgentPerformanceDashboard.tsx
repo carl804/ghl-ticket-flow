@@ -50,7 +50,7 @@ export default function AgentPerformanceDashboard() {
   const fetchData = async () => {
     try {
       const token = await getAccessToken();
-      const response = await fetch('/api/overview', {
+      const response = await fetch('/api/analytics?type=overview', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
