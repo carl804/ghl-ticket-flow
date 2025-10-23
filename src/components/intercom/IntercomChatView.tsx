@@ -573,14 +573,14 @@ export default function IntercomChatView({
         setShowSnoozeDialog(open);
         if (!open) setSnoozeInput('');
       }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-white dark:bg-gray-900">
           <DialogHeader>
-            <DialogTitle>Snooze conversation</DialogTitle>
-            <DialogDescription>Type a duration or choose from presets</DialogDescription>
+            <DialogTitle className="text-gray-900 dark:text-white">Snooze conversation</DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-300">Type a duration or choose from presets</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 value={snoozeInput}
@@ -591,7 +591,7 @@ export default function IntercomChatView({
                   }
                 }}
                 placeholder="Type duration... (5m, 2h, 3d, 1w)"
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                 autoFocus
               />
             </div>
@@ -600,7 +600,7 @@ export default function IntercomChatView({
                 <Button
                   key={index}
                   variant="outline"
-                  className="w-full justify-between h-auto py-3 hover:bg-indigo-50 hover:border-indigo-200"
+                  className="w-full justify-between h-auto py-3 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:border-indigo-200 dark:hover:border-indigo-700 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
                   onClick={() => {
                     snoozeMutation.mutate({ hours: option.hours, label: option.label });
                     setSnoozeInput('');
@@ -608,22 +608,22 @@ export default function IntercomChatView({
                   disabled={snoozeMutation.isPending}
                 >
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-500" />
-                    <span className="font-medium text-gray-900">{option.label}</span>
+                    <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                    <span className="font-medium text-gray-900 dark:text-white">{option.label}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">{option.time}</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{option.time}</span>
                     {(option as any).isCustom && (
-                      <Badge variant="secondary" className="text-xs bg-indigo-100 text-indigo-700 border-0">Custom</Badge>
+                      <Badge variant="secondary" className="text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border-0">Custom</Badge>
                     )}
                   </div>
                 </Button>
               ))}
               {filteredSnoozeOptions.length === 0 && (
                 <div className="text-center py-8">
-                  <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">No matching options</p>
-                  <p className="text-xs text-gray-400 mt-1">Try "5m", "2h", "3d", or "1w"</p>
+                  <Clock className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No matching options</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Try "5m", "2h", "3d", or "1w"</p>
                 </div>
               )}
             </div>
@@ -742,10 +742,10 @@ export default function IntercomChatView({
               {isAssigned && (
                 <>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => setShowSnoozeDialog(true)}
-                    className="gap-1.5 h-7 px-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className="gap-1.5 h-7 px-2 text-xs bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
                     title="Snooze (⌘K)"
                   >
                     <Clock className="h-3.5 w-3.5" />
@@ -753,11 +753,11 @@ export default function IntercomChatView({
                   </Button>
                   
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => closeMutation.mutate()}
                     disabled={closeMutation.isPending || conversation.state === 'closed'}
-                    className="gap-1.5 h-7 px-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className="gap-1.5 h-7 px-2 text-xs bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
                     title="Close (⌘W)"
                   >
                     {closeMutation.isPending ? (
@@ -839,8 +839,7 @@ export default function IntercomChatView({
                     {msg.attachments && msg.attachments.length > 0 && (
                       <div className={`${messageBody ? 'mt-2' : ''} space-y-1.5`}>
                         {msg.attachments.map((att: any, i: number) => (
-                          
-                            <a key={i}
+                          <a key={i}
                             href={att.url}
                             target="_blank"
                             rel="noopener noreferrer"
