@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import IntercomChatView from "@/components/intercom/IntercomChatView";
+import ConversationSummary from "@/components/intercom/ConversationSummary";
 
 const priorityConfig = {
   Low: { color: "bg-priority-low/10 text-priority-low border-priority-low/20" },
@@ -58,6 +59,7 @@ export default function TicketDetail() {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
+  const [conversationMessages, setConversationMessages] = useState<any[]>([]);
 
   const { data: tickets = [] } = useQuery({
     queryKey: ["tickets"],
@@ -71,6 +73,45 @@ export default function TicketDetail() {
       setEditedTicket(ticket);
     }
   }, [ticket]);
+
+  // Fetch conversation messages for Intercom tickets
+  useEffect(() => {
+    if (ticket?.intercomConversationId) {
+      fetchConversationMessages(ticket.intercomConversationId);
+    }
+  }, [ticket?.intercomConversationId]);
+
+  const fetchConversationMessages = async (conversationId: string) => {
+    try {
+      const response = await fetch(`/api/intercom/conversation?conversationId=${conversationId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const conversation = data.conversation;
+        
+        // Format messages for AI summary
+        const conversationParts = conversation.conversation_parts?.conversation_parts || [];
+        const allMessages = [
+          {
+            type: 'message',
+            author: conversation.source.author,
+            body: conversation.source.body,
+            created_at: conversation.created_at,
+          },
+          ...conversationParts.map((part: any) => ({
+            type: part.part_type,
+            author: part.author,
+            body: part.body,
+            created_at: part.created_at,
+            attachments: part.attachments,
+          })),
+        ];
+        
+        setConversationMessages(allMessages);
+      }
+    } catch (error) {
+      console.error('Failed to fetch conversation messages:', error);
+    }
+  };
 
   const updateMutation = useMutation({
     mutationFn: (updates: Partial<Ticket>) => updateTicket(id!, updates),
@@ -139,7 +180,7 @@ export default function TicketDetail() {
           </div>
         </div>
 
-        {/* Compressed Title Header with AI Summary */}
+        {/* Title Header */}
         <Card>
           <CardHeader className="pb-3">
             {/* Single Line: Title + Badges */}
@@ -227,40 +268,15 @@ export default function TicketDetail() {
               </div>
             </div>
           </CardHeader>
-          
-          {/* AI Summary Bar - Always Visible */}
-          <div className="px-6 pb-4">
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-100">AI Summary</span>
-                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border-0">
-                      Beta
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                    Customer needs help syncing 123 leads to the dialer system. Multiple help articles were shared regarding lead sync functionality.
-                  </p>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-600 dark:text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                      Sentiment: <strong className="text-gray-900 dark:text-gray-100">Neutral</strong>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      Intent: <strong className="text-gray-900 dark:text-gray-100">Technical Support</strong>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </Card>
+
+        {/* AI Summary - Only for Intercom tickets */}
+        {isIntercomTicket && intercomConversationId && conversationMessages.length > 0 && (
+          <ConversationSummary 
+            conversationId={intercomConversationId}
+            messages={conversationMessages}
+          />
+        )}
 
         {/* Main Content with Tabs for Intercom tickets */}
         {isIntercomTicket && intercomConversationId ? (
@@ -274,7 +290,7 @@ export default function TicketDetail() {
             </TabsList>
 
             <TabsContent value="conversation" className="space-y-0">
-              <Card className="h-[calc(100vh-300px)]">
+              <Card className="h-[calc(100vh-400px)]">
                 <IntercomChatView
                   conversationId={intercomConversationId}
                   ticketId={ticket.id}
