@@ -74,7 +74,7 @@ function getLocationId(): string {
 function getCustomFieldValue(opp: any, fieldId: string): any {
   const customFields = opp.customFields || [];
   const field = customFields.find((f: any) => f.id === fieldId);
-  return field?.fieldValue || field?.value || field?.field_value || '';
+  return field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
 }
 
 /** Load custom field ids once */

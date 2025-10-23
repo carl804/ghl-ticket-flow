@@ -243,7 +243,7 @@ async function handleLiveOverview(req, res) {
     function getCustomFieldValue(opp, fieldId) {
       const customFields = opp.customFields || [];
       const field = customFields.find(f => f.id === fieldId);
-      return field?.fieldValue || field?.value || field?.field_value || '';
+      return field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
     }
 
     const tickets = opportunities.map(opp => ({
