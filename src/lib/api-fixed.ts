@@ -103,12 +103,14 @@ function getFieldId(key: keyof FieldMap): string | undefined {
 // Cache for ticket data (to track previous state)
 const ticketCache = new Map<string, Ticket>();
 
-/** Fetch tickets from Ticketing System pipeline only */
+/** Fetch tickets from Ticketing System pipeline only - FIXED FOR RATE LIMITS */
 export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const locationId = getLocationId();
     
-    // First, get all opportunity IDs from the pipeline
+    console.log('🔄 Fetching tickets (rate-limit optimized)...');
+    
+    // SINGLE API CALL - Get all opportunities with their custom fields included
     const response = await ghlRequest<{ opportunities: any[] }>(
       `/opportunities/search`,
       { 
@@ -120,26 +122,12 @@ export async function fetchTickets(): Promise<Ticket[]> {
         skipLocationId: true
       }
     );
-    const opportunityIds = (response.opportunities || []).map((opp: any) => opp.id);
     
-    console.log(`Fetching full details for ${opportunityIds.length} opportunities...`);
+    const opportunities = response.opportunities || [];
+    console.log(`✅ Fetched ${opportunities.length} opportunities in single API call`);
     
-    // Then fetch full details for each opportunity (includes contact with tags)
-    const fullOpportunities = await Promise.all(
-      opportunityIds.map(id => 
-        ghlRequest<any>(`/opportunities/${id}`).catch(err => {
-          console.error(`Failed to fetch opportunity ${id}:`, err);
-          return null;
-        })
-      )
-    );
-    
-    // Filter out failed requests and extract the opportunity object
-    const validOpportunities = fullOpportunities
-      .filter(response => response !== null)
-      .map(response => response.opportunity);
-
-    const tickets = validOpportunities.map((opp: any) => {
+    // NO MORE INDIVIDUAL API CALLS - Process opportunities directly from search response
+    const tickets = opportunities.map((opp: any) => {
       // Extract custom fields
       const description = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.description);
       const priority = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.priority) || "Medium";
@@ -197,8 +185,10 @@ export async function fetchTickets(): Promise<Ticket[]> {
     // Update cache
     tickets.forEach(ticket => ticketCache.set(ticket.id, ticket));
 
+    console.log(`🎯 Successfully processed ${tickets.length} tickets without rate limits`);
     return tickets;
   } catch (error) {
+    console.error('❌ Error fetching tickets:', error);
     toast.error(`Unable to fetch tickets: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
   }
