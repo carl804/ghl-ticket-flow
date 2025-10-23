@@ -15,7 +15,7 @@ const TICKET_OWNER_FIELD_ID = 'VYv1QpVAAgns13227Pii';
 // Cache for rate limiting
 let cachedOverviewData = null;
 let lastOverviewFetch = 0;
-const CACHE_DURATION = 3 * 60 * 1000; // 3 minutes cache
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
 export default async function handler(req, res) {
   const { type, action } = req.query;
@@ -178,13 +178,13 @@ async function handleDailyMetrics(sheets, spreadsheetId, res) {
   }
 }
 
-// Handle live overview from GHL API - WITH CACHING TO PREVENT RATE LIMITS
+// Handle live overview from GHL API - SINGLE API CALL ONLY
 async function handleLiveOverview(req, res) {
   try {
-    // Check cache first to prevent rate limiting
+    // Check cache first
     const now = Date.now();
     if (cachedOverviewData && (now - lastOverviewFetch) < CACHE_DURATION) {
-      console.log('📋 Serving cached overview data');
+      console.log('Serving cached overview data');
       return res.status(200).json({
         ...cachedOverviewData,
         cached: true,
@@ -192,7 +192,7 @@ async function handleLiveOverview(req, res) {
       });
     }
 
-    console.log('🔄 Fetching fresh overview data...');
+    console.log('Fetching fresh overview data...');
 
     const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP || process.env.GHL_ACCESS_TOKEN || req.headers.authorization?.replace('Bearer ', '');
     const locationId = process.env.GHL_LOCATION_ID;
@@ -206,9 +206,9 @@ async function handleLiveOverview(req, res) {
 
     const pipelineId = 'p14Is7nXjiqS6MVI0cCk';
 
-    // Reduce limit to avoid rate limits
+    // SINGLE API CALL - Get all opportunities with their custom fields
     const response = await fetch(
-      `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&limit=50`,
+      `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&limit=100`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -222,7 +222,7 @@ async function handleLiveOverview(req, res) {
       if (response.status === 429) {
         // Rate limited - return cached data if available
         if (cachedOverviewData) {
-          console.log('⚠️ Rate limited, serving stale cache');
+          console.log('Rate limited, serving stale cache');
           return res.status(200).json({
             ...cachedOverviewData,
             cached: true,
@@ -237,56 +237,8 @@ async function handleLiveOverview(req, res) {
     const data = await response.json();
     const opportunities = data.opportunities || [];
 
-    // Process in smaller batches to avoid overwhelming the API
-    const batchSize = 10;
-    const fullOpportunities = [];
-    
-    for (let i = 0; i < opportunities.length; i += batchSize) {
-      const batch = opportunities.slice(i, i + batchSize);
-      
-      const batchPromises = batch.map(async (opp) => {
-        try {
-          // Add small delay between requests
-          if (i > 0) await new Promise(resolve => setTimeout(resolve, 100));
-          
-          const oppResponse = await fetch(
-            `https://services.leadconnectorhq.com/opportunities/${opp.id}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Version': '2021-07-28',
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          
-          if (!oppResponse.ok) {
-            if (oppResponse.status === 429) {
-              console.error(`Rate limited on opportunity ${opp.id}`);
-              return null;
-            }
-            console.error(`Failed to fetch opportunity ${opp.id}: ${oppResponse.statusText}`);
-            return null;
-          }
-          
-          const oppData = await oppResponse.json();
-          return oppData.opportunity;
-        } catch (err) {
-          console.error(`Error fetching opportunity ${opp.id}:`, err);
-          return null;
-        }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-      fullOpportunities.push(...batchResults.filter(opp => opp !== null));
-      
-      // Small delay between batches
-      if (i + batchSize < opportunities.length) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-    }
-
-    console.log(`📊 Fetched ${fullOpportunities.length} of ${opportunities.length} opportunities`);
+    // NO MORE INDIVIDUAL API CALLS - Use data from search endpoint directly
+    console.log(`Using ${opportunities.length} opportunities from search endpoint`);
 
     function getCustomFieldValue(opp, fieldId) {
       const customFields = opp.customFields || [];
@@ -294,7 +246,7 @@ async function handleLiveOverview(req, res) {
       return field?.fieldValue || field?.value || field?.field_value || '';
     }
 
-    const tickets = fullOpportunities.map(opp => ({
+    const tickets = opportunities.map(opp => ({
       id: opp.id,
       status: STAGE_MAP[opp.pipelineStageId] || "Open",
       assignedTo: getCustomFieldValue(opp, TICKET_OWNER_FIELD_ID) || "Unassigned",
@@ -409,7 +361,7 @@ async function handleLiveOverview(req, res) {
     
     // If error and we have cached data, return it
     if (cachedOverviewData) {
-      console.log('⚠️ Error occurred, serving cached data');
+      console.log('Error occurred, serving cached data');
       return res.status(200).json({
         ...cachedOverviewData,
         cached: true,
@@ -427,13 +379,13 @@ async function handleLiveOverview(req, res) {
 // Handle metrics cron job (writes daily snapshot to Google Sheets)
 async function handleMetricsCron(req, res) {
   try {
-    console.log('🕐 Metrics cron started...');
+    console.log('Metrics cron started...');
     
     const tickets = await fetchTicketsFromGHL();
-    console.log(`📊 Fetched ${tickets.length} tickets`);
+    console.log(`Fetched ${tickets.length} tickets`);
     
     const metrics = calculateMetrics(tickets);
-    console.log('📈 Calculated metrics:', metrics);
+    console.log('Calculated metrics:', metrics);
     
     await writeToGoogleSheets(metrics);
     
@@ -443,7 +395,7 @@ async function handleMetricsCron(req, res) {
       message: 'Metrics updated successfully' 
     });
   } catch (error) {
-    console.error('❌ Metrics cron error:', error);
+    console.error('Metrics cron error:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message 
@@ -568,5 +520,5 @@ async function writeToGoogleSheets(metrics) {
     }
   });
   
-  console.log('✅ Metrics written to Google Sheets:', metrics);
+  console.log('Metrics written to Google Sheets:', metrics);
 }
