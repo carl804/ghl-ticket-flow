@@ -329,7 +329,35 @@ export default async function handler(req, res) {
       
       // Transform conversations for inbox display
       const transformStart = Date.now();
-      const conversations = data.conversations.map(conv => {
+      
+      // Fetch full conversation details for each to get ALL parts
+      const conversationsWithDetails = await Promise.all(
+        data.conversations.map(async (conv) => {
+          try {
+            // Fetch full conversation to get all parts
+            const fullConvResponse = await fetch(
+              `https://api.intercom.io/conversations/${conv.id}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${INTERCOM_TOKEN}`,
+                  'Accept': 'application/json',
+                  'Intercom-Version': '2.11'
+                }
+              }
+            );
+            
+            if (fullConvResponse.ok) {
+              return await fullConvResponse.json();
+            }
+            return conv; // Fallback to original if fetch fails
+          } catch (error) {
+            console.error(`Error fetching conversation ${conv.id}:`, error);
+            return conv; // Fallback to original
+          }
+        })
+      );
+      
+      const conversations = conversationsWithDetails.map(conv => {
         // Get ALL messages (source + parts) to find the absolute latest
         const sourceMsgTime = conv.source?.created_at || 0;
         const parts = conv.conversation_parts?.conversation_parts || [];
@@ -342,8 +370,9 @@ export default async function handler(req, res) {
         };
         
         // Check all parts and find the one with the latest timestamp
+        // Only consider actual messages (comments), not system messages
         parts.forEach(part => {
-          if (part.created_at > latestMessage.created_at) {
+          if (part.part_type === 'comment' && part.body && part.created_at > latestMessage.created_at) {
             latestMessage = {
               body: part.body,
               author: part.author,
