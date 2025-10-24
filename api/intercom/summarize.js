@@ -163,6 +163,17 @@ async function cacheSummary(opportunityId, summary, messageCount, lastMessageId)
       cachedAt: new Date().toISOString()
     };
 
+    const payload = {
+      customFields: [
+        {
+          key: 'opportunity.ai_summary_cache',
+          value: JSON.stringify(cacheData)
+        }
+      ]
+    };
+
+    console.log('📤 Sending to GHL:', JSON.stringify(payload).substring(0, 200));
+
     const response = await fetch(
       `https://services.leadconnectorhq.com/opportunities/${opportunityId}`,
       {
@@ -172,20 +183,16 @@ async function cacheSummary(opportunityId, summary, messageCount, lastMessageId)
           'Version': '2021-07-28',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          customFields: [
-            {
-              key: 'opportunity.ai_summary_cache',
-              value: JSON.stringify(cacheData)
-            }
-          ]
-        })
+        body: JSON.stringify(payload)
       }
     );
 
+    const responseText = await response.text();
+    console.log('📥 GHL Response Status:', response.status);
+    console.log('📥 GHL Response Body:', responseText.substring(0, 500));
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Failed to cache summary: ${response.status} - ${errorText}`);
+      console.error(`Failed to cache summary: ${response.status} - ${responseText}`);
       throw new Error(`Failed to cache summary: ${response.status}`);
     }
 
