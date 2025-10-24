@@ -166,8 +166,9 @@ async function cacheSummary(opportunityId, summary, messageCount, lastMessageId)
     const payload = {
       customFields: [
         {
+          id: 'vyVjRNq3dgT7MY5vlcFT',
           key: 'opportunity.ai_summary_cache',
-          value: JSON.stringify(cacheData)
+          field_value: JSON.stringify(cacheData)
         }
       ]
     };
