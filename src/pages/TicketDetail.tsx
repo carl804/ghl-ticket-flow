@@ -272,17 +272,6 @@ export default function TicketDetail() {
           </div>
         </div>
 
-        {/* AI Summary - Always visible at top */}
-        {!isLoadingMessages && conversationMessages.length > 0 && (
-          <div className="flex-shrink-0 px-4 pt-4">
-            <ConversationSummary 
-              conversationId={intercomConversationId}
-              messages={conversationMessages}
-              opportunityId={ticket.id}
-            />
-          </div>
-        )}
-
         {/* 3 Column Layout */}
         <div className="flex flex-1 overflow-hidden">
           

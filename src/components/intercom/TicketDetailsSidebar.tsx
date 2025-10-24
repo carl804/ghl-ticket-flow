@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +15,14 @@ import {
   FileText,
   CheckCircle2,
   Plus,
-  Loader2
+  Loader2,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  Clock,
+  AlertCircle,
+  Lightbulb
 } from 'lucide-react';
 
 // Date formatting helpers
@@ -30,23 +37,13 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const formatRelativeTime = (timestamp: number) => {
-  const date = new Date(timestamp * 1000);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
-  if (diffInSeconds < 60) return 'just now';
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-  return `${Math.floor(diffInSeconds / 86400)}d ago`;
-};
-
 interface TicketDetailsSidebarProps {
   ticketId: string;
   conversationId: string;
   opportunity?: any;
   conversation?: any;
   contact?: any;
+  messages?: any[];
   onUpdate?: () => void;
 }
 
@@ -56,17 +53,48 @@ export default function TicketDetailsSidebar({
   opportunity,
   conversation,
   contact,
+  messages = [],
   onUpdate
 }: TicketDetailsSidebarProps) {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingResolution, setIsEditingResolution] = useState(false);
   const [description, setDescription] = useState('');
   const [resolution, setResolution] = useState('');
-  const [newNote, setNewNote] = useState('');
-  const [notes, setNotes] = useState<any[]>([]);
-  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
-  const [isAddingNote, setIsAddingNote] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [aiSummary, setAiSummary] = useState<any>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
+
+  // Fetch AI Summary
+  useEffect(() => {
+    if (conversationId && messages.length > 0) {
+      fetchAISummary();
+    }
+  }, [conversationId, messages.length]);
+
+  const fetchAISummary = async () => {
+    setIsLoadingSummary(true);
+    try {
+      const response = await fetch('/api/intercom/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId,
+          messages,
+          opportunityId: ticketId,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAiSummary(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch AI summary:', error);
+    } finally {
+      setIsLoadingSummary(false);
+    }
+  };
 
   const handleSaveDescription = async () => {
     setIsSaving(true);
@@ -123,10 +151,144 @@ export default function TicketDetailsSidebar({
     (f: any) => f.key === 'category'
   )?.value;
 
+  const sentimentEmoji = {
+    positive: '😊',
+    neutral: '😐',
+    negative: '😟',
+    urgent: '🚨'
+  };
+
+  const priorityColor = {
+    low: 'bg-blue-50 text-blue-700 border-blue-200',
+    medium: 'bg-orange-50 text-orange-700 border-orange-200',
+    high: 'bg-red-50 text-red-700 border-red-200',
+    urgent: 'bg-red-100 text-red-800 border-red-300'
+  };
+
   return (
     <div className="w-80 border-l bg-white dark:bg-gray-950 overflow-y-auto">
       <div className="p-4 space-y-4">
         
+        {/* AI Summary */}
+        {isLoadingSummary ? (
+          <Card className="p-4">
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+            </div>
+          </Card>
+        ) : aiSummary ? (
+          <Card className="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <h3 className="font-semibold text-sm text-indigo-900">AI Summary</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {aiSummary.cached && (
+                  <Badge className="text-[10px] px-1.5 py-0 h-5 bg-green-100 text-green-700 border-green-200">
+                    Cached
+                  </Badge>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSummaryExpanded(!summaryExpanded)}
+                  className="h-6 w-6 p-0"
+                >
+                  {summaryExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </Button>
+              </div>
+            </div>
+
+            {/* Main Issue - Always Visible */}
+            <div className="mb-3">
+              <div className="flex items-start gap-2">
+                <MessageSquare className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-indigo-700 mb-1">Main Issue</p>
+                  <p className="text-sm text-gray-700">{aiSummary.summary?.mainIssue}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats - Always Visible */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-white">
+                {sentimentEmoji[aiSummary.summary?.customerSentiment as keyof typeof sentimentEmoji]} {aiSummary.summary?.customerSentiment}
+              </Badge>
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-white">
+                <Clock className="w-3 h-3 mr-1" />
+                {aiSummary.summary?.estimatedResolutionTime}
+              </Badge>
+              <Badge variant="outline" className={`text-[10px] px-2 py-0.5 ${priorityColor[aiSummary.summary?.priority?.toLowerCase() as keyof typeof priorityColor] || 'bg-gray-50'}`}>
+                {aiSummary.summary?.priority}
+              </Badge>
+            </div>
+
+            {/* Expandable Details */}
+            {summaryExpanded && (
+              <div className="mt-4 space-y-3 pt-3 border-t border-indigo-200">
+                {/* Key Points */}
+                {aiSummary.summary?.keyPoints && aiSummary.summary.keyPoints.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle className="w-3 h-3 text-indigo-600" />
+                      <p className="text-xs font-semibold text-indigo-700">Key Points</p>
+                    </div>
+                    <ul className="space-y-1">
+                      {aiSummary.summary.keyPoints.map((point: string, i: number) => (
+                        <li key={i} className="text-xs text-gray-700 flex items-start gap-2">
+                          <span className="text-indigo-400 mt-0.5">•</span>
+                          <span>{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Suggested Actions */}
+                {aiSummary.summary?.suggestedActions && aiSummary.summary.suggestedActions.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lightbulb className="w-3 h-3 text-indigo-600" />
+                      <p className="text-xs font-semibold text-indigo-700">Suggested Actions</p>
+                    </div>
+                    <ul className="space-y-1">
+                      {aiSummary.summary.suggestedActions.map((action: string, i: number) => (
+                        <li key={i} className="text-xs text-gray-700 flex items-start gap-2">
+                          <span className="text-indigo-400 mt-0.5">→</span>
+                          <span>{action}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Refresh Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchAISummary}
+              disabled={isLoadingSummary}
+              className="w-full mt-3 text-xs h-7 text-indigo-700 hover:bg-indigo-100"
+            >
+              {isLoadingSummary ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Regenerating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Refresh Summary
+                </>
+              )}
+            </Button>
+          </Card>
+        ) : null}
+
         {/* Contact Information */}
         <Card className="p-4">
           <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
