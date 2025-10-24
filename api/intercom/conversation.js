@@ -49,7 +49,7 @@ export default async function handler(req, res) {
                           conversation.contacts?.contacts?.[0]?.name || 
                           'Unknown Customer';
       const customerEmail = conversation.source?.author?.email || 
-                           conversation.contacts?.contacts?>[0]?.email;
+                           conversation.contacts?.contacts?.[0]?.email;
 
       // Find or create contact in GHL
       let contactId;
@@ -194,10 +194,6 @@ export default async function handler(req, res) {
 
   console.log('📝 conversationId:', conversationId);
   console.log('🔑 Token exists:', !!INTERCOM_TOKEN);
-
-  if (!INTERCOM_TOKEN) {
-    return res.status(500).json({ error: 'Intercom token not configured' });
-  }
 
   try {
     // CASE 1: Fetch ALL conversations (inbox list)
