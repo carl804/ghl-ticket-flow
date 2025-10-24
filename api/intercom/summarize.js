@@ -121,7 +121,7 @@ async function getCachedSummary(opportunityId) {
       `https://services.leadconnectorhq.com/opportunities/${opportunityId}`,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.GHL_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${process.env.GHL_ACCESS_TOKEN_TEMP}`,
           'Version': '2021-07-28',
         },
       }
@@ -168,7 +168,7 @@ async function cacheSummary(opportunityId, summary, messageCount, lastMessageId)
       {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${process.env.GHL_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${process.env.GHL_ACCESS_TOKEN_TEMP}`,
           'Version': '2021-07-28',
           'Content-Type': 'application/json',
         },
