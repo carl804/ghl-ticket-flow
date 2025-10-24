@@ -60,6 +60,7 @@ export default function TicketDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
   const [conversationMessages, setConversationMessages] = useState<any[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   const { data: tickets = [] } = useQuery({
     queryKey: ["tickets"],
@@ -82,6 +83,7 @@ export default function TicketDetail() {
   }, [ticket?.intercomConversationId]);
 
   const fetchConversationMessages = async (conversationId: string) => {
+    setIsLoadingMessages(true);
     try {
       const response = await fetch(`/api/intercom/conversation?conversationId=${conversationId}`);
       if (response.ok) {
@@ -110,6 +112,8 @@ export default function TicketDetail() {
       }
     } catch (error) {
       console.error('Failed to fetch conversation messages:', error);
+    } finally {
+      setIsLoadingMessages(false);
     }
   };
 
@@ -270,11 +274,12 @@ export default function TicketDetail() {
           </CardHeader>
         </Card>
 
-        {/* AI Summary - Only for Intercom tickets */}
-        {isIntercomTicket && intercomConversationId && conversationMessages.length > 0 && (
+        {/* AI Summary - Only for Intercom tickets - Wait for messages to load */}
+        {isIntercomTicket && intercomConversationId && !isLoadingMessages && conversationMessages.length > 0 && (
           <ConversationSummary 
             conversationId={intercomConversationId}
             messages={conversationMessages}
+            opportunityId={ticket.id}
           />
         )}
 
