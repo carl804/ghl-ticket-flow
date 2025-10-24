@@ -143,14 +143,14 @@ async function getCachedSummary(opportunityId) {
 
     console.log('🔍 Found cache field:', cacheField ? 'YES' : 'NO');
 
-    if (!cacheField?.value && !cacheField?.field_value) {
+    if (!cacheField?.value && !cacheField?.field_value && !cacheField?.fieldValue) {
       console.log(`No cache found for opportunity ${opportunityId}`);
       return null;
     }
 
-    const fieldValue = cacheField.value || cacheField.field_value;
+    const fieldValue = cacheField.value || cacheField.field_value || cacheField.fieldValue;
     const cachedData = JSON.parse(fieldValue);
-    console.log(`Found cached summary for opportunity ${opportunityId}`);
+    console.log(`✅ Found cached summary for opportunity ${opportunityId} - messageCount: ${cachedData.messageCount}`);
     return cachedData;
   } catch (error) {
     console.error('Error reading cache:', error);
