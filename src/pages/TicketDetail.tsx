@@ -297,6 +297,7 @@ export default function TicketDetail() {
                   intercomTicketOwner={ticket.intercomAgent || ticket.assignedTo}
                   priority={ticket.priority}
                   category={ticket.category}
+                  opportunityId={ticket.id}
                   onAssignmentChange={handleAssignmentChange}
                 />
               </Card>
