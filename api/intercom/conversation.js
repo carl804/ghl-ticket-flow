@@ -370,12 +370,52 @@ export default async function handler(req, res) {
             type: conv.assignee.type,
           } : null,
           
-          // Last message preview (FIXED - now shows actual latest message)
+          // Last message preview (FIXED - shows absolute latest by timestamp)
           lastMessage: {
             body: lastMessageBody,
-            author: lastMessage?.author?.name || 'Unknown',
-            authorType: lastMessage?.author?.type || 'user',
-            createdAt: lastMessage?.created_at || conv.updated_at,
+            author: latestMessage.author?.name || 'Unknown',
+            authorType: latestMessage.author?.type || 'user',
+            createdAt: latestMessage.created_at || conv.updated_at,
+          },
+          
+          // Message counts
+          messageCount: parts.length + 1,
+          
+          // Timestamps
+          createdAt: conv.created_at,
+          updatedAt: conv.updated_at,
+          
+          // Tags/Topics
+          tags: conv.tags?.tags || [],
+          topics: conv.topics?.topics || [],
+        };
+      });
+          id: conv.id,
+          state: conv.state,
+          read: conv.read,
+          priority: conv.priority,
+          
+          // Customer info
+          customer: {
+            id: conv.source?.author?.id || conv.contacts?.contacts?.[0]?.id,
+            name: conv.source?.author?.name || conv.contacts?.contacts?.[0]?.name || 'Unknown',
+            email: conv.source?.author?.email || conv.contacts?.contacts?.[0]?.email,
+            type: conv.source?.author?.type,
+          },
+          
+          // Assignee info
+          assignee: conv.assignee ? {
+            id: conv.assignee.id,
+            name: conv.assignee.name,
+            type: conv.assignee.type,
+          } : null,
+          
+          // Last message preview (FIXED - shows absolute latest by timestamp)
+          lastMessage: {
+            body: lastMessageBody,
+            author: latestMessage.author?.name || 'Unknown',
+            authorType: latestMessage.author?.type || 'user',
+            createdAt: latestMessage.created_at || conv.updated_at,
           },
           
           // Message counts
