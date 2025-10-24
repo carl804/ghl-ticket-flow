@@ -54,15 +54,22 @@ export default function InboxSidebar({
   // Fetch conversations (no conversationId = fetch all)
   const fetchConversations = async () => {
     try {
-      const response = await fetch('/api/intercom/conversation'); // No query param = fetch all
+      console.log('🔍 Fetching conversations list...');
+      const response = await fetch('/api/intercom/conversation');
+      console.log('📡 Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        setConversations(data.conversations);
-        setFilteredConversations(data.conversations);
-        setUnreadCount(data.unreadCount);
+        console.log('✅ Conversations data:', data);
+        setConversations(data.conversations || []);
+        setFilteredConversations(data.conversations || []);
+        setUnreadCount(data.unreadCount || 0);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ API Error:', errorData);
       }
     } catch (error) {
-      console.error('Failed to fetch conversations:', error);
+      console.error('❌ Failed to fetch conversations:', error);
     } finally {
       setIsLoading(false);
     }
