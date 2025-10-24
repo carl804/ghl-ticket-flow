@@ -255,10 +255,18 @@ export default function TicketDetail() {
           {showLeftSidebar && (
             <InboxSidebar
               currentConversationId={intercomConversationId}
-              availableTicketConversationIds={tickets
-                .filter(t => t.intercomConversationId)
-                .map(t => t.intercomConversationId!)
-              }
+              availableTicketConversationIds={(() => {
+                const ids = tickets
+                  .filter(t => t.intercomConversationId)
+                  .map(t => t.intercomConversationId!);
+                console.log('📋 Available ticket conversation IDs:', ids);
+                console.log('📋 All tickets:', tickets.map(t => ({ 
+                  id: t.id, 
+                  name: t.name, 
+                  intercomConversationId: t.intercomConversationId 
+                })));
+                return ids;
+              })()}
               onConversationSelect={async (conversationId) => {
                 const targetTicket = tickets.find(t => t.intercomConversationId === conversationId);
                 
