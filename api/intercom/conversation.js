@@ -1,22 +1,26 @@
 import { google } from 'googleapis';
 
 // Google Sheets Setup
-const SHEET_ID = '1uw60J262KIIlP6TpPNFI82QFDENOF2o3VieGtWrO0NY';
+const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const COUNTER_TAB = 'Intercom Counter';
 
 // Initialize Google Sheets
 function getGoogleSheetsClient() {
   const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}'),
+    credentials: JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS),
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
   return google.sheets({ version: 'v4', auth });
 }
 
-// Get and increment ticket counter from Google Sheets
-async function getNextTicketNumber() {
+// Get and increment ticket counter with retry logic (COPIED FROM WEBHOOK)
+async function getNextTicketNumber(retryCount = 0) {
+  const MAX_RETRIES = 3;
+  
   try {
     const sheets = getGoogleSheetsClient();
+    
+    console.log(`📊 Attempting to get counter (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
     
     // Read current counter
     const response = await sheets.spreadsheets.values.get({
@@ -26,6 +30,8 @@ async function getNextTicketNumber() {
     
     const currentNumber = parseInt(response.data.values?.[0]?.[0] || '0');
     const nextNumber = currentNumber + 1;
+    
+    console.log(`📊 Current counter: ${currentNumber}, Next: ${nextNumber}`);
     
     // Update counter
     await sheets.spreadsheets.values.update({
@@ -37,13 +43,30 @@ async function getNextTicketNumber() {
       },
     });
     
-    console.log(`✅ Counter incremented: ${currentNumber} → ${nextNumber}`);
-    return String(nextNumber).padStart(5, '0');
+    console.log(`✅ Successfully generated ticket number: ${nextNumber}`);
+    return String(nextNumber).padStart(5, '0'); // "00001"
     
   } catch (error) {
-    console.error('❌ Counter error:', error);
-    // Fallback to timestamp if sheets fails
-    return String(Date.now()).slice(-5);
+    console.error(`❌ Error getting ticket number (attempt ${retryCount + 1}):`, error.message);
+    console.error('❌ Error code:', error.code);
+    console.error('❌ Error details:', error);
+    
+    // Retry logic
+    if (retryCount < MAX_RETRIES) {
+      const waitTime = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+      console.log(`🔄 Retrying in ${waitTime}ms... (${retryCount + 1}/${MAX_RETRIES})`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      return getNextTicketNumber(retryCount + 1);
+    }
+    
+    // All retries failed - use fallback
+    console.error('❌ All retries exhausted. Using timestamp fallback.');
+    console.error('⚠️ THIS SHOULD BE INVESTIGATED - Check Google Sheets permissions and quotas');
+    
+    const fallback = String(Date.now()).slice(-5);
+    console.error(`⚠️ Fallback ticket number: ${fallback}`);
+    
+    return fallback;
   }
 }
 
@@ -169,34 +192,9 @@ export default async function handler(req, res) {
         contactId = contactData.contact.id;
       }
 
-      // Get next ticket number
-      const ticketsResponse = await fetch(
-        `https://services.leadconnectorhq.com/opportunities/search?location_id=${LOCATION_ID}&pipelineId=${PIPELINE_ID}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${GHL_TOKEN}`,
-            'Version': '2021-07-28',
-          }
-        }
-      );
-
-      let nextTicketNumber = 1;
-      if (ticketsResponse.ok) {
-        const ticketsData = await ticketsResponse.json();
-        const intercomTickets = (ticketsData.opportunities || []).filter(opp => 
-          opp.name && opp.name.includes('[Intercom]')
-        );
-        
-        if (intercomTickets.length > 0) {
-          const numbers = intercomTickets.map(ticket => {
-            const match = ticket.name.match(/#(\d+)/);
-            return match ? parseInt(match[1]) : 0;
-          });
-          nextTicketNumber = Math.max(...numbers) + 1;
-        }
-      }
-
-      const ticketNumber = String(nextTicketNumber).padStart(5, '0');
+      // Get next ticket number from Google Sheets
+      const ticketNumber = await getNextTicketNumber();
+      console.log('🎫 Ticket number from sheets:', ticketNumber);
 
       // Create opportunity in GHL
       const createOppResponse = await fetch(
