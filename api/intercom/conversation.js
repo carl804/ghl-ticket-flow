@@ -1,5 +1,18 @@
 import { google } from 'googleapis';
 
+// Intercom Admin ID to GHL Name Mapping (same as webhook)
+const INTERCOM_ASSIGNEE_MAP = {
+  '1755792': 'Mark',
+  '3603553': 'Bot',
+  '4310906': 'Chloe',
+  '5326930': 'Jonathan',
+  '6465865': 'Aneela',
+  '7023191': 'Joyce',
+  '8815155': 'Christian',
+  '8958425': 'Sana',
+  '9123839': 'Carl',
+};
+
 // Google Sheets Setup
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const COUNTER_TAB = 'Intercom Counter';
@@ -363,12 +376,18 @@ export default async function handler(req, res) {
             type: conv.source?.author?.type,
           },
           
-          // Assignee info
-          assignee: conv.assignee ? {
-            id: conv.assignee.id,
-            name: conv.assignee.name,
-            type: conv.assignee.type,
-          } : null,
+          // Assignee info - read from admin_assignee_id and map to names
+          assignee: (() => {
+            const adminId = conv.admin_assignee_id;
+            if (!adminId) return null;
+            
+            const assigneeName = INTERCOM_ASSIGNEE_MAP[String(adminId)] || 'Unknown';
+            return {
+              id: adminId,
+              name: assigneeName,
+              type: 'admin',
+            };
+          })(),
           
           // Last message preview (FIXED - shows absolute latest by timestamp)
           lastMessage: {
