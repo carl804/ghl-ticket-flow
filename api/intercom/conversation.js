@@ -1,11 +1,21 @@
 export default async function handler(req, res) {
   console.log('🔥 API called - Method:', req.method, 'Query:', req.query);
+  console.log('📦 Request body:', req.body);
+  console.log('📦 Request body type:', typeof req.body);
   
   const INTERCOM_TOKEN = process.env.INTERCOM_ACCESS_TOKEN;
-  const GHL_TOKEN = process.env.GHL_ACCESS_TOKEN;
+  const GHL_TOKEN = process.env.GHL_ACCESS_TOKEN_TEMP; // ✅ FIXED: Using correct env var name
   const LOCATION_ID = process.env.GHL_LOCATION_ID;
   const PIPELINE_ID = process.env.GHL_PIPELINE_ID;
   const STAGE_ID = process.env.GHL_STAGE_ID;
+
+  console.log('🔑 Environment variables check:', {
+    hasIntercomToken: !!INTERCOM_TOKEN,
+    hasGhlToken: !!GHL_TOKEN,
+    hasLocationId: !!LOCATION_ID,
+    hasPipelineId: !!PIPELINE_ID,
+    hasStageId: !!STAGE_ID
+  });
 
   if (!INTERCOM_TOKEN) {
     return res.status(500).json({ error: 'Intercom token not configured' });
@@ -254,8 +264,11 @@ export default async function handler(req, res) {
       }
 
       const data = await response.json();
+      const parseTime = Date.now() - startTime;
+      console.log(`⏱️ Parsed response in ${parseTime}ms`);
       
       // Transform conversations for inbox display
+      const transformStart = Date.now();
       const conversations = data.conversations.map(conv => {
         // Get conversation parts (replies)
         const parts = conv.conversation_parts?.conversation_parts || [];
@@ -328,7 +341,9 @@ export default async function handler(req, res) {
       // Calculate total unread count
       const unreadCount = conversations.filter(c => !c.read).length;
 
-      console.log(`✅ Returning ${conversations.length} conversations, ${unreadCount} unread`);
+      const totalTime = Date.now() - startTime;
+      console.log(`⏱️ Transformed ${conversations.length} conversations in ${Date.now() - transformStart}ms`);
+      console.log(`✅ Total inbox load time: ${totalTime}ms`);
 
       return res.status(200).json({
         success: true,
