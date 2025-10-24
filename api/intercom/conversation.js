@@ -1,10 +1,15 @@
 export default async function handler(req, res) {
+  console.log('🔥 API called - Method:', req.method, 'Query:', req.query);
+  
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { conversationId } = req.query;
   const INTERCOM_TOKEN = process.env.INTERCOM_ACCESS_TOKEN;
+
+  console.log('📝 conversationId:', conversationId);
+  console.log('🔑 Token exists:', !!INTERCOM_TOKEN);
 
   if (!INTERCOM_TOKEN) {
     return res.status(500).json({ error: 'Intercom token not configured' });
@@ -13,6 +18,7 @@ export default async function handler(req, res) {
   try {
     // CASE 1: Fetch ALL conversations (inbox list)
     if (!conversationId) {
+      console.log('📋 Fetching ALL conversations (inbox list)...');
       const response = await fetch('https://api.intercom.io/conversations/search', {
         method: 'POST',
         headers: {
