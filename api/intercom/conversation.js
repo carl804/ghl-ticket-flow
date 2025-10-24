@@ -82,7 +82,7 @@ export default async function handler(req, res) {
   // Hardcoded values (same as in webhook)
   const PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk'; // Ticketing System pipeline
   const STAGE_ID = '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e'; // Open stage
-
+  
   console.log('🔑 Environment variables check:', {
     hasIntercomToken: !!INTERCOM_TOKEN,
     hasGhlToken: !!GHL_TOKEN,
@@ -90,23 +90,23 @@ export default async function handler(req, res) {
     pipelineId: PIPELINE_ID,
     stageId: STAGE_ID
   });
-
+  
   if (!INTERCOM_TOKEN) {
     return res.status(500).json({ error: 'Intercom token not configured' });
   }
-
+  
   // Handle POST request - Create ticket from conversation
   if (req.method === 'POST') {
     const { conversationId } = req.body;
-
+    
     console.log('📝 POST Request Body:', req.body);
     console.log('🎫 conversationId from body:', conversationId);
-
+    
     if (!conversationId) {
       console.error('❌ Missing conversationId in request body');
       return res.status(400).json({ error: 'conversationId is required' });
     }
-
+    
     if (!GHL_TOKEN || !LOCATION_ID) {
       console.error('❌ Missing GHL credentials:', {
         hasToken: !!GHL_TOKEN,
@@ -114,10 +114,10 @@ export default async function handler(req, res) {
       });
       return res.status(500).json({ error: 'GHL credentials not configured' });
     }
-
+    
     try {
       console.log('🎫 Creating ticket for conversation:', conversationId);
-
+      
       // Fetch conversation details
       const convResponse = await fetch(
         `https://api.intercom.io/conversations/${conversationId}`,
@@ -129,23 +129,23 @@ export default async function handler(req, res) {
           }
         }
       );
-
+      
       if (!convResponse.ok) {
         throw new Error('Failed to fetch conversation from Intercom');
       }
-
+      
       const conversation = await convResponse.json();
-
+      
       // Extract customer info
-      const customerName = conversation.source?.author?.name || 
-                          conversation.contacts?.contacts?.[0]?.name || 
-                          'Unknown Customer';
-      const customerEmail = conversation.source?.author?.email || 
-                           conversation.contacts?.contacts?.[0]?.email;
-
+      const customerName = conversation.source?.author?.name ||
+                           conversation.contacts?.contacts?.[0]?.name ||
+                           'Unknown Customer';
+      const customerEmail = conversation.source?.author?.email ||
+                            conversation.contacts?.contacts?.[0]?.email;
+      
       // Find or create contact in GHL
       let contactId;
-
+      
       if (customerEmail) {
         const contactSearchResponse = await fetch(
           `https://services.leadconnectorhq.com/contacts/search/duplicate?locationId=${LOCATION_ID}&email=${encodeURIComponent(customerEmail)}`,
@@ -156,7 +156,7 @@ export default async function handler(req, res) {
             }
           }
         );
-
+        
         if (contactSearchResponse.ok) {
           const searchData = await contactSearchResponse.json();
           if (searchData.contact) {
@@ -164,7 +164,7 @@ export default async function handler(req, res) {
           }
         }
       }
-
+      
       // Create contact if needed
       if (!contactId) {
         const createContactResponse = await fetch(
@@ -183,19 +183,19 @@ export default async function handler(req, res) {
             })
           }
         );
-
+        
         if (!createContactResponse.ok) {
           throw new Error('Failed to create contact in GHL');
         }
-
+        
         const contactData = await createContactResponse.json();
         contactId = contactData.contact.id;
       }
-
+      
       // Get next ticket number from Google Sheets
       const ticketNumber = await getNextTicketNumber();
       console.log('🎫 Ticket number from sheets:', ticketNumber);
-
+      
       // Create opportunity in GHL
       const createOppResponse = await fetch(
         `https://services.leadconnectorhq.com/opportunities/`,
@@ -226,23 +226,23 @@ export default async function handler(req, res) {
           })
         }
       );
-
+      
       if (!createOppResponse.ok) {
         const errorData = await createOppResponse.json();
         throw new Error(`Failed to create opportunity: ${JSON.stringify(errorData)}`);
       }
-
+      
       const oppData = await createOppResponse.json();
-
+      
       console.log('✅ Ticket created:', oppData.opportunity.id);
-
+      
       return res.status(200).json({
         success: true,
         ticketId: oppData.opportunity.id,
         ticketNumber: ticketNumber,
         message: 'Ticket created successfully'
       });
-
+    
     } catch (error) {
       console.error('❌ Error creating ticket:', error);
       console.error('❌ Error stack:', error.stack);
@@ -253,17 +253,17 @@ export default async function handler(req, res) {
       });
     }
   }
-
+  
   // Handle GET request - Fetch conversations
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-
+  
   const { conversationId } = req.query;
-
+  
   console.log('📝 conversationId:', conversationId);
   console.log('🔑 Token exists:', !!INTERCOM_TOKEN);
-
+  
   try {
     // CASE 1: Fetch ALL conversations (inbox list)
     if (!conversationId) {
@@ -289,7 +289,7 @@ export default async function handler(req, res) {
             ]
           },
           pagination: {
-            per_page: 20 // Reduced from 50 to 20 for faster loading
+            per_page: 20
           },
           sort: {
             field: 'updated_at',
@@ -297,10 +297,10 @@ export default async function handler(req, res) {
           }
         })
       });
-
+      
       const fetchTime = Date.now() - startTime;
       console.log(`⏱️ Intercom API responded in ${fetchTime}ms`);
-
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Intercom API error:', errorText);
@@ -309,7 +309,7 @@ export default async function handler(req, res) {
           details: errorText 
         });
       }
-
+      
       const data = await response.json();
       const parseTime = Date.now() - startTime;
       console.log(`⏱️ Parsed response in ${parseTime}ms`);
@@ -338,7 +338,7 @@ export default async function handler(req, res) {
             };
           }
         });
-
+        
         // Strip HTML and get preview text
         let lastMessageBody = '';
         if (latestMessage.body) {
@@ -348,7 +348,7 @@ export default async function handler(req, res) {
             lastMessageBody = lastMessageBody.substring(0, 80) + '...';
           }
         }
-
+        
         return {
           id: conv.id,
           state: conv.state,
@@ -390,54 +390,14 @@ export default async function handler(req, res) {
           topics: conv.topics?.topics || [],
         };
       });
-          id: conv.id,
-          state: conv.state,
-          read: conv.read,
-          priority: conv.priority,
-          
-          // Customer info
-          customer: {
-            id: conv.source?.author?.id || conv.contacts?.contacts?.[0]?.id,
-            name: conv.source?.author?.name || conv.contacts?.contacts?.[0]?.name || 'Unknown',
-            email: conv.source?.author?.email || conv.contacts?.contacts?.[0]?.email,
-            type: conv.source?.author?.type,
-          },
-          
-          // Assignee info
-          assignee: conv.assignee ? {
-            id: conv.assignee.id,
-            name: conv.assignee.name,
-            type: conv.assignee.type,
-          } : null,
-          
-          // Last message preview (FIXED - shows absolute latest by timestamp)
-          lastMessage: {
-            body: lastMessageBody,
-            author: latestMessage.author?.name || 'Unknown',
-            authorType: latestMessage.author?.type || 'user',
-            createdAt: latestMessage.created_at || conv.updated_at,
-          },
-          
-          // Message counts
-          messageCount: parts.length + 1,
-          
-          // Timestamps
-          createdAt: conv.created_at,
-          updatedAt: conv.updated_at,
-          
-          // Tags/Topics
-          tags: conv.tags?.tags || [],
-          topics: conv.topics?.topics || [],
-        };
-      });
-
+      
       // Calculate total unread count
       const unreadCount = conversations.filter(c => !c.read).length;
-
+      
       const totalTime = Date.now() - startTime;
       console.log(`⏱️ Transformed ${conversations.length} conversations in ${Date.now() - transformStart}ms`);
       console.log(`✅ Total inbox load time: ${totalTime}ms`);
-
+      
       return res.status(200).json({
         success: true,
         type: 'list',
@@ -446,7 +406,7 @@ export default async function handler(req, res) {
         unreadCount,
       });
     }
-
+    
     // CASE 2: Fetch SINGLE conversation details
     console.log('💬 Fetching SINGLE conversation:', conversationId);
     const conversationResponse = await fetch(
@@ -459,20 +419,20 @@ export default async function handler(req, res) {
         }
       }
     );
-
+    
     if (!conversationResponse.ok) {
       const errorData = await conversationResponse.json();
       throw new Error(`Intercom API error: ${conversationResponse.status} - ${JSON.stringify(errorData)}`);
     }
-
+    
     const conversation = await conversationResponse.json();
-
+    
     return res.status(200).json({
       success: true,
       type: 'single',
       conversation
     });
-
+  
   } catch (error) {
     console.error('Error fetching conversation(s):', error);
     return res.status(500).json({
