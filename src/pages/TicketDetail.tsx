@@ -31,10 +31,13 @@ import {
   Edit2,
   Save,
   MessageSquare,
+  Bell,
+  Menu,
 } from "lucide-react";
 import { format } from "date-fns";
 import IntercomChatView from "@/components/intercom/IntercomChatView";
 import ConversationSummary from "@/components/intercom/ConversationSummary";
+import TicketDetailsSidebar from "@/components/intercom/TicketDetailsSidebar";
 
 const priorityConfig = {
   Low: { color: "bg-priority-low/10 text-priority-low border-priority-low/20" },
@@ -61,6 +64,8 @@ export default function TicketDetail() {
   const [editedTicket, setEditedTicket] = useState<Partial<Ticket>>({});
   const [conversationMessages, setConversationMessages] = useState<any[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [showLeftSidebar, setShowLeftSidebar] = useState(true);
+  const [unreadCount] = useState(0);
 
   const { data: tickets = [] } = useQuery({
     queryKey: ["tickets"],
@@ -117,6 +122,31 @@ export default function TicketDetail() {
     }
   };
 
+  // Fetch contact data
+  const { data: contact } = useQuery({
+    queryKey: ['contact', ticket?.contact?.id],
+    queryFn: async () => {
+      if (!ticket?.contact?.id) return null;
+      const response = await fetch(`/api/ghl/contacts/${ticket.contact.id}`);
+      if (!response.ok) throw new Error('Failed to fetch contact');
+      return response.json();
+    },
+    enabled: !!ticket?.contact?.id,
+  });
+
+  // Fetch conversation data for sidebar
+  const { data: conversation } = useQuery({
+    queryKey: ['intercom-conversation', ticket?.intercomConversationId],
+    queryFn: async () => {
+      if (!ticket?.intercomConversationId) return null;
+      const response = await fetch(`/api/intercom/conversation?conversationId=${ticket.intercomConversationId}`);
+      if (!response.ok) throw new Error('Failed to fetch conversation');
+      const data = await response.json();
+      return data.conversation;
+    },
+    enabled: !!ticket?.intercomConversationId,
+  });
+
   const updateMutation = useMutation({
     mutationFn: (updates: Partial<Ticket>) => updateTicket(id!, updates),
     onSuccess: () => {
@@ -155,6 +185,147 @@ export default function TicketDetail() {
   const isIntercomTicket = ticket.ticketSource === 'Intercom' || ticket.name?.includes('[Intercom]');
   const intercomConversationId = ticket.intercomConversationId;
 
+  // NEW: For Intercom tickets with 3-column layout
+  if (isIntercomTicket && intercomConversationId) {
+    return (
+      <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+        {/* Header */}
+        <div className="h-14 border-b bg-white dark:bg-gray-950 flex items-center justify-between px-4 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/tickets")} className="gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Tickets
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowLeftSidebar(!showLeftSidebar)}
+              className="lg:hidden"
+            >
+              <Menu className="w-4 h-4" />
+            </Button>
+
+            {/* Ticket Title & Badges */}
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-semibold truncate max-w-md">{ticket.name}</h1>
+              <Badge className={`text-xs ${statusConfig[ticket.status]?.color}`}>
+                {isEditing ? (
+                  <Select
+                    value={editedTicket.status}
+                    onValueChange={(value: TicketStatus) => setEditedTicket({ ...editedTicket, status: value })}
+                  >
+                    <SelectTrigger className="h-6 border-0 bg-transparent">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(["Open", "In Progress", "Pending Customer", "Resolved", "Closed"] as TicketStatus[]).map(
+                        (status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  ticket.status
+                )}
+              </Badge>
+              <Badge variant="outline" className={`text-xs border ${priorityConfig[ticket.priority].color}`}>
+                {ticket.priority}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {ticket.category}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Edit/Save buttons */}
+            {isEditing ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" onClick={() => setIsEditing(true)}>
+                <Edit2 className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
+
+            {/* Notification Bell */}
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* AI Summary - Always visible at top */}
+        {!isLoadingMessages && conversationMessages.length > 0 && (
+          <div className="flex-shrink-0 px-4 pt-4">
+            <ConversationSummary 
+              conversationId={intercomConversationId}
+              messages={conversationMessages}
+              opportunityId={ticket.id}
+            />
+          </div>
+        )}
+
+        {/* 3 Column Layout */}
+        <div className="flex flex-1 overflow-hidden">
+          
+          {/* Left Sidebar - Inbox (Placeholder for now) */}
+          {showLeftSidebar && (
+            <div className="w-80 border-r bg-white dark:bg-gray-950 overflow-y-auto flex-shrink-0">
+              <div className="p-4">
+                <h2 className="font-semibold text-sm mb-4">Inbox</h2>
+                <p className="text-xs text-gray-500">
+                  Inbox sidebar coming next...
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Center - Conversation */}
+          <div className="flex-1 flex flex-col bg-white dark:bg-gray-950 overflow-hidden">
+            <IntercomChatView
+              conversationId={intercomConversationId}
+              ticketId={ticket.id}
+              intercomTicketOwner={ticket.intercomAgent || ticket.assignedTo}
+              priority={ticket.priority}
+              category={ticket.category}
+              opportunityId={ticket.id}
+              onAssignmentChange={handleAssignmentChange}
+            />
+          </div>
+
+          {/* Right Sidebar - Details */}
+          <TicketDetailsSidebar
+            ticketId={ticket.id}
+            conversationId={intercomConversationId}
+            opportunity={ticket}
+            conversation={conversation}
+            contact={contact}
+            onUpdate={() => queryClient.invalidateQueries({ queryKey: ["tickets"] })}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ORIGINAL LAYOUT: For non-Intercom tickets or Intercom tickets without conversation
   return (
     <div className="min-h-screen p-6 bg-background">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -274,352 +445,160 @@ export default function TicketDetail() {
           </CardHeader>
         </Card>
 
-        {/* AI Summary - Only for Intercom tickets - Wait for messages to load */}
-        {isIntercomTicket && intercomConversationId && !isLoadingMessages && conversationMessages.length > 0 && (
-          <ConversationSummary 
-            conversationId={intercomConversationId}
-            messages={conversationMessages}
-            opportunityId={ticket.id}
-          />
-        )}
+        {/* Main Content */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <div className="md:col-span-2 space-y-6">
+            {/* Description */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Description</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isEditing ? (
+                  <Textarea
+                    value={editedTicket.description || ""}
+                    onChange={(e) =>
+                      setEditedTicket({ ...editedTicket, description: e.target.value })
+                    }
+                    rows={4}
+                    placeholder="Add ticket description..."
+                  />
+                ) : (
+                  <p className="text-muted-foreground">
+                    {ticket.description || "No description provided"}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Main Content with Tabs for Intercom tickets */}
-        {isIntercomTicket && intercomConversationId ? (
-          <Tabs defaultValue="conversation" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="conversation">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Conversation
-              </TabsTrigger>
-              <TabsTrigger value="details">Details</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="conversation" className="space-y-0">
-              <Card className="h-[calc(100vh-400px)]">
-                <IntercomChatView
-                  conversationId={intercomConversationId}
-                  ticketId={ticket.id}
-                  intercomTicketOwner={ticket.intercomAgent || ticket.assignedTo}
-                  priority={ticket.priority}
-                  category={ticket.category}
-                  opportunityId={ticket.id}
-                  onAssignmentChange={handleAssignmentChange}
-                />
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="details" className="space-y-6">
-              <div className="grid md:grid-cols-3 gap-6">
-                {/* Main Content */}
-                <div className="md:col-span-2 space-y-6">
-                  {/* Description */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Description</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {isEditing ? (
-                        <Textarea
-                          value={editedTicket.description || ""}
-                          onChange={(e) =>
-                            setEditedTicket({ ...editedTicket, description: e.target.value })
-                          }
-                          rows={4}
-                          placeholder="Add ticket description..."
-                        />
-                      ) : (
-                        <p className="text-muted-foreground">
-                          {ticket.description || "No description provided"}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Resolution Summary */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Resolution Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {isEditing ? (
-                        <Textarea
-                          value={editedTicket.resolutionSummary || ""}
-                          onChange={(e) =>
-                            setEditedTicket({ ...editedTicket, resolutionSummary: e.target.value })
-                          }
-                          rows={4}
-                          placeholder="Add resolution details..."
-                        />
-                      ) : (
-                        <p className="text-muted-foreground">
-                          {ticket.resolutionSummary || "No resolution summary yet"}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Sidebar */}
-                <div className="space-y-6">
-                  {/* Contact Info */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Contact Information</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{ticket.contact.name}</span>
-                      </div>
-                      {ticket.contact.email && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          <a
-                            href={`mailto:${ticket.contact.email}`}
-                            className="text-primary hover:underline"
-                          >
-                            {ticket.contact.email}
-                          </a>
-                        </div>
-                      )}
-                      {ticket.contact.phone && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
-                          <a
-                            href={`tel:${ticket.contact.phone}`}
-                            className="text-primary hover:underline"
-                          >
-                            {ticket.contact.phone}
-                          </a>
-                        </div>
-                      )}
-                      {ticket.agencyName && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          <span>{ticket.agencyName}</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Details */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Details</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Intercom Ticket Owner</span>
-                        <span className="font-medium">{ticket.intercomAgent || "Unassigned"}</span>
-                      </div>
-                      {ticket.value !== undefined && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Value</span>
-                          <span className="font-medium">${ticket.value}</span>
-                        </div>
-                      )}
-                      {ticket.dueDate && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Due Date</span>
-                          <span className="font-medium">
-                            {format(new Date(ticket.dueDate), "MMM dd, yyyy")}
-                          </span>
-                        </div>
-                      )}
-                      <Separator />
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Created</span>
-                        <span className="text-xs">
-                          {format(new Date(ticket.createdAt), "MMM dd, yyyy HH:mm")}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Updated</span>
-                        <span className="text-xs">
-                          {format(new Date(ticket.updatedAt), "MMM dd, yyyy HH:mm")}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Tags */}
-                  {ticket.tags && ticket.tags.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Tags</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                          {ticket.tags.map((tag) => (
-                            <Badge key={tag} variant="secondary">
-                              <Tag className="h-3 w-3 mr-1" />
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        ) : (
-          /* Non-Intercom tickets show regular layout */
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Main Content */}
-            <div className="md:col-span-2 space-y-6">
-              {/* Description */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Description</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isEditing ? (
-                    <Textarea
-                      value={editedTicket.description || ""}
-                      onChange={(e) =>
-                        setEditedTicket({ ...editedTicket, description: e.target.value })
-                      }
-                      rows={4}
-                      placeholder="Add ticket description..."
-                    />
-                  ) : (
-                    <p className="text-muted-foreground">
-                      {ticket.description || "No description provided"}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Resolution Summary */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Resolution Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isEditing ? (
-                    <Textarea
-                      value={editedTicket.resolutionSummary || ""}
-                      onChange={(e) =>
-                        setEditedTicket({ ...editedTicket, resolutionSummary: e.target.value })
-                      }
-                      rows={4}
-                      placeholder="Add resolution details..."
-                    />
-                  ) : (
-                    <p className="text-muted-foreground">
-                      {ticket.resolutionSummary || "No resolution summary yet"}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Contact Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Contact Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{ticket.contact.name}</span>
-                  </div>
-                  {ticket.contact.email && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a
-                        href={`mailto:${ticket.contact.email}`}
-                        className="text-primary hover:underline"
-                      >
-                        {ticket.contact.email}
-                      </a>
-                    </div>
-                  )}
-                  {ticket.contact.phone && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a
-                        href={`tel:${ticket.contact.phone}`}
-                        className="text-primary hover:underline"
-                      >
-                        {ticket.contact.phone}
-                      </a>
-                    </div>
-                  )}
-                  {ticket.agencyName && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <span>{ticket.agencyName}</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Details */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Assigned To</span>
-                    <span className="font-medium">{ticket.assignedTo || "Unassigned"}</span>
-                  </div>
-                  {ticket.value !== undefined && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Value</span>
-                      <span className="font-medium">${ticket.value}</span>
-                    </div>
-                  )}
-                  {ticket.dueDate && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Due Date</span>
-                      <span className="font-medium">
-                        {format(new Date(ticket.dueDate), "MMM dd, yyyy")}
-                      </span>
-                    </div>
-                  )}
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Created</span>
-                    <span className="text-xs">
-                      {format(new Date(ticket.createdAt), "MMM dd, yyyy HH:mm")}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Updated</span>
-                    <span className="text-xs">
-                      {format(new Date(ticket.updatedAt), "MMM dd, yyyy HH:mm")}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Tags */}
-              {ticket.tags && ticket.tags.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Tags</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {ticket.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary">
-                          <Tag className="h-3 w-3 mr-1" />
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            {/* Resolution Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Resolution Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isEditing ? (
+                  <Textarea
+                    value={editedTicket.resolutionSummary || ""}
+                    onChange={(e) =>
+                      setEditedTicket({ ...editedTicket, resolutionSummary: e.target.value })
+                    }
+                    rows={4}
+                    placeholder="Add resolution details..."
+                  />
+                ) : (
+                  <p className="text-muted-foreground">
+                    {ticket.resolutionSummary || "No resolution summary yet"}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        )}
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Contact Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Contact Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{ticket.contact.name}</span>
+                </div>
+                {ticket.contact.email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <a
+                      href={`mailto:${ticket.contact.email}`}
+                      className="text-primary hover:underline"
+                    >
+                      {ticket.contact.email}
+                    </a>
+                  </div>
+                )}
+                {ticket.contact.phone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <a
+                      href={`tel:${ticket.contact.phone}`}
+                      className="text-primary hover:underline"
+                    >
+                      {ticket.contact.phone}
+                    </a>
+                  </div>
+                )}
+                {ticket.agencyName && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span>{ticket.agencyName}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Assigned To</span>
+                  <span className="font-medium">{ticket.assignedTo || "Unassigned"}</span>
+                </div>
+                {ticket.value !== undefined && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Value</span>
+                    <span className="font-medium">${ticket.value}</span>
+                  </div>
+                )}
+                {ticket.dueDate && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Due Date</span>
+                    <span className="font-medium">
+                      {format(new Date(ticket.dueDate), "MMM dd, yyyy")}
+                    </span>
+                  </div>
+                )}
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Created</span>
+                  <span className="text-xs">
+                    {format(new Date(ticket.createdAt), "MMM dd, yyyy HH:mm")}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Updated</span>
+                  <span className="text-xs">
+                    {format(new Date(ticket.updatedAt), "MMM dd, yyyy HH:mm")}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tags */}
+            {ticket.tags && ticket.tags.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Tags</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {ticket.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary">
+                        <Tag className="h-3 w-3 mr-1" />
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
