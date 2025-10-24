@@ -3,7 +3,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, Search, RefreshCw, AlertCircle } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 
 interface Conversation {
   id: string;
@@ -37,13 +36,13 @@ interface Conversation {
 interface InboxSidebarProps {
   currentConversationId?: string;
   onConversationSelect?: (conversationId: string) => void;
-  availableTicketConversationIds?: string[]; // NEW: List of conversation IDs that have tickets
+  availableTicketConversationIds?: string[];
 }
 
 export default function InboxSidebar({ 
   currentConversationId,
   onConversationSelect,
-  availableTicketConversationIds = [] // Default to empty array
+  availableTicketConversationIds = []
 }: InboxSidebarProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
@@ -52,7 +51,6 @@ export default function InboxSidebar({
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Fetch conversations (no conversationId = fetch all)
   const fetchConversations = async () => {
     setIsLoading(true);
     setError(null);
@@ -77,7 +75,6 @@ export default function InboxSidebar({
       const data = await response.json();
       console.log('✅ Conversations data:', data);
       
-      // Safety check - ensure conversations is an array
       const convs = Array.isArray(data.conversations) ? data.conversations : [];
       
       setConversations(convs);
@@ -95,12 +92,10 @@ export default function InboxSidebar({
     }
   };
 
-  // Initial fetch
   useEffect(() => {
     fetchConversations();
   }, []);
 
-  // Auto-refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       fetchConversations();
@@ -109,7 +104,6 @@ export default function InboxSidebar({
     return () => clearInterval(interval);
   }, []);
 
-  // Filter conversations based on search
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredConversations(conversations);
@@ -155,7 +149,19 @@ export default function InboxSidebar({
     return tmp.textContent || tmp.innerText || '';
   };
 
-  // Loading state
+  const formatRelativeTime = (timestamp: number) => {
+    const now = Date.now();
+    const diff = now - (timestamp * 1000);
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
   if (isLoading && conversations.length === 0) {
     return (
       <div className="w-80 border-r bg-white dark:bg-gray-950 flex flex-col items-center justify-center h-full">
@@ -165,7 +171,6 @@ export default function InboxSidebar({
     );
   }
 
-  // Error state
   if (error && conversations.length === 0) {
     return (
       <div className="w-80 border-r bg-white dark:bg-gray-950 flex flex-col items-center justify-center h-full p-6">
@@ -204,7 +209,6 @@ export default function InboxSidebar({
           </div>
         </div>
 
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
@@ -233,36 +237,65 @@ export default function InboxSidebar({
                 <button
                   key={conv.id}
                   onClick={() => handleConversationClick(conv)}
-                  className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors cursor-pointer ${
-                    isActive ? 'bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500' : ''
-                  } ${!conv.read ? 'bg-blue-50/50 dark:bg-blue-950/10' : ''}`}
+                  className={`w-full p-4 text-left transition-all duration-200 cursor-pointer relative
+                    ${isActive 
+                      ? 'bg-gradient-to-r from-blue-100 to-blue-50 dark:from-blue-950 dark:to-blue-900/50 shadow-sm' 
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-900/50'
+                    }
+                    ${!conv.read && !isActive ? 'bg-blue-50/30 dark:bg-blue-950/20' : ''}
+                  `}
                 >
+                  {/* Active indicator bar */}
+                  {isActive && (
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#4890F8] to-blue-600" />
+                  )}
+                  
                   <div className="flex items-start gap-3">
                     {/* Avatar */}
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 transition-all
+                      ${isActive 
+                        ? 'bg-gradient-to-br from-[#4890F8] to-blue-600 ring-2 ring-blue-400 ring-offset-2' 
+                        : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                      }
+                    `}>
                       {getInitials(conv.customer?.name)}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
-                        <h3 className={`font-semibold text-sm truncate ${
-                          !conv.read ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'
-                        }`}>
+                        <h3 className={`font-semibold text-sm truncate transition-colors
+                          ${isActive 
+                            ? 'text-blue-900 dark:text-blue-100' 
+                            : !conv.read 
+                              ? 'text-gray-900 dark:text-white' 
+                              : 'text-gray-700 dark:text-gray-300'
+                          }
+                        `}>
                           {conv.customer?.name || 'Unknown'}
                         </h3>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                        <span className={`text-xs flex-shrink-0 transition-colors
+                          ${isActive 
+                            ? 'text-blue-700 dark:text-blue-300 font-medium' 
+                            : 'text-gray-500 dark:text-gray-400'
+                          }
+                        `}>
                           {conv.lastMessage?.createdAt 
-                            ? formatDistanceToNow(new Date(conv.lastMessage.createdAt * 1000), { addSuffix: true })
+                            ? formatRelativeTime(conv.lastMessage.createdAt)
                             : 'unknown'
                           }
                         </span>
                       </div>
 
                       {/* Last message preview */}
-                      <p className={`text-xs truncate mb-2 ${
-                        !conv.read ? 'text-gray-700 dark:text-gray-300 font-medium' : 'text-gray-500 dark:text-gray-400'
-                      }`}>
+                      <p className={`text-xs truncate mb-2 transition-colors
+                        ${isActive
+                          ? 'text-blue-800 dark:text-blue-200 font-medium'
+                          : !conv.read 
+                            ? 'text-gray-700 dark:text-gray-300 font-medium' 
+                            : 'text-gray-500 dark:text-gray-400'
+                        }
+                      `}>
                         {isFromCustomer ? '' : `${conv.lastMessage?.author || 'Unknown'}: `}
                         {stripHtml(conv.lastMessage?.body || '(No message content)')}
                       </p>
@@ -271,7 +304,15 @@ export default function InboxSidebar({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {conv.assignee ? (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs transition-colors
+                                ${isActive 
+                                  ? 'bg-blue-200 text-blue-900 border-blue-300 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-700' 
+                                  : ''
+                                }
+                              `}
+                            >
                               {conv.assignee.name}
                             </Badge>
                           ) : (
@@ -288,7 +329,9 @@ export default function InboxSidebar({
                         </div>
 
                         {!conv.read && (
-                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                          <div className={`w-2 h-2 rounded-full transition-colors
+                            ${isActive ? 'bg-blue-600' : 'bg-blue-500'}
+                          `}></div>
                         )}
                       </div>
                     </div>
