@@ -15,11 +15,21 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const { conversationId } = req.body;
 
+    console.log('📝 POST Request Body:', req.body);
+    console.log('🎫 conversationId from body:', conversationId);
+
     if (!conversationId) {
+      console.error('❌ Missing conversationId in request body');
       return res.status(400).json({ error: 'conversationId is required' });
     }
 
     if (!GHL_TOKEN || !LOCATION_ID || !PIPELINE_ID || !STAGE_ID) {
+      console.error('❌ Missing GHL credentials:', {
+        hasToken: !!GHL_TOKEN,
+        hasLocationId: !!LOCATION_ID,
+        hasPipelineId: !!PIPELINE_ID,
+        hasStageId: !!STAGE_ID
+      });
       return res.status(500).json({ error: 'GHL credentials not configured' });
     }
 
@@ -177,10 +187,12 @@ export default async function handler(req, res) {
       });
 
     } catch (error) {
-      console.error('Error creating ticket:', error);
+      console.error('❌ Error creating ticket:', error);
+      console.error('❌ Error stack:', error.stack);
       return res.status(500).json({
         error: 'Failed to create ticket',
-        details: error.message
+        details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
   }
@@ -198,7 +210,9 @@ export default async function handler(req, res) {
   try {
     // CASE 1: Fetch ALL conversations (inbox list)
     if (!conversationId) {
+      const startTime = Date.now();
       console.log('📋 Fetching ALL conversations (inbox list)...');
+      
       const response = await fetch('https://api.intercom.io/conversations/search', {
         method: 'POST',
         headers: {
@@ -218,7 +232,7 @@ export default async function handler(req, res) {
             ]
           },
           pagination: {
-            per_page: 50
+            per_page: 20 // Reduced from 50 to 20 for faster loading
           },
           sort: {
             field: 'updated_at',
@@ -226,6 +240,9 @@ export default async function handler(req, res) {
           }
         })
       });
+
+      const fetchTime = Date.now() - startTime;
+      console.log(`⏱️ Intercom API responded in ${fetchTime}ms`);
 
       if (!response.ok) {
         const errorText = await response.text();

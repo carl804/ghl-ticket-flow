@@ -71,10 +71,25 @@ function getLocationId(): string {
 }
 
 /** Helper to get custom field value from opportunity */
+/** Helper to get custom field value from opportunity */
 function getCustomFieldValue(opp: any, fieldId: string): any {
   const customFields = opp.customFields || [];
+  
+  // Debug logging for intercomConversationId
+  if (fieldId === 'gk2kXQuactrb8OdIJ3El') {
+    console.log('🔍 Opportunity:', opp.id, opp.name);
+    console.log('📋 All custom fields:', JSON.stringify(customFields, null, 2));
+  }
+  
   const field = customFields.find((f: any) => f.id === fieldId);
-  return field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
+  const value = field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
+  
+  if (fieldId === 'gk2kXQuactrb8OdIJ3El') {
+    console.log('✅ Found field:', field);
+    console.log('💾 Extracted value:', value);
+  }
+  
+  return value;
 }
 
 /** Load custom field ids once */

@@ -63,9 +63,15 @@ export default function InboxSidebar({
       console.log('📡 Response status:', response.status);
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('❌ API Error:', errorData);
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          console.error('❌ API Error:', errorData);
+          errorMessage = errorData.error || errorData.details || errorMessage;
+        } catch (e) {
+          console.error('❌ Failed to parse error response');
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -80,7 +86,8 @@ export default function InboxSidebar({
       
     } catch (error) {
       console.error('❌ Failed to fetch conversations:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load conversations');
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(errorMsg);
       setConversations([]);
       setFilteredConversations([]);
     } finally {
