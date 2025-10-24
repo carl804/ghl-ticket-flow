@@ -35,6 +35,7 @@ import {
   Menu,
 } from "lucide-react";
 import { format } from "date-fns";
+import InboxSidebar from "@/components/intercom/InboxSidebar";
 import IntercomChatView from "@/components/intercom/IntercomChatView";
 import ConversationSummary from "@/components/intercom/ConversationSummary";
 import TicketDetailsSidebar from "@/components/intercom/TicketDetailsSidebar";
@@ -65,7 +66,7 @@ export default function TicketDetail() {
   const [conversationMessages, setConversationMessages] = useState<any[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
-  const [unreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const { data: tickets = [] } = useQuery({
     queryKey: ["tickets"],
@@ -79,6 +80,27 @@ export default function TicketDetail() {
       setEditedTicket(ticket);
     }
   }, [ticket]);
+
+  // Fetch unread count for notification bell
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await fetch('/api/intercom/conversation');
+        if (response.ok) {
+          const data = await response.json();
+          setUnreadCount(data.unreadCount || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch conversation messages for Intercom tickets
   useEffect(() => {
@@ -206,38 +228,9 @@ export default function TicketDetail() {
               <Menu className="w-4 h-4" />
             </Button>
 
-            {/* Ticket Title & Badges */}
+            {/* Ticket Title Only */}
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-semibold truncate max-w-md">{ticket.name}</h1>
-              <Badge className={`text-xs ${statusConfig[ticket.status]?.color}`}>
-                {isEditing ? (
-                  <Select
-                    value={editedTicket.status}
-                    onValueChange={(value: TicketStatus) => setEditedTicket({ ...editedTicket, status: value })}
-                  >
-                    <SelectTrigger className="h-6 border-0 bg-transparent">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(["Open", "In Progress", "Pending Customer", "Resolved", "Closed"] as TicketStatus[]).map(
-                        (status) => (
-                          <SelectItem key={status} value={status}>
-                            {status}
-                          </SelectItem>
-                        )
-                      )}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  ticket.status
-                )}
-              </Badge>
-              <Badge variant="outline" className={`text-xs border ${priorityConfig[ticket.priority].color}`}>
-                {ticket.priority}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {ticket.category}
-              </Badge>
             </div>
           </div>
 
@@ -275,16 +268,20 @@ export default function TicketDetail() {
         {/* 3 Column Layout */}
         <div className="flex flex-1 overflow-hidden">
           
-          {/* Left Sidebar - Inbox (Placeholder for now) */}
+          {/* Left Sidebar - Real-time Inbox */}
           {showLeftSidebar && (
-            <div className="w-80 border-r bg-white dark:bg-gray-950 overflow-y-auto flex-shrink-0">
-              <div className="p-4">
-                <h2 className="font-semibold text-sm mb-4">Inbox</h2>
-                <p className="text-xs text-gray-500">
-                  Inbox sidebar coming next...
-                </p>
-              </div>
-            </div>
+            <InboxSidebar
+              currentConversationId={intercomConversationId}
+              onConversationSelect={(conversationId) => {
+                // Find the ticket with this conversation ID and navigate to it
+                const targetTicket = tickets.find(t => t.intercomConversationId === conversationId);
+                if (targetTicket) {
+                  navigate(`/tickets/${targetTicket.id}`);
+                } else {
+                  console.log('Ticket not found for conversation:', conversationId);
+                }
+              }}
+            />
           )}
 
           {/* Center - Conversation */}
@@ -501,7 +498,7 @@ export default function TicketDetail() {
                 {ticket.contact.email && (
                   <div className="flex items-center gap-2 text-sm">
                     <Mail className="h-4 w-4 text-muted-foreground" />
-                    <a
+                    
                       href={`mailto:${ticket.contact.email}`}
                       className="text-primary hover:underline"
                     >
@@ -512,7 +509,7 @@ export default function TicketDetail() {
                 {ticket.contact.phone && (
                   <div className="flex items-center gap-2 text-sm">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <a
+                    
                       href={`tel:${ticket.contact.phone}`}
                       className="text-primary hover:underline"
                     >
