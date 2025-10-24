@@ -317,26 +317,32 @@ export default async function handler(req, res) {
       // Transform conversations for inbox display
       const transformStart = Date.now();
       const conversations = data.conversations.map(conv => {
-        // Get conversation parts (replies)
+        // Get ALL messages (source + parts) to find the absolute latest
+        const sourceMsgTime = conv.source?.created_at || 0;
         const parts = conv.conversation_parts?.conversation_parts || [];
         
-        // Get the ACTUAL last message (newest reply or original message)
-        let lastMessage = conv.source; // Start with original message
-        let lastMessageBody = '';
+        // Start with source message as the latest
+        let latestMessage = {
+          body: conv.source?.body || '',
+          author: conv.source?.author,
+          created_at: sourceMsgTime,
+        };
         
-        if (parts.length > 0) {
-          // Get the very last part (most recent message)
-          const lastPart = parts[parts.length - 1];
-          lastMessage = {
-            body: lastPart.body,
-            author: lastPart.author,
-            created_at: lastPart.created_at,
-          };
-        }
+        // Check all parts and find the one with the latest timestamp
+        parts.forEach(part => {
+          if (part.created_at > latestMessage.created_at) {
+            latestMessage = {
+              body: part.body,
+              author: part.author,
+              created_at: part.created_at,
+            };
+          }
+        });
 
         // Strip HTML and get preview text
-        if (lastMessage?.body) {
-          lastMessageBody = lastMessage.body.replace(/<[^>]*>/g, '').trim();
+        let lastMessageBody = '';
+        if (latestMessage.body) {
+          lastMessageBody = latestMessage.body.replace(/<[^>]*>/g, '').trim();
           // Truncate to 80 characters for preview
           if (lastMessageBody.length > 80) {
             lastMessageBody = lastMessageBody.substring(0, 80) + '...';
