@@ -307,6 +307,7 @@ export default function TicketDetail() {
             opportunity={ticket}
             conversation={conversation}
             contact={contact}
+            messages={conversationMessages}
             onUpdate={() => queryClient.invalidateQueries({ queryKey: ["tickets"] })}
           />
         </div>
