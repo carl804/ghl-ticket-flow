@@ -5,6 +5,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -37,6 +44,35 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
+
+// Pipeline Stages
+const PIPELINE_STAGES = {
+  OPEN: '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e',
+  IN_PROGRESS: 'bef596b8-d63d-40bd-b59a-5e0e474f1c8f',
+  ESCALATED_TO_DEV: '7558330f-4b0e-48fd-af40-ab57f38c4141',
+  RESOLVED: '4e24e27c-2e44-435b-bc1b-964e93518f20',
+  CLOSED: 'fdbed144-2dd3-48b7-981d-b0869082cc4e',
+  DELETED: '4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b'
+};
+
+// Custom Field IDs
+const CUSTOM_FIELDS = {
+  PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',
+  CATEGORY: 'BXohaPrmtGLyHJ0wz8F7'
+};
+
+// Dropdown Options
+const STAGE_OPTIONS = [
+  { value: PIPELINE_STAGES.OPEN, label: 'Open' },
+  { value: PIPELINE_STAGES.IN_PROGRESS, label: 'In Progress' },
+  { value: PIPELINE_STAGES.ESCALATED_TO_DEV, label: 'Escalated to Dev' },
+  { value: PIPELINE_STAGES.RESOLVED, label: 'Resolved' },
+  { value: PIPELINE_STAGES.CLOSED, label: 'Closed' },
+  { value: PIPELINE_STAGES.DELETED, label: 'Deleted' }
+];
+
+const PRIORITY_OPTIONS = ['Low', 'Medium', 'High', 'Urgent'];
+const CATEGORY_OPTIONS = ['General Questions', 'Technical Support', 'Billing', 'Feature Request', 'Bug Report'];
 
 const AGENT_LIST = [
   { name: 'Aneela', fullName: 'Aneela Karim', intercomId: '6465865' },
@@ -120,6 +156,7 @@ interface IntercomChatViewProps {
   conversationId: string;
   ticketId: string;
   intercomTicketOwner?: string;
+  currentStageId?: string;
   priority?: string;
   category?: string;
   opportunityId?: string;
@@ -137,8 +174,9 @@ export default function IntercomChatView({
   conversationId, 
   ticketId,
   intercomTicketOwner,
-  priority = 'Medium',
-  category = 'General Questions',
+  currentStageId,
+  priority: initialPriority = 'Medium',
+  category: initialCategory = 'General Questions',
   opportunityId,
   onClose,
   onAssignmentChange 
@@ -150,6 +188,13 @@ export default function IntercomChatView({
   const [snoozeInput, setSnoozeInput] = useState('');
   const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<StoredAgent | null>(null);
+  
+  // Dropdown states
+  const [currentStage, setCurrentStage] = useState(currentStageId || PIPELINE_STAGES.OPEN);
+  const [currentPriority, setCurrentPriority] = useState(initialPriority);
+  const [currentCategory, setCurrentCategory] = useState(initialCategory);
+  const [isUpdatingField, setIsUpdatingField] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
@@ -169,6 +214,76 @@ export default function IntercomChatView({
       setShowAgentSelector(true);
     }
   }, []);
+
+  // Update GHL ticket field
+  const updateTicketField = async (field: 'stage' | 'priority' | 'category', value: string) => {
+    setIsUpdatingField(true);
+    try {
+      const updateData: any = {};
+      
+      if (field === 'stage') {
+        updateData.pipelineStageId = value;
+      } else if (field === 'priority') {
+        updateData.customFields = [{
+          id: CUSTOM_FIELDS.PRIORITY,
+          field_value: value
+        }];
+      } else if (field === 'category') {
+        updateData.customFields = [{
+          id: CUSTOM_FIELDS.CATEGORY,
+          field_value: value
+        }];
+      }
+
+      // Call GHL API to update
+      const response = await fetch(`/api/ghl-proxy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: `/opportunities/${ticketId}`,
+          method: 'PUT',
+          body: updateData
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update ticket');
+      }
+      
+      console.log(`✅ Updated ${field} successfully`);
+      toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
+      
+      // Invalidate tickets query to refresh
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+    } catch (error: any) {
+      console.error(`❌ Failed to update ${field}:`, error);
+      toast.error(`Failed to update ${field}: ${error.message}`);
+      
+      // Revert on error
+      if (field === 'stage') setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
+      if (field === 'priority') setCurrentPriority(initialPriority);
+      if (field === 'category') setCurrentCategory(initialCategory);
+    } finally {
+      setIsUpdatingField(false);
+    }
+  };
+
+  // Handler functions
+  const handleStageChange = async (newStage: string) => {
+    setCurrentStage(newStage);
+    await updateTicketField('stage', newStage);
+  };
+
+  const handlePriorityChange = async (newPriority: string) => {
+    setCurrentPriority(newPriority);
+    await updateTicketField('priority', newPriority);
+  };
+
+  const handleCategoryChange = async (newCategory: string) => {
+    setCurrentCategory(newCategory);
+    await updateTicketField('category', newCategory);
+  };
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -500,6 +615,11 @@ export default function IntercomChatView({
 
   const filteredSnoozeOptions = getFilteredSnoozeOptions();
 
+  // Get current stage label for display
+  const getCurrentStageLabel = () => {
+    return STAGE_OPTIONS.find(opt => opt.value === currentStage)?.label || 'Open';
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-50/50">
@@ -681,7 +801,7 @@ export default function IntercomChatView({
 
       {/* ULTRA-COMPACT MAIN LAYOUT */}
       <div className="flex flex-col h-full bg-gray-50/30">
-        {/* Ultra-Compact Header - SAVED 100PX */}
+        {/* Ultra-Compact Header */}
         <div className="bg-white border-b border-gray-200">
           <div className="px-4 py-2 flex items-center justify-between gap-3">
             {/* Left side */}
@@ -700,30 +820,70 @@ export default function IntercomChatView({
                 <Info className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100" />
               </button>
 
+              {/* EDITABLE DROPDOWNS */}
               <div className="flex items-center gap-1.5 ml-1">
+                {/* Intercom State Badge (read-only) */}
                 <Badge className={`text-[10px] px-1.5 py-0 h-5 ${
                   conversation.state === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
                 }`}>
                   {conversation.state === 'open' && <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1" />}
                   {conversation.state}
                 </Badge>
+
+                {/* Stage Dropdown */}
+                <Select value={currentStage} onValueChange={handleStageChange} disabled={isUpdatingField}>
+                  <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700 w-auto gap-1">
+                    <SelectValue>{getCurrentStageLabel()}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STAGE_OPTIONS.map(stage => (
+                      <SelectItem key={stage.value} value={stage.value} className="text-xs">
+                        {stage.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Priority Dropdown */}
+                <Select value={currentPriority} onValueChange={handlePriorityChange} disabled={isUpdatingField}>
+                  <SelectTrigger className={`h-5 text-[10px] px-1.5 py-0 w-auto gap-1 ${
+                    currentPriority === 'High' || currentPriority === 'Urgent' 
+                      ? 'bg-red-50 text-red-700 border-red-200'
+                      : currentPriority === 'Medium'
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-blue-50 text-blue-700 border-blue-200'
+                  }`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITY_OPTIONS.map(priority => (
+                      <SelectItem key={priority} value={priority} className="text-xs">
+                        {priority}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Category Dropdown */}
+                <Select value={currentCategory} onValueChange={handleCategoryChange} disabled={isUpdatingField}>
+                  <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700 w-auto gap-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map(category => (
+                      <SelectItem key={category} value={category} className="text-xs">
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Assignee Badge */}
                 {intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && (
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-purple-50 text-purple-700 border-purple-200">
                     👤 {intercomTicketOwner}
                   </Badge>
                 )}
-                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${
-                  priority === 'High' || priority === 'Urgent' 
-                    ? 'bg-red-50 text-red-700 border-red-200'
-                    : priority === 'Medium'
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-blue-50 text-blue-700 border-blue-200'
-                }`}>
-                  {priority}
-                </Badge>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-blue-50 text-blue-700 border-blue-200">
-                  {category}
-                </Badge>
               </div>
             </div>
 
