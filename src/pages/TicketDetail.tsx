@@ -255,10 +255,47 @@ export default function TicketDetail() {
           {showLeftSidebar && (
             <InboxSidebar
               currentConversationId={intercomConversationId}
-              onConversationSelect={(conversationId) => {
+              availableTicketConversationIds={tickets
+                .filter(t => t.intercomConversationId)
+                .map(t => t.intercomConversationId!)
+              }
+              onConversationSelect={async (conversationId) => {
                 const targetTicket = tickets.find(t => t.intercomConversationId === conversationId);
+                
                 if (targetTicket) {
+                  // Ticket exists, navigate to it
                   navigate(`/tickets/${targetTicket.id}`);
+                } else {
+                  // No ticket exists, create one on-the-fly
+                  try {
+                    toast.loading('Creating ticket...', { id: 'create-ticket' });
+                    
+                    const response = await fetch('/api/intercom/conversation', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ conversationId })
+                    });
+
+                    if (!response.ok) {
+                      throw new Error('Failed to create ticket');
+                    }
+
+                    const data = await response.json();
+                    
+                    toast.success(`Ticket #${data.ticketNumber} created!`, { id: 'create-ticket' });
+                    
+                    // Refresh tickets list and navigate to new ticket
+                    await queryClient.invalidateQueries({ queryKey: ["tickets"] });
+                    
+                    // Small delay to let the query update
+                    setTimeout(() => {
+                      navigate(`/tickets/${data.ticketId}`);
+                    }, 500);
+                    
+                  } catch (error) {
+                    console.error('Failed to create ticket:', error);
+                    toast.error('Failed to create ticket', { id: 'create-ticket' });
+                  }
                 }
               }}
             />

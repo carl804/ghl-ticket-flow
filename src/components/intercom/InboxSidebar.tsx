@@ -37,11 +37,13 @@ interface Conversation {
 interface InboxSidebarProps {
   currentConversationId?: string;
   onConversationSelect?: (conversationId: string) => void;
+  availableTicketConversationIds?: string[]; // NEW: List of conversation IDs that have tickets
 }
 
 export default function InboxSidebar({ 
   currentConversationId,
-  onConversationSelect 
+  onConversationSelect,
+  availableTicketConversationIds = [] // Default to empty array
 }: InboxSidebarProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
@@ -218,12 +220,13 @@ export default function InboxSidebar({
             {filteredConversations.map((conv) => {
               const isActive = conv.id === currentConversationId;
               const isFromCustomer = conv.lastMessage?.authorType === 'user' || conv.lastMessage?.authorType === 'lead';
+              const hasTicket = availableTicketConversationIds.includes(conv.id);
               
               return (
                 <button
                   key={conv.id}
                   onClick={() => handleConversationClick(conv)}
-                  className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${
+                  className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors cursor-pointer ${
                     isActive ? 'bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500' : ''
                   } ${!conv.read ? 'bg-blue-50/50 dark:bg-blue-950/10' : ''}`}
                 >
@@ -257,17 +260,25 @@ export default function InboxSidebar({
                         {stripHtml(conv.lastMessage?.body || '(No message content)')}
                       </p>
 
-                      {/* Footer - Assignee & Unread */}
+                      {/* Footer - Assignee & Status */}
                       <div className="flex items-center justify-between">
-                        {conv.assignee ? (
-                          <Badge variant="outline" className="text-xs">
-                            {conv.assignee.name}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-xs text-gray-400">
-                            Unassigned
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {conv.assignee ? (
+                            <Badge variant="outline" className="text-xs">
+                              {conv.assignee.name}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs text-gray-400">
+                              Unassigned
+                            </Badge>
+                          )}
+                          
+                          {!hasTicket && (
+                            <Badge variant="outline" className="text-xs text-orange-600 border-orange-400">
+                              No Ticket
+                            </Badge>
+                          )}
+                        </div>
 
                         {!conv.read && (
                           <div className="w-2 h-2 rounded-full bg-blue-500"></div>

@@ -1,12 +1,196 @@
 export default async function handler(req, res) {
   console.log('🔥 API called - Method:', req.method, 'Query:', req.query);
   
+  const INTERCOM_TOKEN = process.env.INTERCOM_ACCESS_TOKEN;
+  const GHL_TOKEN = process.env.GHL_ACCESS_TOKEN;
+  const LOCATION_ID = process.env.GHL_LOCATION_ID;
+  const PIPELINE_ID = process.env.GHL_PIPELINE_ID;
+  const STAGE_ID = process.env.GHL_STAGE_ID;
+
+  if (!INTERCOM_TOKEN) {
+    return res.status(500).json({ error: 'Intercom token not configured' });
+  }
+
+  // Handle POST request - Create ticket from conversation
+  if (req.method === 'POST') {
+    const { conversationId } = req.body;
+
+    if (!conversationId) {
+      return res.status(400).json({ error: 'conversationId is required' });
+    }
+
+    if (!GHL_TOKEN || !LOCATION_ID || !PIPELINE_ID || !STAGE_ID) {
+      return res.status(500).json({ error: 'GHL credentials not configured' });
+    }
+
+    try {
+      console.log('🎫 Creating ticket for conversation:', conversationId);
+
+      // Fetch conversation details
+      const convResponse = await fetch(
+        `https://api.intercom.io/conversations/${conversationId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${INTERCOM_TOKEN}`,
+            'Accept': 'application/json',
+            'Intercom-Version': '2.11'
+          }
+        }
+      );
+
+      if (!convResponse.ok) {
+        throw new Error('Failed to fetch conversation from Intercom');
+      }
+
+      const conversation = await convResponse.json();
+
+      // Extract customer info
+      const customerName = conversation.source?.author?.name || 
+                          conversation.contacts?.contacts?.[0]?.name || 
+                          'Unknown Customer';
+      const customerEmail = conversation.source?.author?.email || 
+                           conversation.contacts?.contacts?>[0]?.email;
+
+      // Find or create contact in GHL
+      let contactId;
+
+      if (customerEmail) {
+        const contactSearchResponse = await fetch(
+          `https://services.leadconnectorhq.com/contacts/search/duplicate?locationId=${LOCATION_ID}&email=${encodeURIComponent(customerEmail)}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${GHL_TOKEN}`,
+              'Version': '2021-07-28',
+            }
+          }
+        );
+
+        if (contactSearchResponse.ok) {
+          const searchData = await contactSearchResponse.json();
+          if (searchData.contact) {
+            contactId = searchData.contact.id;
+          }
+        }
+      }
+
+      // Create contact if needed
+      if (!contactId) {
+        const createContactResponse = await fetch(
+          `https://services.leadconnectorhq.com/contacts/`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${GHL_TOKEN}`,
+              'Version': '2021-07-28',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              locationId: LOCATION_ID,
+              name: customerName,
+              email: customerEmail || undefined,
+            })
+          }
+        );
+
+        if (!createContactResponse.ok) {
+          throw new Error('Failed to create contact in GHL');
+        }
+
+        const contactData = await createContactResponse.json();
+        contactId = contactData.contact.id;
+      }
+
+      // Get next ticket number
+      const ticketsResponse = await fetch(
+        `https://services.leadconnectorhq.com/opportunities/search?location_id=${LOCATION_ID}&pipelineId=${PIPELINE_ID}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${GHL_TOKEN}`,
+            'Version': '2021-07-28',
+          }
+        }
+      );
+
+      let nextTicketNumber = 1;
+      if (ticketsResponse.ok) {
+        const ticketsData = await ticketsResponse.json();
+        const intercomTickets = (ticketsData.opportunities || []).filter(opp => 
+          opp.name && opp.name.includes('[Intercom]')
+        );
+        
+        if (intercomTickets.length > 0) {
+          const numbers = intercomTickets.map(ticket => {
+            const match = ticket.name.match(/#(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+          });
+          nextTicketNumber = Math.max(...numbers) + 1;
+        }
+      }
+
+      const ticketNumber = String(nextTicketNumber).padStart(5, '0');
+
+      // Create opportunity in GHL
+      const createOppResponse = await fetch(
+        `https://services.leadconnectorhq.com/opportunities/`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${GHL_TOKEN}`,
+            'Version': '2021-07-28',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            locationId: LOCATION_ID,
+            pipelineId: PIPELINE_ID,
+            pipelineStageId: STAGE_ID,
+            contactId: contactId,
+            name: `[Intercom] #${ticketNumber} - ${customerName}`,
+            status: 'open',
+            customFields: [
+              {
+                key: 'gk2kXQuactrb8OdIJ3El', // intercomConversationId
+                field_value: conversationId
+              },
+              {
+                key: 'ZfA3rPJQiSU8wRuEFWYP', // ticketSource
+                field_value: 'Intercom'
+              }
+            ]
+          })
+        }
+      );
+
+      if (!createOppResponse.ok) {
+        const errorData = await createOppResponse.json();
+        throw new Error(`Failed to create opportunity: ${JSON.stringify(errorData)}`);
+      }
+
+      const oppData = await createOppResponse.json();
+
+      console.log('✅ Ticket created:', oppData.opportunity.id);
+
+      return res.status(200).json({
+        success: true,
+        ticketId: oppData.opportunity.id,
+        ticketNumber: ticketNumber,
+        message: 'Ticket created successfully'
+      });
+
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      return res.status(500).json({
+        error: 'Failed to create ticket',
+        details: error.message
+      });
+    }
+  }
+
+  // Handle GET request - Fetch conversations
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { conversationId } = req.query;
-  const INTERCOM_TOKEN = process.env.INTERCOM_ACCESS_TOKEN;
 
   console.log('📝 conversationId:', conversationId);
   console.log('🔑 Token exists:', !!INTERCOM_TOKEN);
@@ -60,19 +244,30 @@ export default async function handler(req, res) {
       
       // Transform conversations for inbox display
       const conversations = data.conversations.map(conv => {
+        // Get conversation parts (replies)
         const parts = conv.conversation_parts?.conversation_parts || [];
-        const lastPart = parts.length > 0 ? parts[parts.length - 1] : null;
-        const lastMessage = lastPart || conv.source;
-
-        // Get last message body (strip HTML)
+        
+        // Get the ACTUAL last message (newest reply or original message)
+        let lastMessage = conv.source; // Start with original message
         let lastMessageBody = '';
-        if (lastMessage?.body) {
-          lastMessageBody = lastMessage.body.replace(/<[^>]*>/g, '').trim();
+        
+        if (parts.length > 0) {
+          // Get the very last part (most recent message)
+          const lastPart = parts[parts.length - 1];
+          lastMessage = {
+            body: lastPart.body,
+            author: lastPart.author,
+            created_at: lastPart.created_at,
+          };
         }
 
-        // Truncate to 60 characters for preview
-        if (lastMessageBody.length > 60) {
-          lastMessageBody = lastMessageBody.substring(0, 60) + '...';
+        // Strip HTML and get preview text
+        if (lastMessage?.body) {
+          lastMessageBody = lastMessage.body.replace(/<[^>]*>/g, '').trim();
+          // Truncate to 80 characters for preview
+          if (lastMessageBody.length > 80) {
+            lastMessageBody = lastMessageBody.substring(0, 80) + '...';
+          }
         }
 
         return {
@@ -96,12 +291,12 @@ export default async function handler(req, res) {
             type: conv.assignee.type,
           } : null,
           
-          // Last message preview
+          // Last message preview (FIXED - now shows actual latest message)
           lastMessage: {
             body: lastMessageBody,
             author: lastMessage?.author?.name || 'Unknown',
-            authorType: lastMessage?.author?.type,
-            createdAt: lastMessage?.created_at,
+            authorType: lastMessage?.author?.type || 'user',
+            createdAt: lastMessage?.created_at || conv.updated_at,
           },
           
           // Message counts
@@ -120,6 +315,8 @@ export default async function handler(req, res) {
       // Calculate total unread count
       const unreadCount = conversations.filter(c => !c.read).length;
 
+      console.log(`✅ Returning ${conversations.length} conversations, ${unreadCount} unread`);
+
       return res.status(200).json({
         success: true,
         type: 'list',
@@ -130,6 +327,7 @@ export default async function handler(req, res) {
     }
 
     // CASE 2: Fetch SINGLE conversation details
+    console.log('💬 Fetching SINGLE conversation:', conversationId);
     const conversationResponse = await fetch(
       `https://api.intercom.io/conversations/${conversationId}`,
       {
