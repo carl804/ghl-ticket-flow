@@ -236,7 +236,6 @@ export async function fetchStats(): Promise<Stats> {
     pendingCustomer: 0,
     resolvedToday,
     avgResolutionTime,
-    pending: 0,
     totalTrend: 0,
     openTrend: 0,
     pendingTrend: 0,
