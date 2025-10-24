@@ -142,13 +142,21 @@ async function getCachedSummary(opportunityId) {
     );
 
     console.log('🔍 Found cache field:', cacheField ? 'YES' : 'NO');
+    console.log('🔍 Cache field data:', JSON.stringify(cacheField));
 
-    if (!cacheField?.value && !cacheField?.field_value && !cacheField?.fieldValue) {
+    if (!cacheField) {
       console.log(`No cache found for opportunity ${opportunityId}`);
       return null;
     }
 
-    const fieldValue = cacheField.value || cacheField.field_value || cacheField.fieldValue;
+    // GHL returns fieldValue (camelCase), not value or field_value
+    const fieldValue = cacheField.fieldValue || cacheField.field_value || cacheField.value;
+    
+    if (!fieldValue) {
+      console.log(`Cache field exists but has no value for opportunity ${opportunityId}`);
+      return null;
+    }
+
     const cachedData = JSON.parse(fieldValue);
     console.log(`✅ Found cached summary for opportunity ${opportunityId} - messageCount: ${cachedData.messageCount}`);
     return cachedData;
