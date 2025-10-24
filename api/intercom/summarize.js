@@ -1,7 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export default async function handler(req, res) {
@@ -14,6 +14,14 @@ export default async function handler(req, res) {
 
     if (!conversationId || !messages) {
       return res.status(400).json({ error: 'Missing conversationId or messages' });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('❌ OPENAI_API_KEY is not set in environment variables');
+      return res.status(500).json({ 
+        error: 'Configuration error',
+        details: 'OPENAI_API_KEY is not configured'
+      });
     }
 
     // Calculate conversation fingerprint
@@ -35,12 +43,16 @@ export default async function handler(req, res) {
           cached: true,
           cachedAt: cachedSummary.cachedAt
         });
+      } else if (cachedSummary) {
+        console.log(`🔄 Cache exists but stale (messages changed) for opportunity ${opportunityId}`);
+      } else {
+        console.log(`📝 No cache found, generating new summary for opportunity ${opportunityId}`);
       }
     }
 
     console.log(`🤖 Generating new summary for conversation ${conversationId}`);
 
-    // Format conversation for Claude
+    // Format conversation for OpenAI
     const conversationText = messages
       .map((msg) => {
         const author = msg.author?.type === 'admin' ? msg.author.name : 'Customer';
@@ -49,12 +61,13 @@ export default async function handler(req, res) {
       })
       .join('\n\n');
 
-    // Generate summary with Claude
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 500,
-      temperature: 0.3,
-      system: `You are an expert customer support analyst. Analyze conversations and provide actionable insights for support agents.
+    // Generate summary with OpenAI
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert customer support analyst. Analyze conversations and provide actionable insights for support agents.
 
 Provide a concise, actionable summary in JSON format with these fields:
 - mainIssue: One sentence describing the customer's main problem or question
@@ -65,30 +78,20 @@ Provide a concise, actionable summary in JSON format with these fields:
 - estimatedResolutionTime: String like "5-10 min", "30 min", "1-2 hours"
 - priority: "low", "medium", "high", or "urgent"
 
-Be concise and actionable. Focus on what the agent needs to know RIGHT NOW.`,
-      messages: [
+Be concise and actionable. Focus on what the agent needs to know RIGHT NOW.`
+        },
         {
           role: 'user',
           content: `Analyze this customer support conversation:\n\n${conversationText}`
         }
-      ]
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+      max_tokens: 500,
     });
 
-    // Extract JSON from Claude's response
-    const content = message.content[0];
-    let summary;
-    
-    if (content.type === 'text') {
-      // Try to parse JSON from the text
-      const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        summary = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No JSON found in Claude response');
-      }
-    } else {
-      throw new Error('Unexpected response type from Claude');
-    }
+    const summaryText = completion.choices[0].message.content;
+    const summary = JSON.parse(summaryText || '{}');
 
     // Cache the summary if we have an opportunityId
     if (opportunityId) {
