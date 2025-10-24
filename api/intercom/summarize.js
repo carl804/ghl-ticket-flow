@@ -134,17 +134,22 @@ async function getCachedSummary(opportunityId) {
 
     const data = await response.json();
     
+    console.log('🔍 Custom fields in response:', JSON.stringify(data.opportunity?.customFields || []));
+    
     // Look for the custom field with key 'opportunity.ai_summary_cache'
     const cacheField = data.opportunity?.customFields?.find(
-      (field) => field.key === 'opportunity.ai_summary_cache'
+      (field) => field.key === 'opportunity.ai_summary_cache' || field.id === 'vyVjRNq3dgT7MY5vlcFT'
     );
 
-    if (!cacheField?.value) {
+    console.log('🔍 Found cache field:', cacheField ? 'YES' : 'NO');
+
+    if (!cacheField?.value && !cacheField?.field_value) {
       console.log(`No cache found for opportunity ${opportunityId}`);
       return null;
     }
 
-    const cachedData = JSON.parse(cacheField.value);
+    const fieldValue = cacheField.value || cacheField.field_value;
+    const cachedData = JSON.parse(fieldValue);
     console.log(`Found cached summary for opportunity ${opportunityId}`);
     return cachedData;
   } catch (error) {
