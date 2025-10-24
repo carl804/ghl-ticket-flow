@@ -1,11 +1,8 @@
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
-
-// In-memory cache for summaries (you could use Redis/database for persistence)
-const summaryCache = new Map();
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,51 +10,53 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { conversationId, messages, forceRegenerate = false } = req.body;
+    const { conversationId, messages, opportunityId, forceRegenerate = false } = req.body;
 
-    if (!conversationId || !messages || messages.length === 0) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!conversationId || !messages) {
+      return res.status(400).json({ error: 'Missing conversationId or messages' });
     }
 
-    // Create a hash of the conversation content to detect changes
-    const conversationHash = generateConversationHash(messages);
-    const cacheKey = `summary_${conversationId}`;
+    // Calculate conversation fingerprint
+    const messageCount = messages.length;
+    const lastMessageId = messages[messages.length - 1]?.id || messages[messages.length - 1]?.created_at || '';
     
-    // Check if we have a cached summary for this exact conversation state
-    if (!forceRegenerate && summaryCache.has(cacheKey)) {
-      const cachedData = summaryCache.get(cacheKey);
+    // Check cache first (unless force regenerate)
+    if (!forceRegenerate && opportunityId) {
+      const cachedSummary = await getCachedSummary(opportunityId);
       
-      // If the conversation hasn't changed, return cached summary
-      if (cachedData.hash === conversationHash) {
-        console.log(`📋 Returning cached summary for conversation ${conversationId}`);
-        return res.status(200).json({ 
-          success: true, 
-          summary: cachedData.summary,
+      if (cachedSummary && 
+          cachedSummary.messageCount === messageCount && 
+          cachedSummary.lastMessageId === lastMessageId) {
+        console.log(`✅ Cache hit for opportunity ${opportunityId}`);
+        return res.status(200).json({
+          success: true,
+          summary: cachedSummary.summary,
           conversationId,
           cached: true,
-          cachedAt: cachedData.timestamp
+          cachedAt: cachedSummary.cachedAt
         });
       }
     }
 
-    console.log(`🤖 Generating new AI summary for conversation ${conversationId}`);
+    console.log(`🤖 Generating new summary for conversation ${conversationId}`);
 
-    // Format messages for AI analysis
-    const conversationText = messages.map((msg) => {
-      const role = msg.author.type === 'user' || msg.author.type === 'lead' ? 'Customer' : 'Agent';
-      const name = msg.author.name || 'Unknown';
-      const body = msg.body?.replace(/<[^>]*>/g, '') || ''; // Strip HTML
-      const timestamp = new Date(msg.created_at * 1000).toLocaleString();
-      return `${timestamp} - ${role} (${name}): ${body}`;
-    }).join('\n\n');
+    // Format conversation for Claude
+    const conversationText = messages
+      .map((msg) => {
+        const author = msg.author?.type === 'admin' ? msg.author.name : 'Customer';
+        const timestamp = new Date((msg.created_at || Date.now() / 1000) * 1000).toLocaleString();
+        return `[${timestamp}] ${author}: ${msg.body || '(no text)'}`;
+      })
+      .join('\n\n');
 
-    // Call OpenAI for summary
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `You are an AI assistant analyzing customer support conversations. Provide a concise, actionable summary in JSON format with these fields:
+    // Generate summary with Claude
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      temperature: 0.3,
+      system: `You are an expert customer support analyst. Analyze conversations and provide actionable insights for support agents.
+
+Provide a concise, actionable summary in JSON format with these fields:
 - mainIssue: One sentence describing the customer's main problem or question
 - customerSentiment: "positive", "neutral", "negative", or "urgent"
 - keyPoints: Array of 2-4 key points from the conversation
@@ -65,76 +64,131 @@ export default async function handler(req, res) {
 - previousInteractions: Number (estimate based on conversation depth)
 - estimatedResolutionTime: String like "5-10 min", "30 min", "1-2 hours"
 - priority: "low", "medium", "high", or "urgent"
-- ticketStatus: "new", "in_progress", "waiting_customer", "resolved" (based on conversation state)
 
-Be concise and actionable. Focus on what the agent needs to know RIGHT NOW.`
-        },
+Be concise and actionable. Focus on what the agent needs to know RIGHT NOW.`,
+      messages: [
         {
           role: 'user',
           content: `Analyze this customer support conversation:\n\n${conversationText}`
         }
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.3,
-      max_tokens: 600,
+      ]
     });
 
-    const summaryText = completion.choices[0].message.content;
-    const summary = JSON.parse(summaryText || '{}');
+    // Extract JSON from Claude's response
+    const content = message.content[0];
+    let summary;
+    
+    if (content.type === 'text') {
+      // Try to parse JSON from the text
+      const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        summary = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in Claude response');
+      }
+    } else {
+      throw new Error('Unexpected response type from Claude');
+    }
 
-    // Cache the result with the conversation hash
-    summaryCache.set(cacheKey, {
-      summary,
-      hash: conversationHash,
-      timestamp: new Date().toISOString(),
-      messageCount: messages.length
-    });
+    // Cache the summary if we have an opportunityId
+    if (opportunityId) {
+      await cacheSummary(opportunityId, summary, messageCount, lastMessageId);
+    }
 
-    console.log(`✅ Generated and cached summary for conversation ${conversationId}`);
-
-    return res.status(200).json({ 
-      success: true, 
+    return res.status(200).json({
+      success: true,
       summary,
       conversationId,
-      cached: false,
-      messageCount: messages.length
+      cached: false
     });
 
   } catch (error) {
     console.error('Error generating summary:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'Failed to generate summary',
-      details: error.message 
+      details: error.message
     });
   }
 }
 
-// Generate a hash of the conversation content to detect changes
-function generateConversationHash(messages) {
-  const contentString = messages.map(msg => 
-    `${msg.author.id}_${msg.created_at}_${msg.body || ''}`
-  ).join('|');
-  
-  // Simple hash function (you could use crypto.createHash for better hashing)
-  let hash = 0;
-  for (let i = 0; i < contentString.length; i++) {
-    const char = contentString.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+// Get cached summary from GHL custom field
+async function getCachedSummary(opportunityId) {
+  try {
+    const response = await fetch(
+      `https://services.leadconnectorhq.com/opportunities/${opportunityId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.GHL_ACCESS_TOKEN}`,
+          'Version': '2021-07-28',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`Failed to fetch opportunity: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    // Look for the custom field with key 'opportunity.ai_summary_cache'
+    const cacheField = data.opportunity?.customFields?.find(
+      (field) => field.key === 'opportunity.ai_summary_cache'
+    );
+
+    if (!cacheField?.value) {
+      console.log(`No cache found for opportunity ${opportunityId}`);
+      return null;
+    }
+
+    const cachedData = JSON.parse(cacheField.value);
+    console.log(`Found cached summary for opportunity ${opportunityId}`);
+    return cachedData;
+  } catch (error) {
+    console.error('Error reading cache:', error);
+    return null;
   }
-  
-  return Math.abs(hash).toString(36);
 }
 
-// Optional: Clean up old cache entries (call this periodically)
-export function cleanupCache() {
-  const oneHourAgo = Date.now() - (60 * 60 * 1000);
-  
-  for (const [key, value] of summaryCache.entries()) {
-    if (new Date(value.timestamp).getTime() < oneHourAgo) {
-      summaryCache.delete(key);
+// Store summary in GHL custom field
+async function cacheSummary(opportunityId, summary, messageCount, lastMessageId) {
+  try {
+    const cacheData = {
+      summary,
+      messageCount,
+      lastMessageId,
+      cachedAt: new Date().toISOString()
+    };
+
+    const response = await fetch(
+      `https://services.leadconnectorhq.com/opportunities/${opportunityId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${process.env.GHL_ACCESS_TOKEN}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customFields: [
+            {
+              key: 'opportunity.ai_summary_cache',
+              value: JSON.stringify(cacheData)
+            }
+          ]
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Failed to cache summary: ${response.status} - ${errorText}`);
+      throw new Error(`Failed to cache summary: ${response.status}`);
     }
+
+    console.log(`✅ Cached summary for opportunity ${opportunityId}`);
+  } catch (error) {
+    console.error('Error caching summary:', error);
+    // Don't throw - caching failure shouldn't break summary generation
   }
-  
-  console.log(`🧹 Cache cleanup: ${summaryCache.size} summaries remaining`);
 }
