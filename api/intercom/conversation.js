@@ -4,10 +4,12 @@ export default async function handler(req, res) {
   console.log('📦 Request body type:', typeof req.body);
   
   const INTERCOM_TOKEN = process.env.INTERCOM_ACCESS_TOKEN;
-  const GHL_TOKEN = process.env.GHL_ACCESS_TOKEN_TEMP; // ✅ FIXED: Using correct env var name
+  const GHL_TOKEN = process.env.GHL_ACCESS_TOKEN_TEMP;
   const LOCATION_ID = process.env.GHL_LOCATION_ID;
-  const PIPELINE_ID = process.env.GHL_PIPELINE_ID;
-  const STAGE_ID = process.env.GHL_STAGE_ID;
+  
+  // Hardcoded values (same as in webhook)
+  const PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk'; // Ticketing System pipeline
+  const STAGE_ID = '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e'; // Open stage
 
   console.log('🔑 Environment variables check:', {
     hasIntercomToken: !!INTERCOM_TOKEN,
