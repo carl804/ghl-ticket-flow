@@ -17,6 +17,7 @@ import AnalyticsView from './components/analytics/AnalyticsView';
 import OAuthCallback from "./pages/OAuthCallback";
 import OAuthSuccess from "./pages/OAuthSuccess";
 import NotFound from "./pages/NotFound";
+import IntercomChatPage from "@/pages/IntercomChatPage";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,7 @@ const App = () => {
                 <Route path="/callback" element={<OAuthCallback />} />
                 <Route path="/oauth/callback" element={<OAuthCallback />} />
                 <Route path="/oauth/success" element={<OAuthSuccess />} />
+                <Route path="/intercom-chat/:conversationId" element={<IntercomChatPage />} />
                 
                 {/* Protected routes - with sidebar */}
                 <Route

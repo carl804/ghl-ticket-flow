@@ -1,3 +1,52 @@
+import { google } from 'googleapis';
+
+// Google Sheets Setup
+const SHEET_ID = '1uw60J262KIIlP6TpPNFI82QFDENOF2o3VieGtWrO0NY';
+const COUNTER_TAB = 'Intercom Counter';
+
+// Initialize Google Sheets
+function getGoogleSheetsClient() {
+  const auth = new google.auth.GoogleAuth({
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}'),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+  return google.sheets({ version: 'v4', auth });
+}
+
+// Get and increment ticket counter from Google Sheets
+async function getNextTicketNumber() {
+  try {
+    const sheets = getGoogleSheetsClient();
+    
+    // Read current counter
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${COUNTER_TAB}!B2`,
+    });
+    
+    const currentNumber = parseInt(response.data.values?.[0]?.[0] || '0');
+    const nextNumber = currentNumber + 1;
+    
+    // Update counter
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${COUNTER_TAB}!B2`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [[nextNumber]],
+      },
+    });
+    
+    console.log(`✅ Counter incremented: ${currentNumber} → ${nextNumber}`);
+    return String(nextNumber).padStart(5, '0');
+    
+  } catch (error) {
+    console.error('❌ Counter error:', error);
+    // Fallback to timestamp if sheets fails
+    return String(Date.now()).slice(-5);
+  }
+}
+
 export default async function handler(req, res) {
   console.log('🔥 API called - Method:', req.method, 'Query:', req.query);
   console.log('📦 Request body:', req.body);
@@ -15,8 +64,8 @@ export default async function handler(req, res) {
     hasIntercomToken: !!INTERCOM_TOKEN,
     hasGhlToken: !!GHL_TOKEN,
     hasLocationId: !!LOCATION_ID,
-    hasPipelineId: !!PIPELINE_ID,
-    hasStageId: !!STAGE_ID
+    pipelineId: PIPELINE_ID,
+    stageId: STAGE_ID
   });
 
   if (!INTERCOM_TOKEN) {
@@ -35,12 +84,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'conversationId is required' });
     }
 
-    if (!GHL_TOKEN || !LOCATION_ID || !PIPELINE_ID || !STAGE_ID) {
+    if (!GHL_TOKEN || !LOCATION_ID) {
       console.error('❌ Missing GHL credentials:', {
         hasToken: !!GHL_TOKEN,
-        hasLocationId: !!LOCATION_ID,
-        hasPipelineId: !!PIPELINE_ID,
-        hasStageId: !!STAGE_ID
+        hasLocationId: !!LOCATION_ID
       });
       return res.status(500).json({ error: 'GHL credentials not configured' });
     }
