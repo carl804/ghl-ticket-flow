@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, RefreshCw } from 'lucide-react';
+import { Loader2, Search, RefreshCw, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Conversation {
@@ -44,32 +43,44 @@ export default function InboxSidebar({
   currentConversationId,
   onConversationSelect 
 }: InboxSidebarProps) {
-  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Fetch conversations (no conversationId = fetch all)
   const fetchConversations = async () => {
+    setIsLoading(true);
+    setError(null);
+    
     try {
       console.log('🔍 Fetching conversations list...');
       const response = await fetch('/api/intercom/conversation');
       console.log('📡 Response status:', response.status);
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Conversations data:', data);
-        setConversations(data.conversations || []);
-        setFilteredConversations(data.conversations || []);
-        setUnreadCount(data.unreadCount || 0);
-      } else {
-        const errorData = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ API Error:', errorData);
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log('✅ Conversations data:', data);
+      
+      // Safety check - ensure conversations is an array
+      const convs = Array.isArray(data.conversations) ? data.conversations : [];
+      
+      setConversations(convs);
+      setFilteredConversations(convs);
+      setUnreadCount(data.unreadCount || 0);
+      
     } catch (error) {
       console.error('❌ Failed to fetch conversations:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load conversations');
+      setConversations([]);
+      setFilteredConversations([]);
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +95,7 @@ export default function InboxSidebar({
   useEffect(() => {
     const interval = setInterval(() => {
       fetchConversations();
-    }, 30000); // 30 seconds
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
@@ -97,28 +108,29 @@ export default function InboxSidebar({
     }
 
     const query = searchQuery.toLowerCase();
-    const filtered = conversations.filter(conv => 
-      conv.customer.name.toLowerCase().includes(query) ||
-      conv.customer.email?.toLowerCase().includes(query) ||
-      conv.lastMessage.body.toLowerCase().includes(query) ||
-      conv.assignee?.name.toLowerCase().includes(query)
-    );
+    const filtered = conversations.filter(conv => {
+      try {
+        return (
+          conv.customer?.name?.toLowerCase().includes(query) ||
+          conv.customer?.email?.toLowerCase().includes(query) ||
+          conv.lastMessage?.body?.toLowerCase().includes(query) ||
+          conv.assignee?.name?.toLowerCase().includes(query)
+        );
+      } catch (e) {
+        return false;
+      }
+    });
     setFilteredConversations(filtered);
   }, [searchQuery, conversations]);
 
   const handleConversationClick = (conversation: Conversation) => {
-    // Find the ticket with this conversation ID
-    // We'll need to navigate to the ticket detail page
     if (onConversationSelect) {
       onConversationSelect(conversation.id);
-    } else {
-      // Navigate by conversation ID - we'll need to find the ticket
-      // For now, just log
-      console.log('Navigate to conversation:', conversation.id);
     }
   };
 
   const getInitials = (name: string) => {
+    if (!name) return '??';
     return name
       .split(' ')
       .map(n => n[0])
@@ -127,10 +139,34 @@ export default function InboxSidebar({
       .slice(0, 2);
   };
 
-  if (isLoading) {
+  const stripHtml = (html: string) => {
+    if (!html) return '';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
+
+  // Loading state
+  if (isLoading && conversations.length === 0) {
     return (
-      <div className="w-80 border-r bg-white dark:bg-gray-950 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      <div className="w-80 border-r bg-white dark:bg-gray-950 flex flex-col items-center justify-center h-full">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-3" />
+        <p className="text-sm text-gray-500 dark:text-gray-400">Loading conversations...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && conversations.length === 0) {
+    return (
+      <div className="w-80 border-r bg-white dark:bg-gray-950 flex flex-col items-center justify-center h-full p-6">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-3" />
+        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Failed to load inbox</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-4">{error}</p>
+        <Button onClick={fetchConversations} size="sm">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Try Again
+        </Button>
       </div>
     );
   }
@@ -152,8 +188,9 @@ export default function InboxSidebar({
               size="sm"
               onClick={fetchConversations}
               className="h-8 w-8 p-0"
+              disabled={isLoading}
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
@@ -180,7 +217,7 @@ export default function InboxSidebar({
           <div className="divide-y dark:divide-gray-800">
             {filteredConversations.map((conv) => {
               const isActive = conv.id === currentConversationId;
-              const isFromCustomer = conv.lastMessage.authorType === 'user' || conv.lastMessage.authorType === 'lead';
+              const isFromCustomer = conv.lastMessage?.authorType === 'user' || conv.lastMessage?.authorType === 'lead';
               
               return (
                 <button
@@ -193,7 +230,7 @@ export default function InboxSidebar({
                   <div className="flex items-start gap-3">
                     {/* Avatar */}
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                      {getInitials(conv.customer.name)}
+                      {getInitials(conv.customer?.name)}
                     </div>
 
                     {/* Content */}
@@ -202,10 +239,13 @@ export default function InboxSidebar({
                         <h3 className={`font-semibold text-sm truncate ${
                           !conv.read ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'
                         }`}>
-                          {conv.customer.name}
+                          {conv.customer?.name || 'Unknown'}
                         </h3>
                         <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                          {formatDistanceToNow(new Date(conv.lastMessage.createdAt * 1000), { addSuffix: true })}
+                          {conv.lastMessage?.createdAt 
+                            ? formatDistanceToNow(new Date(conv.lastMessage.createdAt * 1000), { addSuffix: true })
+                            : 'unknown'
+                          }
                         </span>
                       </div>
 
@@ -213,8 +253,8 @@ export default function InboxSidebar({
                       <p className={`text-xs truncate mb-2 ${
                         !conv.read ? 'text-gray-700 dark:text-gray-300 font-medium' : 'text-gray-500 dark:text-gray-400'
                       }`}>
-                        {isFromCustomer ? '' : `${conv.lastMessage.author}: `}
-                        {conv.lastMessage.body || '(No message content)'}
+                        {isFromCustomer ? '' : `${conv.lastMessage?.author || 'Unknown'}: `}
+                        {stripHtml(conv.lastMessage?.body || '(No message content)')}
                       </p>
 
                       {/* Footer - Assignee & Unread */}
