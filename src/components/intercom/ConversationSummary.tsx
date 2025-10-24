@@ -61,15 +61,16 @@ export default function ConversationSummary({ conversationId, messages, opportun
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate summary');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || 'Failed to generate summary');
       }
 
       const data = await response.json();
       setSummary(data.summary);
       setIsCached(data.cached || false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error generating summary:', err);
-      setError('Failed to generate summary. Please try again.');
+      setError(err.message || 'Failed to generate summary. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +78,7 @@ export default function ConversationSummary({ conversationId, messages, opportun
 
   // Auto-generate on mount
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && conversationId) {
       generateSummary();
     }
   }, [conversationId]); // Only run when conversation changes
