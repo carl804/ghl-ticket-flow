@@ -495,7 +495,7 @@ export default function TicketDetail() {
                   <User className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{ticket.contact.name}</span>
                 </div>
-                {ticket.contact.email && (
+               {ticket.contact.email && (
                   <div className="flex items-center gap-2 text-sm">
                     <Mail className="h-4 w-4 text-muted-foreground" />
                     
