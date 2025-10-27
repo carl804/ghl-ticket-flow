@@ -288,43 +288,57 @@ export default function IntercomChatView({
     await updateTicketField('category', newCategory);
   };
 
-  // Handle image file selection
-const handleImageAttachment = (files: File[]) => {
-  const imageFiles = files.filter(f => f.type.startsWith('image/'));
-  if (imageFiles.length === 0) {
-    toast.error('Please select image files only');
-    return;
-  }
-
-  // Create preview URLs
-  const newPreviews = imageFiles.map(file => URL.createObjectURL(file));
-  setAttachedImages(prev => [...prev, ...imageFiles]);
-  setImagePreviewUrls(prev => [...prev, ...newPreviews]);
-  toast.success(`Attached ${imageFiles.length} image(s)`);
-};
-
-// Handle image paste
-useEffect(() => {
-  const handlePaste = (e: ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
-        e.preventDefault();
-        const file = items[i].getAsFile();
-        if (file) {
-          handleImageAttachment([file]);
-        }
-      }
+    // Handle image file selection
+  const handleImageAttachment = (files: File[]) => {
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      toast.error('Please select image files only');
+      return;
     }
+  
+    // Create preview URLs
+    const newPreviews = imageFiles.map(file => URL.createObjectURL(file));
+    setAttachedImages(prev => [...prev, ...imageFiles]);
+    setImagePreviewUrls(prev => [...prev, ...newPreviews]);
+    toast.success(`Attached ${imageFiles.length} image(s)`);
+
+  // Remove attached image
+  const removeImage = (index: number) => {
+    URL.revokeObjectURL(imagePreviewUrls[index]);
+    setAttachedImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
 
-  const textarea = messageInputRef.current;
-  if (textarea) {
-    textarea.addEventListener('paste', handlePaste as any);
-    return () => textarea.removeEventListener('paste', handlePaste as any);
-  }
+  // Clean up preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      imagePreviewUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [imagePreviewUrls]);
+  };
+  
+  // Handle image paste
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+  
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          e.preventDefault();
+          const file = items[i].getAsFile();
+          if (file) {
+            handleImageAttachment([file]);
+          }
+        }
+      }
+    };
+  
+    const textarea = messageInputRef.current;
+    if (textarea) {
+      textarea.addEventListener('paste', handlePaste as any);
+      return () => textarea.removeEventListener('paste', handlePaste as any);
+    }
 }, []);
 
   // Keyboard shortcuts
