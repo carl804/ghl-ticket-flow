@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import NotificationSounds from "@/components/NotificationSounds";
 
 interface SidebarProps {
   className?: string;
@@ -142,12 +143,7 @@ export function Sidebar({ className }: SidebarProps) {
             </DialogDescription>
           </DialogHeader>
           
-          <iframe 
-            src="https://claude.site/artifacts/074d7fce-7f1f-4b51-b459-8c760b616a70?fullscreen=true"
-            className="w-full h-full border-0"
-            title="Notification Settings"
-            allow="autoplay"
-          />
+          <NotificationSounds />
         </DialogContent>
       </Dialog>
     </>
