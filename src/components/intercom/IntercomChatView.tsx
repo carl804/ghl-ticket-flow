@@ -288,25 +288,46 @@ export default function IntercomChatView({
     await updateTicketField('category', newCategory);
   };
 
-    // Handle image file selection
+  // Handle image file selection
   const handleImageAttachment = (files: File[]) => {
+    console.log('📎 handleImageAttachment called with:', files);
     const imageFiles = files.filter(f => f.type.startsWith('image/'));
     if (imageFiles.length === 0) {
       toast.error('Please select image files only');
       return;
     }
-  
+
     // Create preview URLs
     const newPreviews = imageFiles.map(file => URL.createObjectURL(file));
+    console.log('🖼️ Created preview URLs:', newPreviews);
     setAttachedImages(prev => [...prev, ...imageFiles]);
     setImagePreviewUrls(prev => [...prev, ...newPreviews]);
     toast.success(`Attached ${imageFiles.length} image(s)`);
+  };
 
   // Remove attached image
   const removeImage = (index: number) => {
-    URL.revokeObjectURL(imagePreviewUrls[index]);
-    setAttachedImages(prev => prev.filter((_, i) => i !== index));
-    setImagePreviewUrls(prev => prev.filter((_, i) => i !== index));
+    console.log('🗑️ Removing image at index:', index);
+    console.log('📦 Current images:', attachedImages.length);
+    console.log('📦 Current preview URLs:', imagePreviewUrls.length);
+    
+    if (imagePreviewUrls[index]) {
+      URL.revokeObjectURL(imagePreviewUrls[index]);
+    }
+    
+    setAttachedImages(prev => {
+      const newImages = prev.filter((_, i) => i !== index);
+      console.log('✅ New images count:', newImages.length);
+      return newImages;
+    });
+    
+    setImagePreviewUrls(prev => {
+      const newUrls = prev.filter((_, i) => i !== index);
+      console.log('✅ New preview URLs count:', newUrls.length);
+      return newUrls;
+    });
+    
+    toast.success('Image removed');
   };
 
   // Clean up preview URLs on unmount
@@ -315,31 +336,47 @@ export default function IntercomChatView({
       imagePreviewUrls.forEach(url => URL.revokeObjectURL(url));
     };
   }, [imagePreviewUrls]);
-  };
-  
+
   // Handle image paste
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
+      console.log('🎨 Paste event triggered!', e);
       const items = e.clipboardData?.items;
-      if (!items) return;
-  
+      if (!items) {
+        console.log('⚠️ No clipboard items');
+        return;
+      }
+
+      console.log('📋 Clipboard has', items.length, 'items');
       for (let i = 0; i < items.length; i++) {
+        console.log(`  Item ${i}: ${items[i].type}`);
         if (items[i].type.indexOf('image') !== -1) {
+          console.log('✅ Image detected! Processing...');
           e.preventDefault();
           const file = items[i].getAsFile();
           if (file) {
+            console.log('✅ File extracted:', file.name, file.type, file.size);
             handleImageAttachment([file]);
+          } else {
+            console.error('❌ Failed to extract file from clipboard item');
           }
         }
       }
     };
-  
+
     const textarea = messageInputRef.current;
+    console.log('🔗 Attaching paste listener to textarea:', textarea);
     if (textarea) {
       textarea.addEventListener('paste', handlePaste as any);
-      return () => textarea.removeEventListener('paste', handlePaste as any);
+      console.log('✅ Paste listener attached successfully!');
+      return () => {
+        textarea.removeEventListener('paste', handlePaste as any);
+        console.log('🧹 Paste listener removed');
+      };
+    } else {
+      console.warn('⚠️ Textarea ref is null - cannot attach paste listener');
     }
-}, []);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -351,7 +388,7 @@ export default function IntercomChatView({
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
         handleSendMessage();
-      } 
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
         e.preventDefault();
         if (isAssigned) closeMutation.mutate();
@@ -405,6 +442,7 @@ export default function IntercomChatView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversationId,
+          action: 'reply',
           message: `Assigned to ${selectedAgent.name}`,
           isNote: true,
           agentName: selectedAgent.name,
@@ -430,12 +468,13 @@ export default function IntercomChatView({
       // If there are images, upload them first
       let attachmentUrls: string[] = [];
       if (messageData.images && messageData.images.length > 0) {
+        console.log('📤 Uploading', messageData.images.length, 'images...');
         const formData = new FormData();
         messageData.images.forEach((image) => {
           formData.append('files', image);
         });
 
-        const uploadResponse = await fetch('/api/intercom/upload', {
+        const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
         });
@@ -446,6 +485,7 @@ export default function IntercomChatView({
 
         const uploadData = await uploadResponse.json();
         attachmentUrls = uploadData.urls || [];
+        console.log('✅ Images uploaded:', attachmentUrls);
       }
 
       const response = await fetch('/api/intercom/actions', {
@@ -453,6 +493,7 @@ export default function IntercomChatView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversationId,
+          action: 'reply',
           message: messageData.message,
           isNote: messageData.isNote,
           agentName: selectedAgent.name,
@@ -501,6 +542,7 @@ export default function IntercomChatView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversationId,
+          action: 'reply',
           message: `Conversation closed by ${selectedAgent.name}`,
           isNote: true,
           agentName: selectedAgent.name,
@@ -542,6 +584,7 @@ export default function IntercomChatView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversationId,
+          action: 'reply',
           message: `Snoozed ${label} by ${selectedAgent.name}`,
           isNote: true,
           agentName: selectedAgent.name,
