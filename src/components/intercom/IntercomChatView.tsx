@@ -354,17 +354,21 @@ export default function IntercomChatView({
       }
 
       console.log('📋 Clipboard has', items.length, 'items');
+      let hasImage = false;
       for (let i = 0; i < items.length; i++) {
         console.log(`  📎 Item ${i}:`, items[i].type, items[i].kind);
         if (items[i].type.indexOf('image') !== -1) {
           console.log('✅ IMAGE DETECTED! Processing...');
-          e.preventDefault();
-          const file = items[i].getAsFile();
-          if (file) {
-            console.log('✅ File extracted:', file.name, file.type, file.size, 'bytes');
-            handleImageAttachment([file]);
-          } else {
-            console.error('❌ Failed to extract file from clipboard item');
+          if (!hasImage) { // Only process first image to avoid duplicates
+            hasImage = true;
+            e.preventDefault();
+            const file = items[i].getAsFile();
+            if (file) {
+              console.log('✅ File extracted:', file.name, file.type, file.size, 'bytes');
+              handleImageAttachment([file]);
+            } else {
+              console.error('❌ Failed to extract file from clipboard item');
+            }
           }
         }
       }
@@ -375,22 +379,8 @@ export default function IntercomChatView({
     console.log('🔗 Textarea tagName:', textarea?.tagName);
     
     if (textarea) {
-      // Test if textarea is focusable
-      console.log('🧪 Testing textarea focus...');
-      textarea.focus();
-      console.log('🧪 Textarea is focused:', document.activeElement === textarea);
-      
       textarea.addEventListener('paste', handlePaste as any);
-      console.log('✅ Paste listener attached successfully!');
-      console.log('✅ Event listeners on textarea:', textarea);
-      
-      // Also add to window as fallback
-      window.addEventListener('paste', (e) => {
-        console.log('🌍 Window paste event detected!');
-        if (document.activeElement === textarea) {
-          handlePaste(e);
-        }
-      });
+      console.log('✅ Paste listener attached successfully to textarea!');
       
       return () => {
         textarea.removeEventListener('paste', handlePaste as any);
