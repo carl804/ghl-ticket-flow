@@ -288,29 +288,44 @@ export default function IntercomChatView({
     await updateTicketField('category', newCategory);
   };
 
-  // Handle image paste
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
+  // Handle image file selection
+const handleImageAttachment = (files: File[]) => {
+  const imageFiles = files.filter(f => f.type.startsWith('image/'));
+  if (imageFiles.length === 0) {
+    toast.error('Please select image files only');
+    return;
+  }
 
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          e.preventDefault();
-          const file = items[i].getAsFile();
-          if (file) {
-            handleImageAttachment([file]);
-          }
+  // Create preview URLs
+  const newPreviews = imageFiles.map(file => URL.createObjectURL(file));
+  setAttachedImages(prev => [...prev, ...imageFiles]);
+  setImagePreviewUrls(prev => [...prev, ...newPreviews]);
+  toast.success(`Attached ${imageFiles.length} image(s)`);
+};
+
+// Handle image paste
+useEffect(() => {
+  const handlePaste = (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (file) {
+          handleImageAttachment([file]);
         }
       }
-    };
-
-    const textarea = messageInputRef.current;
-    if (textarea) {
-      textarea.addEventListener('paste', handlePaste as any);
-      return () => textarea.removeEventListener('paste', handlePaste as any);
     }
-  }, []);
+  };
+
+  const textarea = messageInputRef.current;
+  if (textarea) {
+    textarea.addEventListener('paste', handlePaste as any);
+    return () => textarea.removeEventListener('paste', handlePaste as any);
+  }
+}, []);
 
   // Handle image file selection
   const handleImageAttachment = (files: File[]) => {
