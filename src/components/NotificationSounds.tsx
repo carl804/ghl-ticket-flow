@@ -1,5 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
+import { Volume2, VolumeX, Check } from 'lucide-react';
+
+interface SoundNote {
+  freq: number;
+  duration: number;
+  slide?: number;
+}
+
+interface Sound {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  frequencies: SoundNote[];
+}
 
 export default function NotificationSounds() {
   const [volume, setVolume] = useState(() => {
@@ -9,6 +23,10 @@ export default function NotificationSounds() {
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const saved = localStorage.getItem("notification-sound-enabled");
     return saved ? JSON.parse(saved) : true;
+  });
+  const [selectedSound, setSelectedSound] = useState(() => {
+    const saved = localStorage.getItem("notification-sound-type");
+    return saved || 'tritone';
   });
   const [playing, setPlaying] = useState<string | null>(null);
 
@@ -21,7 +39,11 @@ export default function NotificationSounds() {
     localStorage.setItem("notification-sound-enabled", JSON.stringify(soundEnabled));
   }, [soundEnabled]);
 
-  const sounds = [
+  useEffect(() => {
+    localStorage.setItem("notification-sound-type", selectedSound);
+  }, [selectedSound]);
+
+  const sounds: Sound[] = [
     {
       id: 'tritone',
       name: 'Tri-tone',
@@ -72,7 +94,7 @@ export default function NotificationSounds() {
     }
   ];
 
-  const playSound = (sound: typeof sounds[0]) => {
+  const playSound = (sound: Sound) => {
     if (!soundEnabled) return;
     
     setPlaying(sound.id);
@@ -80,7 +102,7 @@ export default function NotificationSounds() {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     let startTime = audioContext.currentTime;
 
-    sound.frequencies.forEach((note) => {
+    sound.frequencies.forEach((note: SoundNote) => {
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
@@ -120,13 +142,18 @@ export default function NotificationSounds() {
           {sounds.map((sound) => (
             <button
               key={sound.id}
-              onClick={() => playSound(sound)}
+              onClick={() => {
+                setSelectedSound(sound.id);
+                playSound(sound);
+              }}
               disabled={playing === sound.id || !soundEnabled}
               className={`
-                w-full text-left p-3 rounded-lg transition-all duration-200
+                w-full text-left p-3 rounded-lg transition-all duration-200 relative
                 ${playing === sound.id 
                   ? 'bg-[#4890F8]/80 shadow-lg shadow-blue-500/30' 
-                  : 'bg-white/5 hover:bg-white/10'
+                  : selectedSound === sound.id
+                    ? 'bg-[#4890F8]/60 shadow-md'
+                    : 'bg-white/5 hover:bg-white/10'
                 }
                 ${!soundEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
               `}
@@ -137,6 +164,9 @@ export default function NotificationSounds() {
                   <div className="text-white font-medium text-sm">{sound.name}</div>
                   <div className="text-blue-100 text-xs truncate">{sound.description}</div>
                 </div>
+                {selectedSound === sound.id && (
+                  <Check className="h-4 w-4 text-white" />
+                )}
               </div>
             </button>
           ))}
@@ -214,6 +244,24 @@ export default function NotificationSounds() {
                   <div className="w-2 h-16 bg-blue-200 rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></div>
                   <div className="w-2 h-16 bg-blue-200 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
                   <div className="w-2 h-16 bg-blue-200 rounded-full animate-pulse" style={{ animationDelay: '450ms' }}></div>
+                </div>
+              </div>
+            ) : selectedSound ? (
+              <div className="text-center">
+                <div className="mb-6">
+                  <span className="text-9xl">
+                    {sounds.find(s => s.id === selectedSound)?.icon}
+                  </span>
+                </div>
+                <h2 className="text-4xl font-bold text-white mb-2">
+                  {sounds.find(s => s.id === selectedSound)?.name}
+                </h2>
+                <p className="text-blue-50 text-xl mb-4">
+                  {sounds.find(s => s.id === selectedSound)?.description}
+                </p>
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 rounded-full">
+                  <Check className="h-5 w-5 text-white" />
+                  <span className="text-white font-medium">Selected as notification sound</span>
                 </div>
               </div>
             ) : (
