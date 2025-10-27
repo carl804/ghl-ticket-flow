@@ -327,31 +327,6 @@ useEffect(() => {
   }
 }, []);
 
-  // Handle image file selection
-  const handleImageAttachment = (files: File[]) => {
-    const imageFiles = files.filter(f => f.type.startsWith('image/'));
-    if (imageFiles.length === 0) {
-      toast.error('Please select image files only');
-      return;
-    }
-
-    // Create preview URLs
-    const newPreviews = imageFiles.map(file => URL.createObjectURL(file));
-    setAttachedImages(prev => [...prev, ...imageFiles]);
-    setImagePreviewUrls(prev => [...prev, ...newPreviews]);
-  };
-
-  // Remove attached image
-  const removeImage = (index: number) => {
-    URL.revokeObjectURL(imagePreviewUrls[index]);
-    setAttachedImages(prev => prev.filter((_, i) => i !== index));
-    setImagePreviewUrls(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Clean up preview URLs on unmount
-  useEffect(() => {
-    return () => {
-      imagePreviewUrls.forEach(url => URL.revokeObjectURL(url));
     };
   }, []);
 
