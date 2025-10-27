@@ -339,23 +339,29 @@ export default function IntercomChatView({
 
   // Handle image paste
   useEffect(() => {
+    console.log('🎯 useEffect for paste handler running...');
+    console.log('📍 messageInputRef.current:', messageInputRef.current);
+    
     const handlePaste = (e: ClipboardEvent) => {
-      console.log('🎨 Paste event triggered!', e);
+      console.log('🎨 PASTE EVENT TRIGGERED!', e);
+      console.log('🎨 Event type:', e.type);
+      console.log('🎨 Event target:', e.target);
+      
       const items = e.clipboardData?.items;
       if (!items) {
-        console.log('⚠️ No clipboard items');
+        console.log('⚠️ No clipboard items found');
         return;
       }
 
       console.log('📋 Clipboard has', items.length, 'items');
       for (let i = 0; i < items.length; i++) {
-        console.log(`  Item ${i}: ${items[i].type}`);
+        console.log(`  📎 Item ${i}:`, items[i].type, items[i].kind);
         if (items[i].type.indexOf('image') !== -1) {
-          console.log('✅ Image detected! Processing...');
+          console.log('✅ IMAGE DETECTED! Processing...');
           e.preventDefault();
           const file = items[i].getAsFile();
           if (file) {
-            console.log('✅ File extracted:', file.name, file.type, file.size);
+            console.log('✅ File extracted:', file.name, file.type, file.size, 'bytes');
             handleImageAttachment([file]);
           } else {
             console.error('❌ Failed to extract file from clipboard item');
@@ -365,18 +371,35 @@ export default function IntercomChatView({
     };
 
     const textarea = messageInputRef.current;
-    console.log('🔗 Attaching paste listener to textarea:', textarea);
+    console.log('🔗 Textarea element:', textarea);
+    console.log('🔗 Textarea tagName:', textarea?.tagName);
+    
     if (textarea) {
+      // Test if textarea is focusable
+      console.log('🧪 Testing textarea focus...');
+      textarea.focus();
+      console.log('🧪 Textarea is focused:', document.activeElement === textarea);
+      
       textarea.addEventListener('paste', handlePaste as any);
       console.log('✅ Paste listener attached successfully!');
+      console.log('✅ Event listeners on textarea:', textarea);
+      
+      // Also add to window as fallback
+      window.addEventListener('paste', (e) => {
+        console.log('🌍 Window paste event detected!');
+        if (document.activeElement === textarea) {
+          handlePaste(e);
+        }
+      });
+      
       return () => {
         textarea.removeEventListener('paste', handlePaste as any);
         console.log('🧹 Paste listener removed');
       };
     } else {
-      console.warn('⚠️ Textarea ref is null - cannot attach paste listener');
+      console.error('❌ Textarea ref is NULL - cannot attach paste listener!');
     }
-  }, []);
+  }, [messageInputRef.current]);
 
   // Keyboard shortcuts
   useEffect(() => {
