@@ -326,8 +326,6 @@ useEffect(() => {
     return () => textarea.removeEventListener('paste', handlePaste as any);
   }
 }, []);
-
-    };
   }, []);
 
   // Keyboard shortcuts
