@@ -74,7 +74,8 @@ export default function Tickets() {
       return;
     }
 
-    let hasNewActivity = false;
+    let hasNewTickets = false;
+    let hasUpdatedTickets = false;
     const activityLog: string[] = [];
 
     tickets.forEach(ticket => {
@@ -85,38 +86,68 @@ export default function Tickets() {
         const msg = `🆕 NEW TICKET: ${ticket.name} (${ticket.id})`;
         console.log(msg);
         activityLog.push(msg);
-        hasNewActivity = true;
+        hasNewTickets = true;
       }
       // Updated ticket (timestamp changed - new message)
       else if (previousUpdateTime !== ticket.updatedAt) {
         const msg = `📬 UPDATED: ${ticket.name} | Old: ${previousUpdateTime} → New: ${ticket.updatedAt}`;
         console.log(msg);
         activityLog.push(msg);
-        hasNewActivity = true;
+        hasUpdatedTickets = true;
       }
       
       // Update stored timestamp
       previousTickets.set(ticket.id, ticket.updatedAt);
     });
 
-    if (hasNewActivity) {
-      console.log('🔔 NOTIFICATION TRIGGERED!');
+    // Play appropriate sound based on activity type
+    if (hasNewTickets) {
+      console.log('🎫 NEW TICKET NOTIFICATION TRIGGERED!');
       console.log('Activity Summary:', activityLog);
       
       // Check notification settings
       const settings = {
         enabled: localStorage.getItem("notification-sound-enabled"),
         volume: localStorage.getItem("notification-volume"),
-        soundType: localStorage.getItem("notification-sound-type")
+        soundType: localStorage.getItem("notification-sound-type-new-ticket") || 'ding'
       };
-      console.log('🔊 Notification Settings:', settings);
+      console.log('🔊 New Ticket Notification Settings:', settings);
       
-      // Play sound
+      // Play new ticket sound
       try {
-        playNotificationSound();
-        console.log('✅ Sound played successfully');
+        const soundType = localStorage.getItem("notification-sound-type-new-ticket") as any || 'ding';
+        playNotificationSound(soundType);
+        console.log('✅ New ticket sound played successfully');
       } catch (error) {
-        console.error('❌ Sound play failed:', error);
+        console.error('❌ New ticket sound play failed:', error);
+      }
+      
+      // Trigger bell
+      try {
+        window.dispatchEvent(new Event('ticket-notification'));
+        console.log('🔔 Bell animation triggered');
+      } catch (error) {
+        console.error('❌ Bell animation failed:', error);
+      }
+    } else if (hasUpdatedTickets) {
+      console.log('📬 NEW MESSAGE NOTIFICATION TRIGGERED!');
+      console.log('Activity Summary:', activityLog);
+      
+      // Check notification settings
+      const settings = {
+        enabled: localStorage.getItem("notification-sound-enabled"),
+        volume: localStorage.getItem("notification-volume"),
+        soundType: localStorage.getItem("notification-sound-type") || 'tritone'
+      };
+      console.log('🔊 New Message Notification Settings:', settings);
+      
+      // Play new message sound
+      try {
+        const soundType = localStorage.getItem("notification-sound-type") as any || 'tritone';
+        playNotificationSound(soundType);
+        console.log('✅ New message sound played successfully');
+      } catch (error) {
+        console.error('❌ New message sound play failed:', error);
       }
       
       // Trigger bell

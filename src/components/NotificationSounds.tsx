@@ -28,6 +28,10 @@ export default function NotificationSounds() {
     const saved = localStorage.getItem("notification-sound-type");
     return saved || 'tritone';
   });
+  const [selectedSoundNewTicket, setSelectedSoundNewTicket] = useState(() => {
+    const saved = localStorage.getItem("notification-sound-type-new-ticket");
+    return saved || 'ding';
+  });
   const [playing, setPlaying] = useState<string | null>(null);
   const [repeatCount, setRepeatCount] = useState(() => {
     const saved = localStorage.getItem("notification-repeat-count");
@@ -36,10 +40,6 @@ export default function NotificationSounds() {
   const [notifyOnlyWhenAway, setNotifyOnlyWhenAway] = useState(() => {
     const saved = localStorage.getItem("notification-only-when-away");
     return saved ? JSON.parse(saved) : false;
-  });
-  const [playForStatuses, setPlayForStatuses] = useState(() => {
-    const saved = localStorage.getItem("notification-play-for-statuses");
-    return saved ? JSON.parse(saved) : ['Open', 'In Progress', 'Escalated to Dev'];
   });
 
   // Save to localStorage whenever settings change
@@ -56,16 +56,16 @@ export default function NotificationSounds() {
   }, [selectedSound]);
 
   useEffect(() => {
+    localStorage.setItem("notification-sound-type-new-ticket", selectedSoundNewTicket);
+  }, [selectedSoundNewTicket]);
+
+  useEffect(() => {
     localStorage.setItem("notification-repeat-count", repeatCount.toString());
   }, [repeatCount]);
 
   useEffect(() => {
     localStorage.setItem("notification-only-when-away", JSON.stringify(notifyOnlyWhenAway));
   }, [notifyOnlyWhenAway]);
-
-  useEffect(() => {
-    localStorage.setItem("notification-play-for-statuses", JSON.stringify(playForStatuses));
-  }, [playForStatuses]);
 
   const sounds: Sound[] = [
     {
@@ -168,59 +168,102 @@ export default function NotificationSounds() {
   return (
     <div className="flex h-full bg-gradient-to-br from-blue-400 via-[#4890F8] to-blue-700">
       {/* Sidebar */}
-      <div className="w-64 bg-black/30 backdrop-blur-xl border-r border-white/20 p-6">
+      <div className="w-64 bg-black/30 backdrop-blur-xl border-r border-white/20 p-6 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white font-bold text-lg">Sounds</h2>
         </div>
-        <div className="space-y-2">
-          {sounds.map((sound) => (
-            <button
-              key={sound.id}
-              onClick={() => {
-                setSelectedSound(sound.id);
-                playSound(sound);
-              }}
-              disabled={playing === sound.id || !soundEnabled}
-              className={`
-                w-full text-left p-3 rounded-lg transition-all duration-200 relative
-                ${playing === sound.id 
-                  ? 'bg-[#4890F8]/80 shadow-lg shadow-blue-500/30' 
-                  : selectedSound === sound.id
-                    ? 'bg-[#4890F8]/60 shadow-md'
-                    : 'bg-white/5 hover:bg-white/10'
-                }
-                ${!soundEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-              `}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{sound.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-white font-medium text-sm">{sound.name}</div>
-                  <div className="text-blue-100 text-xs truncate">{sound.description}</div>
+
+        {/* New Messages Section */}
+        <div className="mb-6">
+          <h3 className="text-white text-xs font-semibold mb-2 uppercase tracking-wide">New Messages</h3>
+          <div className="space-y-2">
+            {sounds.map((sound) => (
+              <button
+                key={`msg-${sound.id}`}
+                onClick={() => {
+                  setSelectedSound(sound.id);
+                  playSound(sound);
+                }}
+                disabled={playing === sound.id || !soundEnabled}
+                className={`
+                  w-full text-left p-2.5 rounded-lg transition-all duration-200 relative
+                  ${playing === sound.id 
+                    ? 'bg-[#4890F8]/80 shadow-lg shadow-blue-500/30' 
+                    : selectedSound === sound.id
+                      ? 'bg-[#4890F8]/60 shadow-md'
+                      : 'bg-white/5 hover:bg-white/10'
+                  }
+                  ${!soundEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                `}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{sound.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-medium text-xs">{sound.name}</div>
+                    <div className="text-blue-100 text-[10px] truncate">{sound.description}</div>
+                  </div>
+                  {selectedSound === sound.id && (
+                    <Check className="h-3 w-3 text-white flex-shrink-0" />
+                  )}
                 </div>
-                {selectedSound === sound.id && (
-                  <Check className="h-4 w-4 text-white" />
-                )}
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* New Tickets Section */}
+        <div className="mb-6 pt-4 border-t border-white/10">
+          <h3 className="text-white text-xs font-semibold mb-2 uppercase tracking-wide">New Tickets</h3>
+          <div className="space-y-2">
+            {sounds.map((sound) => (
+              <button
+                key={`ticket-${sound.id}`}
+                onClick={() => {
+                  setSelectedSoundNewTicket(sound.id);
+                  playSound(sound);
+                }}
+                disabled={playing === sound.id || !soundEnabled}
+                className={`
+                  w-full text-left p-2.5 rounded-lg transition-all duration-200 relative
+                  ${playing === sound.id 
+                    ? 'bg-[#4890F8]/80 shadow-lg shadow-blue-500/30' 
+                    : selectedSoundNewTicket === sound.id
+                      ? 'bg-[#4890F8]/60 shadow-md'
+                      : 'bg-white/5 hover:bg-white/10'
+                  }
+                  ${!soundEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                `}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{sound.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-medium text-xs">{sound.name}</div>
+                    <div className="text-blue-100 text-[10px] truncate">{sound.description}</div>
+                  </div>
+                  {selectedSoundNewTicket === sound.id && (
+                    <Check className="h-3 w-3 text-white flex-shrink-0" />
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Sound Enable Toggle */}
-        <div className="mt-8 pt-6 border-t border-white/10">
+        <div className="mt-6 pt-4 border-t border-white/10">
           <label className="flex items-center justify-between cursor-pointer">
-            <span className="text-white text-sm font-medium">Notifications</span>
+            <span className="text-white text-xs font-medium">Notifications</span>
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
               className={`
-                relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                relative inline-flex h-5 w-9 items-center rounded-full transition-colors
                 ${soundEnabled ? 'bg-[#4890F8]' : 'bg-white/20'}
               `}
             >
               <span
                 className={`
-                  inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                  ${soundEnabled ? 'translate-x-6' : 'translate-x-1'}
+                  inline-block h-3 w-3 transform rounded-full bg-white transition-transform
+                  ${soundEnabled ? 'translate-x-5' : 'translate-x-1'}
                 `}
               />
             </button>
@@ -228,10 +271,10 @@ export default function NotificationSounds() {
         </div>
 
         {/* Volume Control */}
-        <div className="mt-4">
-          <div className="text-white text-sm font-medium mb-3">Volume</div>
-          <div className="flex items-center gap-3">
-            <VolumeX className="text-blue-200" size={16} />
+        <div className="mt-3">
+          <div className="text-white text-xs font-medium mb-2">Volume</div>
+          <div className="flex items-center gap-2">
+            <VolumeX className="text-blue-200" size={14} />
             <input
               type="range"
               min="0"
@@ -239,24 +282,24 @@ export default function NotificationSounds() {
               value={volume * 100}
               onChange={(e) => setVolume(parseInt(e.target.value) / 100)}
               disabled={!soundEnabled}
-              className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background: `linear-gradient(to right, #4890F8 0%, #4890F8 ${volume * 100}%, rgba(255,255,255,0.2) ${volume * 100}%, rgba(255,255,255,0.2) 100%)`
               }}
             />
-            <Volume2 className="text-blue-200" size={16} />
+            <Volume2 className="text-blue-200" size={14} />
           </div>
-          <div className="text-blue-100 text-xs text-center mt-2">{Math.round(volume * 100)}%</div>
+          <div className="text-blue-100 text-[10px] text-center mt-1">{Math.round(volume * 100)}%</div>
         </div>
 
         {/* Repeat Count */}
-        <div className="mt-6 pt-6 border-t border-white/10">
-          <div className="text-white text-sm font-medium mb-3">Repeat Sound</div>
+        <div className="mt-4 pt-4 border-t border-white/10">
+          <div className="text-white text-xs font-medium mb-2">Repeat Sound</div>
           <select
             value={repeatCount}
             onChange={(e) => setRepeatCount(parseInt(e.target.value))}
             disabled={!soundEnabled}
-            className="w-full px-3 py-2 text-sm bg-white/10 border border-white/20 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#4890F8]"
+            className="w-full px-2 py-1.5 text-xs bg-white/10 border border-white/20 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#4890F8]"
           >
             <option value="1">Once</option>
             <option value="2">2 times</option>
@@ -266,54 +309,29 @@ export default function NotificationSounds() {
         </div>
 
         {/* Only When Away */}
-        <div className="mt-4">
+        <div className="mt-3">
           <label className="flex items-center justify-between cursor-pointer">
             <div>
-              <div className="text-white text-sm font-medium">Only when away</div>
-              <div className="text-blue-100 text-xs mt-0.5">Play only when tab is inactive</div>
+              <div className="text-white text-xs font-medium">Only when away</div>
+              <div className="text-blue-100 text-[10px] mt-0.5">Tab inactive only</div>
             </div>
             <button
               onClick={() => setNotifyOnlyWhenAway(!notifyOnlyWhenAway)}
               disabled={!soundEnabled}
               className={`
-                relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                relative inline-flex h-5 w-9 items-center rounded-full transition-colors
                 ${notifyOnlyWhenAway ? 'bg-[#4890F8]' : 'bg-white/20'}
                 ${!soundEnabled ? 'opacity-50 cursor-not-allowed' : ''}
               `}
             >
               <span
                 className={`
-                  inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                  ${notifyOnlyWhenAway ? 'translate-x-6' : 'translate-x-1'}
+                  inline-block h-3 w-3 transform rounded-full bg-white transition-transform
+                  ${notifyOnlyWhenAway ? 'translate-x-5' : 'translate-x-1'}
                 `}
               />
             </button>
           </label>
-        </div>
-
-        {/* Play for Statuses */}
-        <div className="mt-6 pt-6 border-t border-white/10">
-          <div className="text-white text-sm font-medium mb-3">Play sound for</div>
-          <div className="space-y-2">
-            {['Open', 'In Progress', 'Escalated to Dev', 'Urgent'].map((status) => (
-              <label key={status} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={playForStatuses.includes(status)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setPlayForStatuses([...playForStatuses, status]);
-                    } else {
-                      setPlayForStatuses(playForStatuses.filter(s => s !== status));
-                    }
-                  }}
-                  disabled={!soundEnabled}
-                  className="w-4 h-4 rounded border-white/20 bg-white/10 text-[#4890F8] focus:ring-[#4890F8] disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <span className="text-blue-100 text-sm">{status}</span>
-              </label>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -347,33 +365,39 @@ export default function NotificationSounds() {
                   <div className="w-2 h-16 bg-blue-200 rounded-full animate-pulse" style={{ animationDelay: '450ms' }}></div>
                 </div>
               </div>
-            ) : selectedSound ? (
-              <div className="text-center">
-                <div className="mb-6">
-                  <span className="text-9xl">
-                    {sounds.find(s => s.id === selectedSound)?.icon}
-                  </span>
-                </div>
-                <h2 className="text-4xl font-bold text-white mb-2">
-                  {sounds.find(s => s.id === selectedSound)?.name}
-                </h2>
-                <p className="text-blue-50 text-xl mb-4">
-                  {sounds.find(s => s.id === selectedSound)?.description}
-                </p>
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 rounded-full">
-                  <Check className="h-5 w-5 text-white" />
-                  <span className="text-white font-medium">Selected as notification sound</span>
-                </div>
-              </div>
             ) : (
-              <div className="text-center py-12">
-                <div className="text-8xl mb-6">🎵</div>
-                <h2 className="text-3xl font-semibold text-white mb-3">
-                  Ready to Play
-                </h2>
-                <p className="text-blue-100 text-lg">
-                  Select a sound from the sidebar
-                </p>
+              <div className="text-center space-y-8">
+                {/* New Messages */}
+                <div className="pb-8 border-b border-white/20">
+                  <div className="text-sm text-blue-200 mb-2">New Messages</div>
+                  <div className="mb-4">
+                    <span className="text-7xl">
+                      {sounds.find(s => s.id === selectedSound)?.icon}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-1">
+                    {sounds.find(s => s.id === selectedSound)?.name}
+                  </h2>
+                  <p className="text-blue-100 text-sm">
+                    {sounds.find(s => s.id === selectedSound)?.description}
+                  </p>
+                </div>
+
+                {/* New Tickets */}
+                <div>
+                  <div className="text-sm text-blue-200 mb-2">New Tickets</div>
+                  <div className="mb-4">
+                    <span className="text-7xl">
+                      {sounds.find(s => s.id === selectedSoundNewTicket)?.icon}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-1">
+                    {sounds.find(s => s.id === selectedSoundNewTicket)?.name}
+                  </h2>
+                  <p className="text-blue-100 text-sm">
+                    {sounds.find(s => s.id === selectedSoundNewTicket)?.description}
+                  </p>
+                </div>
               </div>
             )}
           </div>
