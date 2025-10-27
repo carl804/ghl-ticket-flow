@@ -188,6 +188,8 @@ export default function IntercomChatView({
   const [snoozeInput, setSnoozeInput] = useState('');
   const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<StoredAgent | null>(null);
+  const [attachedImages, setAttachedImages] = useState<File[]>([]);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   
   // Dropdown states
   const [currentStage, setCurrentStage] = useState(currentStageId || PIPELINE_STAGES.OPEN);
@@ -197,6 +199,7 @@ export default function IntercomChatView({
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   // Load stored agent from localStorage
@@ -285,6 +288,58 @@ export default function IntercomChatView({
     await updateTicketField('category', newCategory);
   };
 
+  // Handle image paste
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          e.preventDefault();
+          const file = items[i].getAsFile();
+          if (file) {
+            handleImageAttachment([file]);
+          }
+        }
+      }
+    };
+
+    const textarea = messageInputRef.current;
+    if (textarea) {
+      textarea.addEventListener('paste', handlePaste as any);
+      return () => textarea.removeEventListener('paste', handlePaste as any);
+    }
+  }, []);
+
+  // Handle image file selection
+  const handleImageAttachment = (files: File[]) => {
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      toast.error('Please select image files only');
+      return;
+    }
+
+    // Create preview URLs
+    const newPreviews = imageFiles.map(file => URL.createObjectURL(file));
+    setAttachedImages(prev => [...prev, ...imageFiles]);
+    setImagePreviewUrls(prev => [...prev, ...newPreviews]);
+  };
+
+  // Remove attached image
+  const removeImage = (index: number) => {
+    URL.revokeObjectURL(imagePreviewUrls[index]);
+    setAttachedImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviewUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Clean up preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      imagePreviewUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -368,8 +423,29 @@ export default function IntercomChatView({
   });
 
   const replyMutation = useMutation({
-    mutationFn: async (messageData: { message: string; isNote: boolean }) => {
+    mutationFn: async (messageData: { message: string; isNote: boolean; images?: File[] }) => {
       if (!selectedAgent) throw new Error('No agent selected');
+
+      // If there are images, upload them first
+      let attachmentUrls: string[] = [];
+      if (messageData.images && messageData.images.length > 0) {
+        const formData = new FormData();
+        messageData.images.forEach((image) => {
+          formData.append('files', image);
+        });
+
+        const uploadResponse = await fetch('/api/intercom/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload images');
+        }
+
+        const uploadData = await uploadResponse.json();
+        attachmentUrls = uploadData.urls || [];
+      }
 
       const response = await fetch('/api/intercom/reply', {
         method: 'POST',
@@ -380,6 +456,7 @@ export default function IntercomChatView({
           isNote: messageData.isNote,
           agentName: selectedAgent.name,
           intercomAdminId: selectedAgent.intercomId,
+          attachmentUrls,
         }),
       });
 
@@ -392,6 +469,8 @@ export default function IntercomChatView({
     onSuccess: () => {
       setMessage('');
       setIsNote(false);
+      setAttachedImages([]);
+      setImagePreviewUrls([]);
       toast.success(isNote ? 'Note added' : 'Reply sent');
       queryClient.invalidateQueries({ queryKey: ['intercom-conversation', conversationId] });
       messageInputRef.current?.focus();
@@ -487,7 +566,7 @@ export default function IntercomChatView({
   };
 
   const handleSendMessage = () => {
-    if (!message.trim()) return;
+    if (!message.trim() && attachedImages.length === 0) return;
     if (!selectedAgent) {
       toast.error('Please select an agent first');
       return;
@@ -496,7 +575,11 @@ export default function IntercomChatView({
       toast.error('Please assign the ticket first to reply to customers');
       return;
     }
-    replyMutation.mutate({ message, isNote });
+    replyMutation.mutate({ 
+      message, 
+      isNote,
+      images: attachedImages.length > 0 ? attachedImages : undefined
+    });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -803,96 +886,96 @@ export default function IntercomChatView({
       <div className="flex flex-col h-full bg-gray-50/30">
         {/* Ultra-Compact Header */}
         <div className="bg-white border-b border-gray-200">
-          <div className="px-4 py-2 flex items-center justify-between gap-3">
-            {/* Left side */}
-            <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="px-4 py-2 flex items-center gap-3">
+            {/* Left side - Customer info */}
+            <div className="flex items-center gap-2 min-w-0 flex-shrink">
               <button
                 onClick={() => setShowCustomerDetails(true)}
-                className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-1.5 py-0.5 transition-colors group"
+                className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-1.5 py-0.5 transition-colors group min-w-0"
               >
                 <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0">
                   {initials}
                 </div>
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-xs truncate">{customerName}</h3>
-                  <p className="text-[10px] text-gray-500 truncate">{customerEmail}</p>
+                <div className="min-w-0 hidden sm:block">
+                  <h3 className="font-semibold text-gray-900 text-xs truncate max-w-[150px]">{customerName}</h3>
+                  <p className="text-[10px] text-gray-500 truncate max-w-[150px]">{customerEmail}</p>
                 </div>
-                <Info className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100" />
+                <Info className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 flex-shrink-0" />
               </button>
-
-              {/* EDITABLE DROPDOWNS */}
-              <div className="flex items-center gap-1.5 ml-1">
-                {/* Intercom State Badge (read-only) */}
-                <Badge className={`text-[10px] px-1.5 py-0 h-5 ${
-                  conversation.state === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
-                }`}>
-                  {conversation.state === 'open' && <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1" />}
-                  {conversation.state}
-                </Badge>
-
-                {/* Stage Dropdown */}
-                <Select value={currentStage} onValueChange={handleStageChange} disabled={isUpdatingField}>
-                  <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700 w-auto gap-1">
-                    <SelectValue>{getCurrentStageLabel()}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STAGE_OPTIONS.map(stage => (
-                      <SelectItem key={stage.value} value={stage.value} className="text-xs">
-                        {stage.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Priority Dropdown */}
-                <Select value={currentPriority} onValueChange={handlePriorityChange} disabled={isUpdatingField}>
-                  <SelectTrigger className={`h-5 text-[10px] px-1.5 py-0 w-auto gap-1 ${
-                    currentPriority === 'High' || currentPriority === 'Urgent' 
-                      ? 'bg-red-50 text-red-700 border-red-200'
-                      : currentPriority === 'Medium'
-                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : 'bg-blue-50 text-blue-700 border-blue-200'
-                  }`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRIORITY_OPTIONS.map(priority => (
-                      <SelectItem key={priority} value={priority} className="text-xs">
-                        {priority}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Category Dropdown */}
-                <Select value={currentCategory} onValueChange={handleCategoryChange} disabled={isUpdatingField}>
-                  <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700 w-auto gap-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORY_OPTIONS.map(category => (
-                      <SelectItem key={category} value={category} className="text-xs">
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Assignee Badge */}
-                {intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-purple-50 text-purple-700 border-purple-200">
-                    👤 {intercomTicketOwner}
-                  </Badge>
-                )}
-              </div>
             </div>
 
-            {/* Right side */}
-            <div className="flex items-center gap-2">
+            {/* Middle - Dropdowns (wrap on small screens) */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Intercom State Badge (read-only) */}
+              <Badge className={`text-[10px] px-1.5 py-0 h-5 whitespace-nowrap ${
+                conversation.state === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {conversation.state === 'open' && <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1" />}
+                {conversation.state}
+              </Badge>
+
+              {/* Stage Dropdown */}
+              <Select value={currentStage} onValueChange={handleStageChange} disabled={isUpdatingField}>
+                <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700 w-auto gap-1 min-w-[80px]">
+                  <SelectValue>{getCurrentStageLabel()}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {STAGE_OPTIONS.map(stage => (
+                    <SelectItem key={stage.value} value={stage.value} className="text-xs">
+                      {stage.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Priority Dropdown */}
+              <Select value={currentPriority} onValueChange={handlePriorityChange} disabled={isUpdatingField}>
+                <SelectTrigger className={`h-5 text-[10px] px-1.5 py-0 w-auto gap-1 min-w-[70px] ${
+                  currentPriority === 'High' || currentPriority === 'Urgent' 
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : currentPriority === 'Medium'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                }`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITY_OPTIONS.map(priority => (
+                    <SelectItem key={priority} value={priority} className="text-xs">
+                      {priority}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Category Dropdown */}
+              <Select value={currentCategory} onValueChange={handleCategoryChange} disabled={isUpdatingField}>
+                <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700 w-auto gap-1 min-w-[90px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map(category => (
+                    <SelectItem key={category} value={category} className="text-xs">
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Assignee Badge */}
+              {intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-purple-50 text-purple-700 border-purple-200 whitespace-nowrap">
+                  👤 {intercomTicketOwner}
+                </Badge>
+              )}
+            </div>
+
+            {/* Right side - Actions (push to end) */}
+            <div className="flex items-center gap-2 ml-auto flex-shrink-0">
               {selectedAgent && (
                 <button
                   onClick={() => setShowAgentSelector(true)}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-gray-100"
+                  className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-gray-100"
                 >
                   <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-[10px] font-medium">
                     {selectedAgent.name.slice(0, 2).toUpperCase()}
@@ -911,7 +994,7 @@ export default function IntercomChatView({
                     title="Snooze (⌘K)"
                   >
                     <Clock className="h-3.5 w-3.5" />
-                    Snooze
+                    <span className="hidden md:inline">Snooze</span>
                   </Button>
                   
                   <Button
@@ -927,7 +1010,7 @@ export default function IntercomChatView({
                     ) : (
                       <CheckCircle2 className="h-3.5 w-3.5" />
                     )}
-                    Close
+                    <span className="hidden md:inline">Close</span>
                   </Button>
                 </>
               )}
@@ -1047,20 +1130,63 @@ export default function IntercomChatView({
                 <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-[9px]">⌘</kbd>+<kbd className="px-1 py-0.5 bg-gray-100 border rounded text-[9px]">↵</kbd>
               </div>
             </div>
+
+            {/* Image Previews */}
+            {imagePreviewUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-lg">
+                {imagePreviewUrls.map((url, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={url}
+                      alt={`Attachment ${index + 1}`}
+                      className="h-20 w-20 object-cover rounded border border-gray-200"
+                    />
+                    <button
+                      onClick={() => removeImage(index)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <CloseIcon className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) {
+                    handleImageAttachment(Array.from(e.target.files));
+                  }
+                }}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-9 w-9 flex-shrink-0"
+                title="Attach image"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
               <Textarea
                 ref={messageInputRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder={isNote ? 'Add note...' : isAssigned ? 'Type reply...' : 'Assign first...'}
+                placeholder={isNote ? 'Add note... (paste images with Ctrl+V)' : isAssigned ? 'Type reply... (paste images with Ctrl+V)' : 'Assign first...'}
                 rows={3}
                 disabled={!isNote && !isAssigned}
                 className="flex-1 resize-none text-sm"
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={!message.trim() || replyMutation.isPending || (!isNote && !isAssigned)}
+                disabled={(!message.trim() && attachedImages.length === 0) || replyMutation.isPending || (!isNote && !isAssigned)}
                 size="icon"
                 className="h-9 w-9 bg-indigo-500 hover:bg-indigo-600 self-end"
               >
