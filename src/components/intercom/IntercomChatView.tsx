@@ -414,7 +414,7 @@ useEffect(() => {
 
       if (!intercomResponse.ok) throw new Error('Failed to assign in Intercom');
 
-      await fetch('/api/intercom/reply', {
+      await fetch('/api/intercom/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -462,7 +462,7 @@ useEffect(() => {
         attachmentUrls = uploadData.urls || [];
       }
 
-      const response = await fetch('/api/intercom/reply', {
+      const response = await fetch('/api/intercom/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -510,7 +510,7 @@ useEffect(() => {
 
       if (!response.ok) throw new Error('Failed to close conversation');
 
-      await fetch('/api/intercom/reply', {
+      await fetch('/api/intercom/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -551,7 +551,7 @@ useEffect(() => {
 
       if (!response.ok) throw new Error('Failed to snooze conversation');
 
-      await fetch('/api/intercom/reply', {
+      await fetch('/api/intercom/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
