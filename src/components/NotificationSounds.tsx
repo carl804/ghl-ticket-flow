@@ -80,6 +80,16 @@ export default function NotificationSounds() {
       ]
     },
     {
+      id: 'ding',
+      name: 'Ding',
+      icon: '🔔',
+      description: 'Apple notification',
+      frequencies: [
+        { freq: 1200, duration: 0.1 },
+        { freq: 1800, duration: 0.15 }
+      ]
+    },
+    {
       id: 'beep',
       name: 'Beep',
       icon: '🔊',
@@ -217,7 +227,7 @@ export default function NotificationSounds() {
           </label>
         </div>
 
-        {/* Volume Control in Sidebar */}
+        {/* Volume Control */}
         <div className="mt-4">
           <div className="text-white text-sm font-medium mb-3">Volume</div>
           <div className="flex items-center gap-3">
@@ -237,6 +247,73 @@ export default function NotificationSounds() {
             <Volume2 className="text-blue-200" size={16} />
           </div>
           <div className="text-blue-100 text-xs text-center mt-2">{Math.round(volume * 100)}%</div>
+        </div>
+
+        {/* Repeat Count */}
+        <div className="mt-6 pt-6 border-t border-white/10">
+          <div className="text-white text-sm font-medium mb-3">Repeat Sound</div>
+          <select
+            value={repeatCount}
+            onChange={(e) => setRepeatCount(parseInt(e.target.value))}
+            disabled={!soundEnabled}
+            className="w-full px-3 py-2 text-sm bg-white/10 border border-white/20 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#4890F8]"
+          >
+            <option value="1">Once</option>
+            <option value="2">2 times</option>
+            <option value="3">3 times</option>
+            <option value="5">5 times</option>
+          </select>
+        </div>
+
+        {/* Only When Away */}
+        <div className="mt-4">
+          <label className="flex items-center justify-between cursor-pointer">
+            <div>
+              <div className="text-white text-sm font-medium">Only when away</div>
+              <div className="text-blue-100 text-xs mt-0.5">Play only when tab is inactive</div>
+            </div>
+            <button
+              onClick={() => setNotifyOnlyWhenAway(!notifyOnlyWhenAway)}
+              disabled={!soundEnabled}
+              className={`
+                relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                ${notifyOnlyWhenAway ? 'bg-[#4890F8]' : 'bg-white/20'}
+                ${!soundEnabled ? 'opacity-50 cursor-not-allowed' : ''}
+              `}
+            >
+              <span
+                className={`
+                  inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+                  ${notifyOnlyWhenAway ? 'translate-x-6' : 'translate-x-1'}
+                `}
+              />
+            </button>
+          </label>
+        </div>
+
+        {/* Play for Statuses */}
+        <div className="mt-6 pt-6 border-t border-white/10">
+          <div className="text-white text-sm font-medium mb-3">Play sound for</div>
+          <div className="space-y-2">
+            {['Open', 'In Progress', 'Escalated to Dev', 'Urgent'].map((status) => (
+              <label key={status} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={playForStatuses.includes(status)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setPlayForStatuses([...playForStatuses, status]);
+                    } else {
+                      setPlayForStatuses(playForStatuses.filter(s => s !== status));
+                    }
+                  }}
+                  disabled={!soundEnabled}
+                  className="w-4 h-4 rounded border-white/20 bg-white/10 text-[#4890F8] focus:ring-[#4890F8] disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <span className="text-blue-100 text-sm">{status}</span>
+              </label>
+            ))}
+          </div>
         </div>
       </div>
 
