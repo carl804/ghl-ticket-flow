@@ -337,7 +337,7 @@ useEffect(() => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
         handleSendMessage();
-      }
+      } 
       if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
         e.preventDefault();
         if (isAssigned) closeMutation.mutate();
