@@ -125,6 +125,18 @@ export default function NotificationSounds() {
         { freq: 1500, duration: 0.05 },
         { freq: 800, duration: 0.05 }
       ]
+    },
+    {
+      id: 'pacman',
+      name: 'Pac-Man',
+      icon: '🟡',
+      description: 'Waka waka waka',
+      frequencies: [
+        { freq: 493, duration: 0.08 },
+        { freq: 587, duration: 0.08 },
+        { freq: 493, duration: 0.08 },
+        { freq: 587, duration: 0.08 }
+      ]
     }
   ];
 
