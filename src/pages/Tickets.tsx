@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Sparkles, RefreshCw, Search, Filter, X, LayoutList, Columns3, LayoutGrid } from "lucide-react";
@@ -10,6 +10,7 @@ import CompactView from "@/components/tickets/CompactView";
 import TicketDetailSheet from "@/components/tickets/TicketDetailSheet";
 import StatsCards from "@/components/tickets/StatsCards";
 import { toast } from "sonner";
+import { playNotificationSound } from "@/lib/notificationSound";
 
 type ViewMode = "table" | "kanban" | "compact";
 
@@ -38,10 +39,50 @@ export default function Tickets() {
     source: "all",
   });
 
+  // Track previous ticket IDs to detect new tickets
+  const previousTicketIdsRef = useRef<Set<string>>(new Set());
+
   const { data: tickets = [], isLoading, refetch } = useQuery({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
+    refetchInterval: 30000, // Poll every 30 seconds
   });
+
+  // Detect new tickets and play notification sound
+  useEffect(() => {
+    if (tickets.length === 0) return;
+
+    const currentTicketIds = new Set(tickets.map(t => t.id));
+    const previousTicketIds = previousTicketIdsRef.current;
+
+    // First load - just store IDs, don't play sound
+    if (previousTicketIds.size === 0) {
+      previousTicketIdsRef.current = currentTicketIds;
+      return;
+    }
+
+    // Find new tickets (in current but not in previous)
+    const newTickets = tickets.filter(t => !previousTicketIds.has(t.id));
+
+    if (newTickets.length > 0) {
+      console.log(`🆕 ${newTickets.length} new ticket(s) detected:`, newTickets);
+      
+      // Play notification sound
+      playNotificationSound('tritone');
+      
+      // Show toast notification
+      if (newTickets.length === 1) {
+        toast.success(`New ticket: ${newTickets[0].name}`, {
+          description: `From ${newTickets[0].contact.name || 'Unknown'}`,
+        });
+      } else {
+        toast.success(`${newTickets.length} new tickets received`);
+      }
+    }
+
+    // Update previous ticket IDs
+    previousTicketIdsRef.current = currentTicketIds;
+  }, [tickets]);
 
   // Status change mutation
   const statusMutation = useMutation({
