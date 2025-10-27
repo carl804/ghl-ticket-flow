@@ -57,6 +57,37 @@ const statusConfig: Record<TicketStatus, { color: string }> = {
   "Escalated to Dev": { color: "bg-red-600 text-white" },
 };
 
+// Notification Bell Component
+function NotificationBell() {
+  const [isRinging, setIsRinging] = useState(false);
+
+  const triggerBellRing = () => {
+    setIsRinging(true);
+    setTimeout(() => setIsRinging(false), 1000);
+  };
+
+  useEffect(() => {
+    const handleNotification = () => {
+      triggerBellRing();
+    };
+
+    window.addEventListener('ticket-notification', handleNotification);
+    return () => window.removeEventListener('ticket-notification', handleNotification);
+  }, []);
+
+  return (
+    <Button 
+      variant="ghost" 
+      size="icon" 
+      className="relative"
+      onClick={triggerBellRing}
+      title="Notification Bell"
+    >
+      <Bell className={`w-4 h-4 ${isRinging ? 'bell-ring' : ''}`} />
+    </Button>
+  );
+}
+
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -66,7 +97,6 @@ export default function TicketDetail() {
   const [conversationMessages, setConversationMessages] = useState<any[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   const { data: tickets = [] } = useQuery({
     queryKey: ["tickets"],
@@ -80,24 +110,6 @@ export default function TicketDetail() {
       setEditedTicket(ticket);
     }
   }, [ticket]);
-
-  useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        const response = await fetch('/api/intercom/conversation');
-        if (response.ok) {
-          const data = await response.json();
-          setUnreadCount(data.unreadCount || 0);
-        }
-      } catch (error) {
-        console.error('Failed to fetch unread count:', error);
-      }
-    };
-
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (ticket?.intercomConversationId) {
@@ -240,14 +252,7 @@ export default function TicketDetail() {
               </Button>
             )}
 
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-4 h-4" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </Button>
+            <NotificationBell />
           </div>
         </div>
 
@@ -271,11 +276,8 @@ export default function TicketDetail() {
                 const targetTicket = tickets.find(t => t.intercomConversationId === conversationId);
                 
                 if (targetTicket) {
-                  // Ticket exists, navigate to it
                   navigate(`/tickets/${targetTicket.id}`);
                 } else {
-                  // No ticket exists - just navigate to view the conversation
-                  // The conversation will be viewable without a ticket
                   navigate(`/intercom-chat/${conversationId}`);
                 }
               }}

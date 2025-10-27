@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Volume2, VolumeX, Check } from 'lucide-react';
+import { Volume2, VolumeX, Check, Bell } from 'lucide-react';
 
 interface SoundNote {
   freq: number;
@@ -29,6 +29,18 @@ export default function NotificationSounds() {
     return saved || 'tritone';
   });
   const [playing, setPlaying] = useState<string | null>(null);
+  const [repeatCount, setRepeatCount] = useState(() => {
+    const saved = localStorage.getItem("notification-repeat-count");
+    return saved ? parseInt(saved) : 1;
+  });
+  const [notifyOnlyWhenAway, setNotifyOnlyWhenAway] = useState(() => {
+    const saved = localStorage.getItem("notification-only-when-away");
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [playForStatuses, setPlayForStatuses] = useState(() => {
+    const saved = localStorage.getItem("notification-play-for-statuses");
+    return saved ? JSON.parse(saved) : ['Open', 'In Progress', 'Escalated to Dev'];
+  });
 
   // Save to localStorage whenever settings change
   useEffect(() => {
@@ -42,6 +54,18 @@ export default function NotificationSounds() {
   useEffect(() => {
     localStorage.setItem("notification-sound-type", selectedSound);
   }, [selectedSound]);
+
+  useEffect(() => {
+    localStorage.setItem("notification-repeat-count", repeatCount.toString());
+  }, [repeatCount]);
+
+  useEffect(() => {
+    localStorage.setItem("notification-only-when-away", JSON.stringify(notifyOnlyWhenAway));
+  }, [notifyOnlyWhenAway]);
+
+  useEffect(() => {
+    localStorage.setItem("notification-play-for-statuses", JSON.stringify(playForStatuses));
+  }, [playForStatuses]);
 
   const sounds: Sound[] = [
     {
