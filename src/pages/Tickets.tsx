@@ -39,8 +39,8 @@ export default function Tickets() {
     source: "all",
   });
 
-  // Track previous ticket IDs to detect new tickets
-  const previousTicketIdsRef = useRef<Set<string>>(new Set());
+  // Track previous ticket states to detect new tickets AND updates
+  const previousTicketsRef = useRef<Map<string, string>>(new Map());
 
   const { data: tickets = [], isLoading, refetch } = useQuery({
     queryKey: ["tickets"],
@@ -48,31 +48,87 @@ export default function Tickets() {
     refetchInterval: 30000, // Poll every 30 seconds
   });
 
-  // Detect new tickets and play notification sound
+  // Detect new tickets and updates (new messages)
   useEffect(() => {
-    if (tickets.length === 0) return;
+    console.log('🔍 Notification Detection Running:', {
+      ticketCount: tickets.length,
+      previousCount: previousTicketsRef.current.size,
+      timestamp: new Date().toISOString()
+    });
 
-    const currentTicketIds = new Set(tickets.map(t => t.id));
-    const previousTicketIds = previousTicketIdsRef.current;
-
-    // First load - just store IDs, don't play sound
-    if (previousTicketIds.size === 0) {
-      previousTicketIdsRef.current = currentTicketIds;
+    if (tickets.length === 0) {
+      console.log('⚠️ No tickets loaded yet');
       return;
     }
 
-    // Find new tickets (in current but not in previous)
-    const newTickets = tickets.filter(t => !previousTicketIds.has(t.id));
-
-    if (newTickets.length > 0) {
-      console.log(`🆕 ${newTickets.length} new ticket(s) detected:`, newTickets);
-      
-      // Play notification sound only (no toast)
-      playNotificationSound('tritone');
+    const previousTickets = previousTicketsRef.current;
+    
+    // First load - just store tickets, don't play sound
+    if (previousTickets.size === 0) {
+      console.log('📋 First load - storing ticket states:', tickets.map(t => ({
+        id: t.id,
+        name: t.name,
+        updatedAt: t.updatedAt
+      })));
+      tickets.forEach(t => previousTickets.set(t.id, t.updatedAt));
+      return;
     }
 
-    // Update previous ticket IDs
-    previousTicketIdsRef.current = currentTicketIds;
+    let hasNewActivity = false;
+    const activityLog: string[] = [];
+
+    tickets.forEach(ticket => {
+      const previousUpdateTime = previousTickets.get(ticket.id);
+      
+      // New ticket (never seen before)
+      if (!previousUpdateTime) {
+        const msg = `🆕 NEW TICKET: ${ticket.name} (${ticket.id})`;
+        console.log(msg);
+        activityLog.push(msg);
+        hasNewActivity = true;
+      }
+      // Updated ticket (timestamp changed - new message)
+      else if (previousUpdateTime !== ticket.updatedAt) {
+        const msg = `📬 UPDATED: ${ticket.name} | Old: ${previousUpdateTime} → New: ${ticket.updatedAt}`;
+        console.log(msg);
+        activityLog.push(msg);
+        hasNewActivity = true;
+      }
+      
+      // Update stored timestamp
+      previousTickets.set(ticket.id, ticket.updatedAt);
+    });
+
+    if (hasNewActivity) {
+      console.log('🔔 NOTIFICATION TRIGGERED!');
+      console.log('Activity Summary:', activityLog);
+      
+      // Check notification settings
+      const settings = {
+        enabled: localStorage.getItem("notification-sound-enabled"),
+        volume: localStorage.getItem("notification-volume"),
+        soundType: localStorage.getItem("notification-sound-type")
+      };
+      console.log('🔊 Notification Settings:', settings);
+      
+      // Play sound
+      try {
+        playNotificationSound();
+        console.log('✅ Sound played successfully');
+      } catch (error) {
+        console.error('❌ Sound play failed:', error);
+      }
+      
+      // Trigger bell
+      try {
+        window.dispatchEvent(new Event('ticket-notification'));
+        console.log('🔔 Bell animation triggered');
+      } catch (error) {
+        console.error('❌ Bell animation failed:', error);
+      }
+    } else {
+      console.log('✓ No new activity detected');
+    }
   }, [tickets]);
 
   // Status change mutation
