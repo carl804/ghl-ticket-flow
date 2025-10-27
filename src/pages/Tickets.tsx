@@ -67,17 +67,8 @@ export default function Tickets() {
     if (newTickets.length > 0) {
       console.log(`🆕 ${newTickets.length} new ticket(s) detected:`, newTickets);
       
-      // Play notification sound
+      // Play notification sound only (no toast)
       playNotificationSound('tritone');
-      
-      // Show toast notification
-      if (newTickets.length === 1) {
-        toast.success(`New ticket: ${newTickets[0].name}`, {
-          description: `From ${newTickets[0].contact.name || 'Unknown'}`,
-        });
-      } else {
-        toast.success(`${newTickets.length} new tickets received`);
-      }
     }
 
     // Update previous ticket IDs
