@@ -1005,7 +1005,7 @@ export default function IntercomChatView({
                 </SelectContent>
               </Select>
 
-              {/* Priority Dropdown */}
+              {/* Priotrity Dropdown */}
               <Select value={currentPriority} onValueChange={handlePriorityChange} disabled={isUpdatingField}>
                 <SelectTrigger className={`h-5 text-[10px] px-1.5 py-0 w-auto gap-1 min-w-[70px] ${
                   currentPriority === 'High' || currentPriority === 'Urgent' 

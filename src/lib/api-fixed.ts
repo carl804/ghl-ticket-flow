@@ -3,7 +3,7 @@ import type {
   Ticket,
   OpportunityStatus,
   Stats,
-
+  FieldMap,
   TicketStatus,
   TicketPriority,
   TicketCategory,
@@ -276,6 +276,7 @@ export async function fetchStats(): Promise<Stats> {
   return {
     total,
     open,
+    pendingCustomer: 0,
     resolvedToday,
     avgResolutionTime,
     totalTrend: 0,
@@ -285,7 +286,6 @@ export async function fetchStats(): Promise<Stats> {
 }
 
 export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
-  console.log("📝 updateTicketStatus called with:", ticketId, newStatus);
   const previousTicket = ticketCache.get(ticketId);
   
   const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === newStatus);
@@ -372,11 +372,30 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
     customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
   }
 
-  if (customFields.length > 0) {
-    body.customFields = customFields;
+  if (updates.assignedTo !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.ticketOwner, value: updates.assignedTo });
   }
 
-  console.log("🔍 Sending to GHL:", JSON.stringify(body, null, 2));
+  if (updates.priority) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.priority, value: updates.priority });
+  }
+  
+  if (updates.category !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.category, value: updates.category });
+  }
+  
+  if (updates.description !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.description, value: updates.description });
+  }
+  
+  if (updates.resolutionSummary !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.resolutionSummary, value: updates.resolutionSummary });
+  }
+  
+  if (updates.agencyName !== undefined) {
+    customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
+  }
+
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
 }
 

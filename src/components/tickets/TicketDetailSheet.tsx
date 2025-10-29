@@ -553,7 +553,13 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
               <IntercomChatView 
                 conversationId={intercomConversationId}
                 ticketId={ticket.id}
-                currentAssignee={ticket.assignedTo}
+                intercomTicketOwner={ticket.assignedTo}
+                currentStageId={ticket.pipelineStageId}
+                priority={ticket.priority}
+                category={ticket.category}
+                description={ticket.description || ''}
+                resolutionSummary={ticket.resolutionSummary || ''}
+                opportunityId={ticket.id}
                 onClose={() => onOpenChange(false)}
                 onAssignmentChange={(assignee) => {
                   setEditedTicket({ ...editedTicket, assignedTo: assignee });
