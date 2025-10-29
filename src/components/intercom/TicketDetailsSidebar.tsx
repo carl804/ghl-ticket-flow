@@ -20,6 +20,14 @@ import {
   Loader2
 } from 'lucide-react';
 
+// Custom Field IDs
+const CUSTOM_FIELD_IDS = {
+  DESCRIPTION: 'y9aYiEln1CpSuz6u3rtE',
+  RESOLUTION_SUMMARY: 'ZzsDH7pErVhwLqJt1NjA',
+  PRIORITY: 'QMiATAEcjFjQc9q8FxW6',
+  CATEGORY: 'eCjK3IHuhErwlkyWJ4Wx'
+};
+
 // Date formatting helpers
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -57,6 +65,13 @@ export default function TicketDetailsSidebar({
   const [resolution, setResolution] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Helper to get custom field value - matches api-fixed.ts logic
+  const getCustomFieldValue = (fieldId: string): string => {
+    const customFields = opportunity?.customFields || [];
+    const field = customFields.find((f: any) => f.id === fieldId);
+    return field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
+  };
+
   const handleSaveDescription = async () => {
     setIsSaving(true);
     try {
@@ -89,12 +104,12 @@ export default function TicketDetailsSidebar({
 
   const customer = conversation?.source?.author || {};
   const intercomTicketOwner = opportunity?.intercomAgent || 'Unassigned';
-  const priority = opportunity?.customFields?.find(
-    (f: any) => f.key === 'priority'
-  )?.value;
-  const category = opportunity?.customFields?.find(
-    (f: any) => f.key === 'category'
-  )?.value;
+  
+  // Use the helper function to get values by ID
+  const priority = getCustomFieldValue(CUSTOM_FIELD_IDS.PRIORITY);
+  const category = getCustomFieldValue(CUSTOM_FIELD_IDS.CATEGORY);
+  const descriptionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.DESCRIPTION);
+  const resolutionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY);
 
   return (
     <div className="w-80 border-l bg-white dark:bg-gray-950 overflow-y-auto">
@@ -232,7 +247,7 @@ export default function TicketDetailsSidebar({
                 variant="ghost" 
                 size="sm" 
                 onClick={() => {
-                  setDescription(opportunity?.customFields?.find((f: any) => f.key === 'description')?.value || '');
+                  setDescription(descriptionValue);
                   setIsEditingDescription(true);
                 }}
               >
@@ -265,7 +280,7 @@ export default function TicketDetailsSidebar({
             </div>
           ) : (
             <p className="text-sm text-gray-600">
-              {opportunity?.customFields?.find((f: any) => f.key === 'description')?.value || 'No description provided'}
+              {descriptionValue || 'No description provided'}
             </p>
           )}
         </Card>
@@ -282,7 +297,7 @@ export default function TicketDetailsSidebar({
                 variant="ghost" 
                 size="sm" 
                 onClick={() => {
-                  setResolution(opportunity?.customFields?.find((f: any) => f.key === 'resolution_summary')?.value || '');
+                  setResolution(resolutionValue);
                   setIsEditingResolution(true);
                 }}
               >
@@ -315,7 +330,7 @@ export default function TicketDetailsSidebar({
             </div>
           ) : (
             <p className="text-sm text-gray-600">
-              {opportunity?.customFields?.find((f: any) => f.key === 'resolution_summary')?.value || 'No resolution summary yet'}
+              {resolutionValue || 'No resolution summary yet'}
             </p>
           )}
         </Card>
