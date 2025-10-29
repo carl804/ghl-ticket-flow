@@ -237,7 +237,6 @@ export async function fetchTickets(): Promise<Ticket[]> {
         intercomAgent: intercomAgent || undefined,
         ticketSource: ticketSource || undefined,
         intercomConversationId: intercomConversationId || undefined,
-        customFields: opp.customFields || [],
       } as Ticket;
     });
 
