@@ -70,7 +70,7 @@ export default function TicketDetailsSidebar({
         body: JSON.stringify({ 
           customFields: [{ 
             id: CUSTOM_FIELD_IDS.DESCRIPTION, 
-            field_value: description 
+            value: description 
           }] 
         }),
       });
@@ -95,7 +95,7 @@ export default function TicketDetailsSidebar({
         body: JSON.stringify({ 
           customFields: [{ 
             id: CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY, 
-            field_value: resolution 
+            value: resolution 
           }] 
         }),
       });
