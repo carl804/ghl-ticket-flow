@@ -226,7 +226,6 @@ export async function fetchTickets(): Promise<Ticket[]> {
         resolutionSummary: resolutionSummary || "",
         assignedTo: ticketOwner || "",
         customFields: opp.customFields || [],
-        customFields: opp.customFields || [],
         assignedToUserId: opp.assignedTo || "",
         contactId: opp.contact?.id || opp.contactId,
         createdAt: opp.createdAt || new Date().toISOString(),
