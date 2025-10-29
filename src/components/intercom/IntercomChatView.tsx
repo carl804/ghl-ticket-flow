@@ -57,8 +57,10 @@ const PIPELINE_STAGES = {
 
 // Custom Field IDs
 const CUSTOM_FIELDS = {
-  PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',
-  CATEGORY: 'BXohaPrmtGLyHJ0wz8F7'
+  PRIORITY: 'QMiATAEcjFjQc9q8FxW6',
+  CATEGORY: 'eCjK3IHuhErwlkyWJ4Wx',
+  DESCRIPTION: 'y9aYiEln1CpSuz6u3rtE',
+  RESOLUTION_SUMMARY: 'ZzsDH7pErVhwLqJt1NjA'
 };
 
 // Dropdown Options
@@ -179,6 +181,8 @@ export default function IntercomChatView({
   currentStageId,
   priority: initialPriority = 'Medium',
   category: initialCategory = 'General Questions',
+  description: initialDescription = '',
+  resolutionSummary: initialResolutionSummary = '',
   opportunityId,
   onClose,
   onAssignmentChange 
@@ -197,6 +201,8 @@ export default function IntercomChatView({
   const [currentStage, setCurrentStage] = useState(currentStageId || PIPELINE_STAGES.OPEN);
   const [currentPriority, setCurrentPriority] = useState(initialPriority);
   const [currentCategory, setCurrentCategory] = useState(initialCategory);
+  const [currentDescription, setCurrentDescription] = useState(initialDescription);
+  const [currentResolutionSummary, setCurrentResolutionSummary] = useState(initialResolutionSummary);
   const [isUpdatingField, setIsUpdatingField] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -221,7 +227,7 @@ export default function IntercomChatView({
   }, []);
 
   // Update GHL ticket field
-  const updateTicketField = async (field: 'stage' | 'priority' | 'category', value: string) => {
+  const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'description' | 'resolutionSummary', value: string) => {
     setIsUpdatingField(true);
     try {
       const updateData: any = {};
@@ -236,6 +242,16 @@ export default function IntercomChatView({
       } else if (field === 'category') {
         updateData.customFields = [{
           id: CUSTOM_FIELDS.CATEGORY,
+          field_value: value
+        }];
+      } else if (field === 'description') {
+        updateData.customFields = [{
+          id: CUSTOM_FIELDS.DESCRIPTION,
+          field_value: value
+        }];
+      } else if (field === 'resolutionSummary') {
+        updateData.customFields = [{
+          id: CUSTOM_FIELDS.RESOLUTION_SUMMARY,
           field_value: value
         }];
       }
@@ -269,6 +285,8 @@ export default function IntercomChatView({
       if (field === 'stage') setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
       if (field === 'priority') setCurrentPriority(initialPriority);
       if (field === 'category') setCurrentCategory(initialCategory);
+      if (field === 'description') setCurrentDescription(initialDescription);
+      if (field === 'resolutionSummary') setCurrentResolutionSummary(initialResolutionSummary);
     } finally {
       setIsUpdatingField(false);
     }
