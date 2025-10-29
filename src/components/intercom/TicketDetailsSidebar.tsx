@@ -18,6 +18,12 @@ import {
   Loader2
 } from 'lucide-react';
 
+// Custom Field IDs
+const CUSTOM_FIELD_IDS = {
+  DESCRIPTION: 'bxSIsLb4VIKd9ct56M6l',
+  RESOLUTION_SUMMARY: '4EyD7zuMT5aOUy3hNZYg'
+};
+
 // Date formatting helpers
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -62,7 +68,10 @@ export default function TicketDetailsSidebar({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          customFields: [{ key: 'description', value: description }] 
+          customFields: [{ 
+            id: CUSTOM_FIELD_IDS.DESCRIPTION, 
+            field_value: description 
+          }] 
         }),
       });
       
@@ -84,7 +93,10 @@ export default function TicketDetailsSidebar({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          customFields: [{ key: 'resolution_summary', value: resolution }] 
+          customFields: [{ 
+            id: CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY, 
+            field_value: resolution 
+          }] 
         }),
       });
       
