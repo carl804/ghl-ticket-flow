@@ -20,8 +20,8 @@ import {
 
 // Custom Field IDs
 const CUSTOM_FIELD_IDS = {
-  DESCRIPTION: 'bxSIsLb4VIKd9ct56M6l',
-  RESOLUTION_SUMMARY: '4EyD7zuMT5aOUy3hNZYg'
+  DESCRIPTION: 'y9aYiEln1CpSuz6u3rtE',
+  RESOLUTION_SUMMARY: 'ZzsDH7pErVhwLqJt1NjA'
 };
 
 // Date formatting helpers
