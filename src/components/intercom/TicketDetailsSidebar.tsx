@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -6,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import ConversationSummary from './ConversationSummary';
 import { updateTicket } from '@/lib/api-fixed';
+import type { Ticket } from '@/lib/types';
 import { toast } from 'sonner';
 import { 
   User, 
@@ -59,48 +61,45 @@ export default function TicketDetailsSidebar({
   messages = [],
   onUpdate
 }: TicketDetailsSidebarProps) {
+  const queryClient = useQueryClient();
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingResolution, setIsEditingResolution] = useState(false);
   const [description, setDescription] = useState('');
   const [resolution, setResolution] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
 
   // Helper to get custom field value - matches api-fixed.ts logic
-  console.log("🔍 Opportunity data:", opportunity);
-  console.log("🔍 Custom fields:", opportunity?.customFields);
   const getCustomFieldValue = (fieldId: string): string => {
     const customFields = opportunity?.customFields || [];
     const field = customFields.find((f: any) => f.id === fieldId);
     return field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
   };
 
-  const handleSaveDescription = async () => {
-    setIsSaving(true);
-    try {
-      await updateTicket(ticketId, { description });
-      toast.success('Description updated');
-      setIsEditingDescription(false);
+  // Use the same mutation pattern as TicketDetailSheet
+  const updateMutation = useMutation({
+    mutationFn: (updates: Partial<Ticket>) => updateTicket(ticketId, updates),
+    onSuccess: () => {
+      toast.success("Updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
       onUpdate?.();
+    },
+    onError: () => toast.error("Failed to update"),
+  });
+
+  const handleSaveDescription = async () => {
+    try {
+      await updateMutation.mutateAsync({ description });
+      setIsEditingDescription(false);
     } catch (error) {
       console.error('Failed to save description:', error);
-      toast.error('Failed to update description');
-    } finally {
-      setIsSaving(false);
     }
   };
 
   const handleSaveResolution = async () => {
-    setIsSaving(true);
     try {
-      await updateTicket(ticketId, { resolutionSummary: resolution });
-      toast.success('Resolution summary updated');
+      await updateMutation.mutateAsync({ resolutionSummary: resolution });
       setIsEditingResolution(false);
-      onUpdate?.();
     } catch (error) {
       console.error('Failed to save resolution:', error);
-      toast.error('Failed to update resolution summary');
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -112,6 +111,9 @@ export default function TicketDetailsSidebar({
   const category = getCustomFieldValue(CUSTOM_FIELD_IDS.CATEGORY);
   const descriptionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.DESCRIPTION);
   const resolutionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY);
+
+  console.log('🔍 Opportunity data:', opportunity);
+  console.log('🔍 Custom fields:', opportunity?.customFields);
 
   return (
     <div className="w-80 border-l bg-white dark:bg-gray-950 overflow-y-auto">
@@ -267,14 +269,18 @@ export default function TicketDetailsSidebar({
                 className="min-h-[100px]"
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveDescription} disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save'}
+                <Button 
+                  size="sm" 
+                  onClick={handleSaveDescription} 
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending ? 'Saving...' : 'Save'}
                 </Button>
                 <Button 
                   size="sm" 
                   variant="outline" 
                   onClick={() => setIsEditingDescription(false)}
-                  disabled={isSaving}
+                  disabled={updateMutation.isPending}
                 >
                   Cancel
                 </Button>
@@ -317,14 +323,18 @@ export default function TicketDetailsSidebar({
                 className="min-h-[100px]"
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveResolution} disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save'}
+                <Button 
+                  size="sm" 
+                  onClick={handleSaveResolution} 
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending ? 'Saving...' : 'Save'}
                 </Button>
                 <Button 
                   size="sm" 
                   variant="outline" 
                   onClick={() => setIsEditingResolution(false)}
-                  disabled={isSaving}
+                  disabled={updateMutation.isPending}
                 >
                   Cancel
                 </Button>
