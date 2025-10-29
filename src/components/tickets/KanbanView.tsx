@@ -147,7 +147,7 @@ export function KanbanView({ tickets, onStatusChange, onTicketClick }: KanbanVie
       const ageDays = Math.round((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
       
       const payload = {
-        action: 'log-ticket',
+        action: 'log-transition',
         ticketId: ticket.id,
         ticketName: ticket.name || 'Unnamed Ticket',
         agent: ticket.assignedTo || 'Unassigned',
