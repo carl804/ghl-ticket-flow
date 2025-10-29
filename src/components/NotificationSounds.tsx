@@ -186,18 +186,19 @@ export default function NotificationSounds() {
           <h2 className="text-white font-bold text-base">Sounds</h2>
         </div>
         
-        {/* Scrollable Content */}
+        {/* Scrollable Content - Ultra Compact */}
         <div 
-          className="flex-1 overflow-y-auto px-4 pb-4 pt-3"
+          className="flex-1 overflow-y-scroll px-3 pb-2 pt-2"
           style={{ 
             scrollbarWidth: 'thin', 
-            scrollbarColor: '#4890F8 transparent'
+            scrollbarColor: '#4890F8 rgba(255,255,255,0.1)',
+            maxHeight: 'calc(100vh - 80px)'
           }}
         >
           {/* New Messages Section */}
-          <div className="mb-4">
-            <h3 className="text-white text-xs font-semibold mb-1.5 uppercase tracking-wide">New Messages</h3>
-            <div className="space-y-1.5">
+          <div className="mb-3">
+            <h3 className="text-white text-[10px] font-semibold mb-1 uppercase tracking-wide">New Messages</h3>
+            <div className="space-y-1">
               {sounds.map((sound) => (
                 <button
                   key={`msg-${sound.id}`}
