@@ -5,6 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import ConversationSummary from './ConversationSummary';
+import { updateTicket } from '@/lib/api-fixed';
+import { toast } from 'sonner';
 import { 
   User, 
   Mail, 
@@ -17,12 +19,6 @@ import {
   CheckCircle2,
   Loader2
 } from 'lucide-react';
-
-// Custom Field IDs
-const CUSTOM_FIELD_IDS = {
-  DESCRIPTION: 'y9aYiEln1CpSuz6u3rtE',
-  RESOLUTION_SUMMARY: 'ZzsDH7pErVhwLqJt1NjA'
-};
 
 // Date formatting helpers
 const formatDate = (dateString: string) => {
@@ -64,23 +60,13 @@ export default function TicketDetailsSidebar({
   const handleSaveDescription = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/ghl/opportunities/${ticketId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          customFields: [{ 
-            id: CUSTOM_FIELD_IDS.DESCRIPTION, 
-            value: description 
-          }] 
-        }),
-      });
-      
-      if (response.ok) {
-        setIsEditingDescription(false);
-        onUpdate?.();
-      }
+      await updateTicket(ticketId, { description });
+      toast.success('Description updated');
+      setIsEditingDescription(false);
+      onUpdate?.();
     } catch (error) {
       console.error('Failed to save description:', error);
+      toast.error('Failed to update description');
     } finally {
       setIsSaving(false);
     }
@@ -89,23 +75,13 @@ export default function TicketDetailsSidebar({
   const handleSaveResolution = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/ghl/opportunities/${ticketId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          customFields: [{ 
-            id: CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY, 
-            value: resolution 
-          }] 
-        }),
-      });
-      
-      if (response.ok) {
-        setIsEditingResolution(false);
-        onUpdate?.();
-      }
+      await updateTicket(ticketId, { resolutionSummary: resolution });
+      toast.success('Resolution summary updated');
+      setIsEditingResolution(false);
+      onUpdate?.();
     } catch (error) {
       console.error('Failed to save resolution:', error);
+      toast.error('Failed to update resolution summary');
     } finally {
       setIsSaving(false);
     }
