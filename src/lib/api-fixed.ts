@@ -115,24 +115,30 @@ export async function fetchTickets(): Promise<Ticket[]> {
     
     let allOpportunities: any[] = [];
     let hasMore = true;
-    let offset = 0;
+    let startAfterId: string | undefined = undefined;
     const limit = 100; // Fetch 100 at a time
     let pageCount = 0;
     
     // Keep fetching until we have all tickets
     while (hasMore) {
       pageCount++;
-      console.log(`📄 Fetching page ${pageCount} (offset: ${offset})...`);
+      console.log(`📄 Fetching page ${pageCount}${startAfterId ? ` (starting after: ${startAfterId})` : ''}...`);
       
-      const response = await ghlRequest<{ opportunities: any[]; meta?: { total?: number; nextPageUrl?: string } }>(
+      const queryParams: any = { 
+        location_id: locationId,
+        pipeline_id: "p14Is7nXjiqS6MVI0cCk",
+        limit: limit
+      };
+      
+      // Add startAfterId for subsequent pages
+      if (startAfterId) {
+        queryParams.startAfterId = startAfterId;
+      }
+      
+      const response = await ghlRequest<{ opportunities: any[] }>(
         `/opportunities/search`,
         { 
-          queryParams: { 
-            location_id: locationId,
-            pipeline_id: "p14Is7nXjiqS6MVI0cCk",
-            limit: limit,
-            offset: offset
-          },
+          queryParams,
           skipLocationId: true
         }
       );
@@ -151,7 +157,8 @@ export async function fetchTickets(): Promise<Ticket[]> {
       if (opportunities.length < limit) {
         hasMore = false;
       } else {
-        offset += limit;
+        // Get the last opportunity ID to use as cursor for next page
+        startAfterId = opportunities[opportunities.length - 1].id;
       }
       
       // Safety check: don't loop forever (max 50 pages = 5000 tickets)
