@@ -115,7 +115,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
     
     let allOpportunities: any[] = [];
     let pageCount = 0;
-    let startAfter: string | null = null;
+    let startAfter: string | number | null = null;
     const limit = 100;
     const seenIds = new Set<string>(); // Track IDs to detect infinite loops
     
@@ -177,7 +177,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
       // Use meta.startAfter from response for next page (this is the correct way!)
       if (meta?.startAfter) {
         startAfter = meta.startAfter;
-        console.log(`🔄 Next page will use startAfter from meta: ${startAfter?.slice(0, 8)}...`);
+        console.log(`🔄 Next page will use startAfter from meta: ${startAfter}`);
       } else {
         console.log('🏁 No meta.startAfter in response, stopping pagination');
         break;
