@@ -183,28 +183,26 @@ export default function NotificationSounds() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-400 via-[#4890F8] to-blue-700 p-6">
+    <div className="bg-gradient-to-br from-blue-400 via-[#4890F8] to-blue-700 p-4 min-h-screen overflow-auto">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Team Notification Settings</h1>
-          <p className="text-blue-100">Configure sound alerts for your support workflow</p>
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-white mb-1">Team Notification Settings</h1>
+          <p className="text-blue-100 text-sm">Configure sound alerts for your support workflow</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* New Messages */}
-          <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 shadow-lg">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                <span className="text-2xl">💬</span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-4 border border-gray-200 shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                <span className="text-xl">💬</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-800">New Messages</h2>
-                <p className="text-gray-600 text-sm">Sound when new chat messages arrive</p>
+                <h2 className="text-lg font-bold text-gray-800">New Messages</h2>
+                <p className="text-gray-600 text-xs">Sound when new chat messages arrive</p>
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {sounds.map((sound) => (
                 <button
                   key={`msg-${sound.id}`}
@@ -218,7 +216,7 @@ export default function NotificationSounds() {
                     borderColor: ((playing === sound.id && playingSection === 'messages') || selectedSound === sound.id) ? '#4890F8' : ''
                   }}
                   className={`
-                    p-4 rounded-xl transition-all duration-200 relative text-left border-2
+                    p-3 rounded-xl transition-all duration-200 relative text-left border-2
                     ${(playing === sound.id && playingSection === 'messages')
                       ? 'shadow-xl shadow-blue-500/30 scale-105' 
                       : selectedSound === sound.id
@@ -228,8 +226,8 @@ export default function NotificationSounds() {
                     ${!soundEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                   `}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{sound.icon}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{sound.icon}</span>
                     <div className="flex-1 min-w-0">
                       <div className={`font-semibold text-sm ${((playing === sound.id && playingSection === 'messages') || selectedSound === sound.id) ? 'text-white' : 'text-gray-800'}`}>
                         {sound.name}
@@ -239,7 +237,7 @@ export default function NotificationSounds() {
                       </div>
                     </div>
                     {selectedSound === sound.id && (
-                      <Check className="h-5 w-5 text-white flex-shrink-0" />
+                      <Check className="h-4 w-4 text-white flex-shrink-0" />
                     )}
                   </div>
                 </button>
@@ -247,19 +245,18 @@ export default function NotificationSounds() {
             </div>
           </div>
 
-          {/* New Tickets */}
-          <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 shadow-lg">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
-                <span className="text-2xl">🎫</span>
+          <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-4 border border-gray-200 shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                <span className="text-xl">🎫</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-800">New Tickets</h2>
-                <p className="text-gray-600 text-sm">Sound when new support tickets are created</p>
+                <h2 className="text-lg font-bold text-gray-800">New Tickets</h2>
+                <p className="text-gray-600 text-xs">Sound when new support tickets are created</p>
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {sounds.map((sound) => (
                 <button
                   key={`ticket-${sound.id}`}
@@ -273,7 +270,7 @@ export default function NotificationSounds() {
                     borderColor: ((playing === sound.id && playingSection === 'tickets') || selectedSoundNewTicket === sound.id) ? '#4890F8' : ''
                   }}
                   className={`
-                    p-4 rounded-xl transition-all duration-200 relative text-left border-2
+                    p-3 rounded-xl transition-all duration-200 relative text-left border-2
                     ${(playing === sound.id && playingSection === 'tickets')
                       ? 'shadow-xl shadow-blue-500/30 scale-105' 
                       : selectedSoundNewTicket === sound.id
@@ -283,8 +280,8 @@ export default function NotificationSounds() {
                     ${!soundEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                   `}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{sound.icon}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{sound.icon}</span>
                     <div className="flex-1 min-w-0">
                       <div className={`font-semibold text-sm ${((playing === sound.id && playingSection === 'tickets') || selectedSoundNewTicket === sound.id) ? 'text-white' : 'text-gray-800'}`}>
                         {sound.name}
@@ -294,7 +291,7 @@ export default function NotificationSounds() {
                       </div>
                     </div>
                     {selectedSoundNewTicket === sound.id && (
-                      <Check className="h-5 w-5 text-white flex-shrink-0" />
+                      <Check className="h-4 w-4 text-white flex-shrink-0" />
                     )}
                   </div>
                 </button>
@@ -303,21 +300,19 @@ export default function NotificationSounds() {
           </div>
         </div>
 
-        {/* Settings Panel */}
-        <div className="mt-8 bg-white/95 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 shadow-lg">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
-              <span className="text-2xl">⚙️</span>
+        <div className="mt-6 bg-white/95 backdrop-blur-lg rounded-2xl p-4 border border-gray-200 shadow-lg">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+              <span className="text-xl">⚙️</span>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Audio Settings</h2>
-              <p className="text-gray-600 text-sm">Configure volume and notification behavior</p>
+              <h2 className="text-lg font-bold text-gray-800">Audio Settings</h2>
+              <p className="text-gray-600 text-xs">Configure volume and notification behavior</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Enable/Disable */}
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
                   <div className="text-gray-800 font-semibold text-sm">Enable Notifications</div>
@@ -326,25 +321,24 @@ export default function NotificationSounds() {
                 <button
                   onClick={() => setSoundEnabled(!soundEnabled)}
                   className={`
-                    relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                    relative inline-flex h-5 w-9 items-center rounded-full transition-colors
                     ${soundEnabled ? 'bg-[#4890F8]' : 'bg-gray-300'}
                   `}
                 >
                   <span
                     className={`
-                      inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm
-                      ${soundEnabled ? 'translate-x-6' : 'translate-x-1'}
+                      inline-block h-3 w-3 transform rounded-full bg-white transition-transform shadow-sm
+                      ${soundEnabled ? 'translate-x-5' : 'translate-x-1'}
                     `}
                   />
                 </button>
               </label>
             </div>
 
-            {/* Volume */}
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
               <div className="text-gray-800 font-semibold text-sm mb-2">Volume</div>
-              <div className="flex items-center gap-3">
-                <VolumeX className="text-gray-500" size={16} />
+              <div className="flex items-center gap-2">
+                <VolumeX className="text-gray-500" size={14} />
                 <input
                   type="range"
                   min="0"
@@ -352,24 +346,23 @@ export default function NotificationSounds() {
                   value={volume * 100}
                   onChange={(e) => setVolume(parseInt(e.target.value) / 100)}
                   disabled={!soundEnabled}
-                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
+                  className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
                   style={{
                     background: `linear-gradient(to right, #4890F8 0%, #4890F8 ${volume * 100}%, #e5e7eb ${volume * 100}%, #e5e7eb 100%)`
                   }}
                 />
-                <Volume2 className="text-gray-500" size={16} />
+                <Volume2 className="text-gray-500" size={14} />
               </div>
-              <div className="text-gray-600 text-xs text-center mt-2">{Math.round(volume * 100)}%</div>
+              <div className="text-gray-600 text-xs text-center mt-1">{Math.round(volume * 100)}%</div>
             </div>
 
-            {/* Repeat Count */}
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
               <div className="text-gray-800 font-semibold text-sm mb-2">Repeat Sound</div>
               <select
                 value={repeatCount}
                 onChange={(e) => setRepeatCount(parseInt(e.target.value))}
                 disabled={!soundEnabled}
-                className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#4890F8] focus:border-[#4890F8]"
+                className="w-full px-2 py-1.5 text-sm bg-white border border-gray-300 rounded-lg text-gray-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#4890F8] focus:border-[#4890F8]"
               >
                 <option value="1">Once</option>
                 <option value="2">2 times</option>
@@ -378,8 +371,7 @@ export default function NotificationSounds() {
               </select>
             </div>
 
-            {/* Only When Away */}
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
                   <div className="text-gray-800 font-semibold text-sm">Only when away</div>
@@ -389,15 +381,15 @@ export default function NotificationSounds() {
                   onClick={() => setNotifyOnlyWhenAway(!notifyOnlyWhenAway)}
                   disabled={!soundEnabled}
                   className={`
-                    relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                    relative inline-flex h-5 w-9 items-center rounded-full transition-colors
                     ${notifyOnlyWhenAway ? 'bg-[#4890F8]' : 'bg-gray-300'}
                     ${!soundEnabled ? 'opacity-50 cursor-not-allowed' : ''}
                   `}
                 >
                   <span
                     className={`
-                      inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm
-                      ${notifyOnlyWhenAway ? 'translate-x-6' : 'translate-x-1'}
+                      inline-block h-3 w-3 transform rounded-full bg-white transition-transform shadow-sm
+                      ${notifyOnlyWhenAway ? 'translate-x-5' : 'translate-x-1'}
                     `}
                   />
                 </button>
@@ -405,29 +397,6 @@ export default function NotificationSounds() {
             </div>
           </div>
         </div>
-
-        {/* Test Area */}
-        {playing && (
-          <div className="mt-8 bg-white/95 backdrop-blur-lg rounded-2xl p-8 border border-gray-200 shadow-lg text-center">
-            <div className="mb-4">
-              <span className="text-6xl">
-                {sounds.find(s => s.id === playing)?.icon}
-              </span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-1">
-              {sounds.find(s => s.id === playing)?.name}
-            </h3>
-            <p className="text-gray-600 mb-6">
-              {sounds.find(s => s.id === playing)?.description}
-            </p>
-            <div className="flex justify-center gap-1">
-              <div className="w-1 h-8 bg-[#4890F8] rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-1 h-8 bg-[#4890F8] rounded-full animate-pulse" style={{ animationDelay: '100ms' }}></div>
-              <div className="w-1 h-8 bg-[#4890F8] rounded-full animate-pulse" style={{ animationDelay: '200ms' }}></div>
-              <div className="w-1 h-8 bg-[#4890F8] rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
