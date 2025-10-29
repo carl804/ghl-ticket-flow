@@ -225,6 +225,8 @@ export async function fetchTickets(): Promise<Ticket[]> {
         category: category as TicketCategory,
         resolutionSummary: resolutionSummary || "",
         assignedTo: ticketOwner || "",
+        customFields: opp.customFields || [],
+        customFields: opp.customFields || [],
         assignedToUserId: opp.assignedTo || "",
         contactId: opp.contact?.id || opp.contactId,
         createdAt: opp.createdAt || new Date().toISOString(),
@@ -236,6 +238,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
         intercomAgent: intercomAgent || undefined,
         ticketSource: ticketSource || undefined,
         intercomConversationId: intercomConversationId || undefined,
+        customFields: opp.customFields || [],
       } as Ticket;
     });
 
@@ -372,30 +375,11 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
     customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
   }
 
-  if (updates.assignedTo !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.ticketOwner, value: updates.assignedTo });
+  if (customFields.length > 0) {
+    body.customFields = customFields;
   }
 
-  if (updates.priority) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.priority, value: updates.priority });
-  }
-  
-  if (updates.category !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.category, value: updates.category });
-  }
-  
-  if (updates.description !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.description, value: updates.description });
-  }
-  
-  if (updates.resolutionSummary !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.resolutionSummary, value: updates.resolutionSummary });
-  }
-  
-  if (updates.agencyName !== undefined) {
-    customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
-  }
-
+  console.log("🔍 Sending to GHL:", JSON.stringify(body, null, 2));
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
 }
 
