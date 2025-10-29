@@ -135,7 +135,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
       
       console.log(`📄 Fetching page ${pageCount}${startAfter ? ` (startAfter: ${startAfter.slice(0, 8)}...)` : ''}...`);
       
-      const response = await ghlRequest<{ opportunities: any[] }>(
+      const response = await ghlRequest<{ opportunities: any[]; meta?: { startAfterId?: string; startAfter?: string } }>(
         `/opportunities/search`,
         { 
           queryParams,
@@ -144,7 +144,10 @@ export async function fetchTickets(): Promise<Ticket[]> {
       );
       
       const opportunities = response.opportunities || [];
+      const meta = response.meta;
+      
       console.log(`✅ Page ${pageCount}: Got ${opportunities.length} opportunities`);
+      console.log(`📍 Meta pagination:`, meta);
       
       // If no opportunities returned, we're done
       if (opportunities.length === 0) {
@@ -171,8 +174,14 @@ export async function fetchTickets(): Promise<Ticket[]> {
         break;
       }
       
-      // Set cursor for next page using the last opportunity's ID
-      startAfter = opportunities[opportunities.length - 1]?.id;
+      // Use meta.startAfter from response for next page (this is the correct way!)
+      if (meta?.startAfter) {
+        startAfter = meta.startAfter;
+        console.log(`🔄 Next page will use startAfter from meta: ${startAfter?.slice(0, 8)}...`);
+      } else {
+        console.log('🏁 No meta.startAfter in response, stopping pagination');
+        break;
+      }
       
       // Safety check: don't loop forever
       if (pageCount >= 20) {
