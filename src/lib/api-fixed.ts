@@ -116,6 +116,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
     let allOpportunities: any[] = [];
     let pageCount = 0;
     let startAfter: string | number | null = null;
+    let startAfterId: string | null = null;
     const limit = 100;
     const seenIds = new Set<string>(); // Track IDs to detect infinite loops
     
