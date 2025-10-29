@@ -104,76 +104,34 @@ function getFieldId(key: keyof FieldMap): string | undefined {
 // Cache for ticket data (to track previous state)
 const ticketCache = new Map<string, Ticket>();
 
-/** Fetch tickets from Ticketing System pipeline with PAGINATION */
+/** Fetch tickets from Ticketing System pipeline only */
 export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const locationId = getLocationId();
     
-    console.log('🔄 Fetching ALL tickets with pagination...');
+    console.log('🔄 Fetching tickets...');
     console.log('📍 Location ID:', locationId);
     console.log('📋 Pipeline ID:', "p14Is7nXjiqS6MVI0cCk");
     
-    let allOpportunities: any[] = [];
-    let hasMore = true;
-    let startAfterId: string | undefined = undefined;
-    const limit = 100; // Fetch 100 at a time
-    let pageCount = 0;
+    // Single API call with limit 500
+    const response = await ghlRequest<{ opportunities: any[] }>(
+      `/opportunities/search`,
+      { 
+        queryParams: { 
+          location_id: locationId,
+          pipeline_id: "p14Is7nXjiqS6MVI0cCk",
+          limit: 500  // Fetch up to 500 tickets
+        },
+        skipLocationId: true
+      }
+    );
     
-    // Keep fetching until we have all tickets
-    while (hasMore) {
-      pageCount++;
-      console.log(`📄 Fetching page ${pageCount}${startAfterId ? ` (starting after: ${startAfterId})` : ''}...`);
-      
-      const queryParams: any = { 
-        location_id: locationId,
-        pipeline_id: "p14Is7nXjiqS6MVI0cCk",
-        limit: limit
-      };
-      
-      // Add startAfterId for subsequent pages
-      if (startAfterId) {
-        queryParams.startAfterId = startAfterId;
-      }
-      
-      const response = await ghlRequest<{ opportunities: any[] }>(
-        `/opportunities/search`,
-        { 
-          queryParams,
-          skipLocationId: true
-        }
-      );
-      
-      const opportunities = response.opportunities || [];
-      console.log(`✅ Page ${pageCount}: Fetched ${opportunities.length} opportunities`);
-      
-      if (opportunities.length === 0) {
-        hasMore = false;
-        break;
-      }
-      
-      allOpportunities = [...allOpportunities, ...opportunities];
-      
-      // If we got less than the limit, we've reached the end
-      if (opportunities.length < limit) {
-        hasMore = false;
-      } else {
-        // Get the last opportunity ID to use as cursor for next page
-        startAfterId = opportunities[opportunities.length - 1].id;
-      }
-      
-      // Safety check: don't loop forever (max 50 pages = 5000 tickets)
-      if (pageCount >= 50) {
-        console.warn('⚠️ Reached maximum page limit (50 pages)');
-        hasMore = false;
-      }
-    }
-    
-    console.log(`🎉 Total opportunities fetched across ${pageCount} pages: ${allOpportunities.length}`);
-    console.log('🔍 ALL OPPORTUNITY NAMES:', allOpportunities.map(o => o.name));
-    console.log('🔍 OPPORTUNITY IDS:', allOpportunities.map(o => o.id));
+    const opportunities = response.opportunities || [];
+    console.log(`✅ Fetched ${opportunities.length} opportunities`);
+    console.log('🔍 ALL OPPORTUNITY NAMES:', opportunities.map(o => o.name));
     
     // Process all opportunities into tickets
-    const tickets = allOpportunities.map((opp: any) => {
+    const tickets = opportunities.map((opp: any) => {
       // Extract custom fields
       const description = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.description);
       const priority = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.priority) || "Medium";
@@ -218,8 +176,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
     // Update cache
     tickets.forEach(ticket => ticketCache.set(ticket.id, ticket));
 
-    console.log(`🎯 Successfully processed ${tickets.length} tickets with pagination`);
-    console.log('🎫 FINAL TICKET NAMES:', tickets.map(t => t.name));
+    console.log(`🎯 Successfully processed ${tickets.length} tickets`);
     
     return tickets;
   } catch (error) {
