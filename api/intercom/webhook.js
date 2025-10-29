@@ -267,22 +267,34 @@ async function findOrCreateContact(email, name) {
 async function createGHLTicketFromConversation(conversation) {
   try {
     const conversationId = conversation.id;
-    const user = conversation.user || conversation.source?.author;
     
-    if (!user) {
-      console.error('❌ No user found in conversation');
+    // Fetch full conversation from Intercom API to get accurate customer info
+    console.log('🔍 Fetching full conversation to get real customer info...');
+    const fullConversation = await fetchIntercomConversation(conversationId);
+    
+    if (!fullConversation) {
+      console.error('❌ Could not fetch full conversation from Intercom');
+      return;
+    }
+    
+    // Get customer info from the CONTACTS in the conversation (the real customer, not Fin)
+    const customer = fullConversation.contacts?.contacts?.[0] || fullConversation.user;
+    
+    if (!customer) {
+      console.error('❌ No customer found in conversation');
       return;
     }
 
-    const customerName = user.name || user.email || 'Unknown';
-    const customerEmail = user.email || '';
+    const customerName = customer.name || customer.email || 'Unknown Customer';
+    const customerEmail = customer.email || '';
+    
+    console.log('✅ Real customer:', { name: customerName, email: customerEmail });
     
     // Get ticket number
     const ticketNumber = await getNextTicketNumber();
     const ticketName = `[Intercom] #${ticketNumber} - ${customerName}`;
     
-    // Fetch full conversation from Intercom API to get accurate assignee
-    const fullConversation = await fetchIntercomConversation(conversationId);
+    // Get assignee from admin_assignee_id
     const adminAssigneeId = fullConversation?.admin_assignee_id;
     
     console.log('📦 Final admin_assignee_id to process:', adminAssigneeId);
