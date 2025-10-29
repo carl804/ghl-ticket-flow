@@ -24,8 +24,8 @@ const CUSTOM_FIELD_IDS = {
   agencyName: '32NhsYp2R2zpExXr8TO1',
   category: 'eCjK3IHuhErwlkyWJ4Wx',
   intercomAgent: 'TIkNFiv8JUDvj0FMVF0E',
-  ticketSource: 'ZfA3rPJQiSU8wRuEFWYP',
-  intercomConversationId: 'gk2kXQuactrb8OdIJ3El',
+  ticketSource: 'ZfA3rPJQiSU8wRuEFWYP', // ✅ NEW: Ticket Source (Intercom/Email/Manual/Phone)
+  intercomConversationId: 'gk2kXQuactrb8OdIJ3El', // ✅ NEW: Intercom Conversation ID
 };
 
 // Stage ID to name mapping
@@ -71,10 +71,24 @@ function getLocationId(): string {
 }
 
 /** Helper to get custom field value from opportunity */
+/** Helper to get custom field value from opportunity */
 function getCustomFieldValue(opp: any, fieldId: string): any {
   const customFields = opp.customFields || [];
+  
+  // Debug logging for intercomConversationId
+  if (fieldId === 'gk2kXQuactrb8OdIJ3El') {
+    console.log('🔍 Opportunity:', opp.id, opp.name);
+    console.log('📋 All custom fields:', JSON.stringify(customFields, null, 2));
+  }
+  
   const field = customFields.find((f: any) => f.id === fieldId);
   const value = field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
+  
+  if (fieldId === 'gk2kXQuactrb8OdIJ3El') {
+    console.log('✅ Found field:', field);
+    console.log('💾 Extracted value:', value);
+  }
+  
   return value;
 }
 
@@ -104,33 +118,30 @@ function getFieldId(key: keyof FieldMap): string | undefined {
 // Cache for ticket data (to track previous state)
 const ticketCache = new Map<string, Ticket>();
 
-/** Fetch tickets from Ticketing System pipeline only */
+/** Fetch tickets from Ticketing System pipeline only - FIXED FOR RATE LIMITS */
 export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const locationId = getLocationId();
     
-    console.log('🔄 Fetching tickets...');
-    console.log('📍 Location ID:', locationId);
-    console.log('📋 Pipeline ID:', "p14Is7nXjiqS6MVI0cCk");
+    console.log('🔄 Fetching tickets (rate-limit optimized)...');
     
-    // Single API call with limit 500
+    // SINGLE API CALL - Get all opportunities with their custom fields included
     const response = await ghlRequest<{ opportunities: any[] }>(
       `/opportunities/search`,
       { 
         queryParams: { 
           location_id: locationId,
           pipeline_id: "p14Is7nXjiqS6MVI0cCk",
-          limit: 500  // Fetch up to 500 tickets
+          limit: 500
         },
         skipLocationId: true
       }
     );
     
     const opportunities = response.opportunities || [];
-    console.log(`✅ Fetched ${opportunities.length} opportunities`);
-    console.log('🔍 ALL OPPORTUNITY NAMES:', opportunities.map(o => o.name));
+    console.log(`✅ Fetched ${opportunities.length} opportunities in single API call`);
     
-    // Process all opportunities into tickets
+    // NO MORE INDIVIDUAL API CALLS - Process opportunities directly from search response
     const tickets = opportunities.map((opp: any) => {
       // Extract custom fields
       const description = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.description);
@@ -140,8 +151,21 @@ export async function fetchTickets(): Promise<Ticket[]> {
       const agencyName = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.agencyName);
       const category = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.category) || "General Questions";
       const intercomAgent = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomAgent);
-      const ticketSource = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketSource);
-      const intercomConversationId = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomConversationId);
+      const ticketSource = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketSource); // ✅ NEW
+      const intercomConversationId = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomConversationId); // ✅ NEW
+      
+      console.log('🎫 Mapping opportunity:', opp.id);
+      console.log('📋 Extracted custom fields:', { 
+        description, 
+        priority, 
+        resolutionSummary, 
+        ticketOwner, 
+        agencyName, 
+        category, 
+        intercomAgent,
+        ticketSource, // ✅ NEW
+        intercomConversationId // ✅ NEW
+      });
       
       return {
         id: opp.id,
@@ -168,16 +192,15 @@ export async function fetchTickets(): Promise<Ticket[]> {
         description: description || "",
         tags: Array.isArray(opp.contact?.tags) ? opp.contact.tags : [],
         intercomAgent: intercomAgent || undefined,
-        ticketSource: ticketSource || undefined,
-        intercomConversationId: intercomConversationId || undefined,
+        ticketSource: ticketSource || undefined, // ✅ NEW
+        intercomConversationId: intercomConversationId || undefined, // ✅ NEW
       } as Ticket;
     });
 
     // Update cache
     tickets.forEach(ticket => ticketCache.set(ticket.id, ticket));
 
-    console.log(`🎯 Successfully processed ${tickets.length} tickets`);
-    
+    console.log(`🎯 Successfully processed ${tickets.length} tickets without rate limits`);
     return tickets;
   } catch (error) {
     console.error('❌ Error fetching tickets:', error);
