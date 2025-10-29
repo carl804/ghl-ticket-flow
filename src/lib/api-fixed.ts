@@ -133,7 +133,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
         queryParams.startAfter = startAfter;
       }
       
-      console.log(`📄 Fetching page ${pageCount}${startAfter ? ` (startAfter: ${startAfter.slice(0, 8)}...)` : ''}...`);
+      console.log(`📄 Fetching page ${pageCount}${startAfter ? ` (startAfter: ${startAfter})` : ''}...`);
       
       const response = await ghlRequest<{ opportunities: any[]; meta?: { startAfterId?: string; startAfter?: string } }>(
         `/opportunities/search`,
