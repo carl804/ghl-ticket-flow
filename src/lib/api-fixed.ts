@@ -285,6 +285,7 @@ export async function fetchStats(): Promise<Stats> {
 }
 
 export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
+  console.log("📝 updateTicket called with:", ticketId, updates);
   const previousTicket = ticketCache.get(ticketId);
   
   const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === newStatus);
@@ -331,6 +332,7 @@ export async function updateCategory(ticketId: string, category: TicketCategory)
 }
 
 export async function updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<void> {
+  console.log("📝 updateTicket called with:", ticketId, updates);
   const body: any = {};
   const customFields: Array<{ id: string; value: any }> = [];
 
