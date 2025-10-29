@@ -66,6 +66,8 @@ export default function TicketDetailsSidebar({
   const [isSaving, setIsSaving] = useState(false);
 
   // Helper to get custom field value - matches api-fixed.ts logic
+  console.log("🔍 Opportunity data:", opportunity);
+  console.log("🔍 Custom fields:", opportunity?.customFields);
   const getCustomFieldValue = (fieldId: string): string => {
     const customFields = opportunity?.customFields || [];
     const field = customFields.find((f: any) => f.id === fieldId);
