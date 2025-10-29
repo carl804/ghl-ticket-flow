@@ -268,7 +268,6 @@ export async function fetchStats(): Promise<Stats> {
     avgResolutionTime,
     totalTrend: 0,
     openTrend: 0,
-    pendingTrend: 0,
     resolvedTodayTrend: 0,
   };
 }
