@@ -298,7 +298,7 @@ export default function NotificationSounds() {
                     )}
                   </div>
                 </button>
-              ))}}
+              ))}
             </div>
           </div>
         </div>
