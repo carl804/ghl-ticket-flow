@@ -130,13 +130,14 @@ export async function fetchTickets(): Promise<Ticket[]> {
         limit: limit
       };
       
-      if (startAfter) {
+      if (startAfter && startAfterId) {
         queryParams.startAfter = startAfter;
+        queryParams.startAfterId = startAfterId;
       }
       
       console.log(`📄 Fetching page ${pageCount}${startAfter ? ` (startAfter: ${startAfter})` : ''}...`);
       
-      const response = await ghlRequest<{ opportunities: any[]; meta?: { startAfterId?: string; startAfter?: string } }>(
+      const response = await ghlRequest<{ opportunities: any[]; meta?: { startAfterId?: string; startAfter?: string | number } }>(
         `/opportunities/search`,
         { 
           queryParams,
@@ -175,12 +176,13 @@ export async function fetchTickets(): Promise<Ticket[]> {
         break;
       }
       
-      // Use meta.startAfter from response for next page (this is the correct way!)
-      if (meta?.startAfter) {
+      // Use BOTH meta.startAfter AND meta.startAfterId from response for next page
+      if (meta?.startAfter && meta?.startAfterId) {
         startAfter = meta.startAfter;
-        console.log(`🔄 Next page will use startAfter from meta: ${startAfter}`);
+        startAfterId = meta.startAfterId;
+        console.log(`🔄 Next page will use startAfter: ${startAfter}, startAfterId: ${startAfterId}`);
       } else {
-        console.log('🏁 No meta.startAfter in response, stopping pagination');
+        console.log('🏁 No meta.startAfter/startAfterId in response, stopping pagination');
         break;
       }
       
