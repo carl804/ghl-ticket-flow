@@ -219,6 +219,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
         },
         agencyName: agencyName || "N/A",
         status: STAGE_MAP[opp.pipelineStageId] || "Open",
+        pipelineStageId: opp.pipelineStageId,
         opportunityStatus: (opp.status as OpportunityStatus) || "open",
         priority: toTicketPriority(priority),
         category: category as TicketCategory,

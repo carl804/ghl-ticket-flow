@@ -1,4 +1,3 @@
-// src/lib/types.ts
 export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved" | "Closed" | "Escalated to Dev" | "Deleted";
 export type OpportunityStatus = "open" | "won" | "lost" | "abandoned";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
@@ -32,35 +31,34 @@ export interface Ticket {
   ticketSource?: TicketSource;
   intercomAgent?: string;
   intercomConversationId?: string;
+  pipelineStageId?: string; // Added for GHL pipeline stage ID
 }
 
 export interface Stats {
   total: number;
   open: number;
-  inProgress?: number;
-  resolved?: number;
-  closed?: number;
-  deleted?: number;
-  resolvedToday: number;
-  avgResolutionTime: string;
-  // Trends
-  totalTrend?: number;
-  openTrend?: number;
-  inProgressTrend?: number;
-  resolvedTrend?: number;
-  closedTrend?: number;
-  deletedTrend?: number;
-  resolvedTodayTrend?: number;
-  escalated?: number;
-  pendingCustomer?: number;
+  inProgress: number;
+  resolved: number;
+  closed: number;
 }
 
-export interface FieldMap {
-  priority?: string;
-  category?: string;
-  resolutionSummary?: string;
-  agencyName?: string;
-  ticketSource?: string;
-  intercomAgent?: string;
-  intercomConversationId?: string;
+export interface User {
+  id: string;
+  name: string;
+  email?: string;
+  role?: string;
+}
+
+export interface GHLTag {
+  id: string;
+  name: string;
+  locationId?: string;
+}
+
+export interface Activity {
+  id: string;
+  type: string;
+  description: string;
+  timestamp: string;
+  user?: string;
 }
