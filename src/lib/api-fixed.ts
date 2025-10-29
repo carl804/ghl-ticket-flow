@@ -73,21 +73,8 @@ function getLocationId(): string {
 /** Helper to get custom field value from opportunity */
 function getCustomFieldValue(opp: any, fieldId: string): any {
   const customFields = opp.customFields || [];
-  
-  // Debug logging for intercomConversationId
-  if (fieldId === 'gk2kXQuactrb8OdIJ3El') {
-    console.log('🔍 Opportunity:', opp.id, opp.name);
-    console.log('📋 All custom fields:', JSON.stringify(customFields, null, 2));
-  }
-  
   const field = customFields.find((f: any) => f.id === fieldId);
   const value = field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
-  
-  if (fieldId === 'gk2kXQuactrb8OdIJ3El') {
-    console.log('✅ Found field:', field);
-    console.log('💾 Extracted value:', value);
-  }
-  
   return value;
 }
 
@@ -117,38 +104,69 @@ function getFieldId(key: keyof FieldMap): string | undefined {
 // Cache for ticket data (to track previous state)
 const ticketCache = new Map<string, Ticket>();
 
-/** Fetch tickets from Ticketing System pipeline only - FIXED FOR RATE LIMITS */
+/** Fetch tickets from Ticketing System pipeline with PAGINATION */
 export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const locationId = getLocationId();
     
-    console.log('🔄 Fetching tickets (rate-limit optimized)...');
+    console.log('🔄 Fetching ALL tickets with pagination...');
     console.log('📍 Location ID:', locationId);
     console.log('📋 Pipeline ID:', "p14Is7nXjiqS6MVI0cCk");
     
-    // SINGLE API CALL - Get all opportunities with their custom fields included
-    const response = await ghlRequest<{ opportunities: any[] }>(
-      `/opportunities/search`,
-      { 
-        queryParams: { 
-          location_id: locationId,
-          pipeline_id: "p14Is7nXjiqS6MVI0cCk",
-          limit: 100
-        },
-        skipLocationId: true
+    let allOpportunities: any[] = [];
+    let hasMore = true;
+    let offset = 0;
+    const limit = 100; // Fetch 100 at a time
+    let pageCount = 0;
+    
+    // Keep fetching until we have all tickets
+    while (hasMore) {
+      pageCount++;
+      console.log(`📄 Fetching page ${pageCount} (offset: ${offset})...`);
+      
+      const response = await ghlRequest<{ opportunities: any[]; meta?: { total?: number; nextPageUrl?: string } }>(
+        `/opportunities/search`,
+        { 
+          queryParams: { 
+            location_id: locationId,
+            pipeline_id: "p14Is7nXjiqS6MVI0cCk",
+            limit: limit,
+            offset: offset
+          },
+          skipLocationId: true
+        }
+      );
+      
+      const opportunities = response.opportunities || [];
+      console.log(`✅ Page ${pageCount}: Fetched ${opportunities.length} opportunities`);
+      
+      if (opportunities.length === 0) {
+        hasMore = false;
+        break;
       }
-    );
+      
+      allOpportunities = [...allOpportunities, ...opportunities];
+      
+      // If we got less than the limit, we've reached the end
+      if (opportunities.length < limit) {
+        hasMore = false;
+      } else {
+        offset += limit;
+      }
+      
+      // Safety check: don't loop forever (max 50 pages = 5000 tickets)
+      if (pageCount >= 50) {
+        console.warn('⚠️ Reached maximum page limit (50 pages)');
+        hasMore = false;
+      }
+    }
     
-    const opportunities = response.opportunities || [];
-    console.log(`✅ Fetched ${opportunities.length} opportunities in single API call`);
+    console.log(`🎉 Total opportunities fetched across ${pageCount} pages: ${allOpportunities.length}`);
+    console.log('🔍 ALL OPPORTUNITY NAMES:', allOpportunities.map(o => o.name));
+    console.log('🔍 OPPORTUNITY IDS:', allOpportunities.map(o => o.id));
     
-    // 🔍 DEBUG: Show all opportunity names and IDs
-    console.log('🔍 ALL OPPORTUNITY NAMES:', opportunities.map(o => o.name));
-    console.log('🔍 OPPORTUNITY IDS:', opportunities.map(o => o.id));
-    console.log('🔍 FULL OPPORTUNITIES DATA:', JSON.stringify(opportunities, null, 2));
-    
-    // NO MORE INDIVIDUAL API CALLS - Process opportunities directly from search response
-    const tickets = opportunities.map((opp: any) => {
+    // Process all opportunities into tickets
+    const tickets = allOpportunities.map((opp: any) => {
       // Extract custom fields
       const description = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.description);
       const priority = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.priority) || "Medium";
@@ -159,19 +177,6 @@ export async function fetchTickets(): Promise<Ticket[]> {
       const intercomAgent = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomAgent);
       const ticketSource = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketSource);
       const intercomConversationId = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomConversationId);
-      
-      console.log('🎫 Mapping opportunity:', opp.id, opp.name);
-      console.log('📋 Extracted custom fields:', { 
-        description, 
-        priority, 
-        resolutionSummary, 
-        ticketOwner, 
-        agencyName, 
-        category, 
-        intercomAgent,
-        ticketSource,
-        intercomConversationId
-      });
       
       return {
         id: opp.id,
@@ -206,8 +211,9 @@ export async function fetchTickets(): Promise<Ticket[]> {
     // Update cache
     tickets.forEach(ticket => ticketCache.set(ticket.id, ticket));
 
-    console.log(`🎯 Successfully processed ${tickets.length} tickets without rate limits`);
+    console.log(`🎯 Successfully processed ${tickets.length} tickets with pagination`);
     console.log('🎫 FINAL TICKET NAMES:', tickets.map(t => t.name));
+    
     return tickets;
   } catch (error) {
     console.error('❌ Error fetching tickets:', error);
