@@ -1,7 +1,7 @@
 export type TicketStatus = "Open" | "In Progress" | "Pending Customer" | "Resolved" | "Closed" | "Escalated to Dev" | "Deleted";
 export type OpportunityStatus = "open" | "won" | "lost" | "abandoned";
 export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
-export type TicketCategory = "Billing" | "Tech" | "Sales" | "Onboarding" | "Outage" | "General Questions";
+export type TicketCategory = "Billing" | "Tech" | "Sales" | "Onboarding" | "Outage" | "General Questions" | "Technical Support" | "Sales Inquiry" | "Report an Outage" | "Cancel Account" | "Upgrade Plan" | "Feature Request" | "Bug Report";
 export type TicketSource = "Intercom" | "Email" | "Manual" | "Phone";
 
 export interface Ticket {

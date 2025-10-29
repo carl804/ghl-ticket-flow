@@ -159,6 +159,8 @@ interface IntercomChatViewProps {
   currentStageId?: string;
   priority?: string;
   category?: string;
+  description?: string;
+  resolutionSummary?: string;
   opportunityId?: string;
   onClose?: () => void;
   onAssignmentChange?: (assignee: string) => void;
