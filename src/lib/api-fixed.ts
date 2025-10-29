@@ -24,8 +24,8 @@ const CUSTOM_FIELD_IDS = {
   agencyName: '32NhsYp2R2zpExXr8TO1',
   category: 'eCjK3IHuhErwlkyWJ4Wx',
   intercomAgent: 'TIkNFiv8JUDvj0FMVF0E',
-  ticketSource: 'ZfA3rPJQiSU8wRuEFWYP', // ✅ NEW: Ticket Source (Intercom/Email/Manual/Phone)
-  intercomConversationId: 'gk2kXQuactrb8OdIJ3El', // ✅ NEW: Intercom Conversation ID
+  ticketSource: 'ZfA3rPJQiSU8wRuEFWYP',
+  intercomConversationId: 'gk2kXQuactrb8OdIJ3El',
 };
 
 // Stage ID to name mapping
@@ -70,7 +70,6 @@ function getLocationId(): string {
   return tokens.locationId;
 }
 
-/** Helper to get custom field value from opportunity */
 /** Helper to get custom field value from opportunity */
 function getCustomFieldValue(opp: any, fieldId: string): any {
   const customFields = opp.customFields || [];
@@ -124,6 +123,8 @@ export async function fetchTickets(): Promise<Ticket[]> {
     const locationId = getLocationId();
     
     console.log('🔄 Fetching tickets (rate-limit optimized)...');
+    console.log('📍 Location ID:', locationId);
+    console.log('📋 Pipeline ID:', "p14Is7nXjiqS6MVI0cCk");
     
     // SINGLE API CALL - Get all opportunities with their custom fields included
     const response = await ghlRequest<{ opportunities: any[] }>(
@@ -141,6 +142,11 @@ export async function fetchTickets(): Promise<Ticket[]> {
     const opportunities = response.opportunities || [];
     console.log(`✅ Fetched ${opportunities.length} opportunities in single API call`);
     
+    // 🔍 DEBUG: Show all opportunity names and IDs
+    console.log('🔍 ALL OPPORTUNITY NAMES:', opportunities.map(o => o.name));
+    console.log('🔍 OPPORTUNITY IDS:', opportunities.map(o => o.id));
+    console.log('🔍 FULL OPPORTUNITIES DATA:', JSON.stringify(opportunities, null, 2));
+    
     // NO MORE INDIVIDUAL API CALLS - Process opportunities directly from search response
     const tickets = opportunities.map((opp: any) => {
       // Extract custom fields
@@ -151,10 +157,10 @@ export async function fetchTickets(): Promise<Ticket[]> {
       const agencyName = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.agencyName);
       const category = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.category) || "General Questions";
       const intercomAgent = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomAgent);
-      const ticketSource = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketSource); // ✅ NEW
-      const intercomConversationId = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomConversationId); // ✅ NEW
+      const ticketSource = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketSource);
+      const intercomConversationId = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomConversationId);
       
-      console.log('🎫 Mapping opportunity:', opp.id);
+      console.log('🎫 Mapping opportunity:', opp.id, opp.name);
       console.log('📋 Extracted custom fields:', { 
         description, 
         priority, 
@@ -163,8 +169,8 @@ export async function fetchTickets(): Promise<Ticket[]> {
         agencyName, 
         category, 
         intercomAgent,
-        ticketSource, // ✅ NEW
-        intercomConversationId // ✅ NEW
+        ticketSource,
+        intercomConversationId
       });
       
       return {
@@ -192,8 +198,8 @@ export async function fetchTickets(): Promise<Ticket[]> {
         description: description || "",
         tags: Array.isArray(opp.contact?.tags) ? opp.contact.tags : [],
         intercomAgent: intercomAgent || undefined,
-        ticketSource: ticketSource || undefined, // ✅ NEW
-        intercomConversationId: intercomConversationId || undefined, // ✅ NEW
+        ticketSource: ticketSource || undefined,
+        intercomConversationId: intercomConversationId || undefined,
       } as Ticket;
     });
 
@@ -201,6 +207,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
     tickets.forEach(ticket => ticketCache.set(ticket.id, ticket));
 
     console.log(`🎯 Successfully processed ${tickets.length} tickets without rate limits`);
+    console.log('🎫 FINAL TICKET NAMES:', tickets.map(t => t.name));
     return tickets;
   } catch (error) {
     console.error('❌ Error fetching tickets:', error);
