@@ -37,9 +37,15 @@ export interface Ticket {
 export interface Stats {
   total: number;
   open: number;
-  inProgress: number;
-  resolved: number;
-  closed: number;
+  inProgress?: number;
+  resolved?: number;
+  closed?: number;
+  pendingCustomer?: number;
+  resolvedToday?: number;
+  avgResolutionTime?: string;
+  totalTrend?: number;
+  openTrend?: number;
+  resolvedTodayTrend?: number;
 }
 
 export interface User {
@@ -61,4 +67,23 @@ export interface Activity {
   description: string;
   timestamp: string;
   user?: string;
+}
+export interface FieldMap {
+  priority?: string;
+  category?: string;
+  resolutionSummary?: string;
+  agencyName?: string;
+  intercomAgent?: string;
+  ticketSource?: string;
+  intercomConversationId?: string;
+}
+
+export interface FieldMap {
+  priority?: string;
+  category?: string;
+  resolutionSummary?: string;
+  agencyName?: string;
+  intercomAgent?: string;
+  ticketSource?: string;
+  intercomConversationId?: string;
 }

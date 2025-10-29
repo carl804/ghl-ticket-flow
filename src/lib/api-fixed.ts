@@ -3,7 +3,7 @@ import type {
   Ticket,
   OpportunityStatus,
   Stats,
-  FieldMap,
+
   TicketStatus,
   TicketPriority,
   TicketCategory,
@@ -276,7 +276,6 @@ export async function fetchStats(): Promise<Stats> {
   return {
     total,
     open,
-    pendingCustomer: 0,
     resolvedToday,
     avgResolutionTime,
     totalTrend: 0,
