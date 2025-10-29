@@ -24,8 +24,8 @@ const CUSTOM_FIELD_IDS = {
   agencyName: '32NhsYp2R2zpExXr8TO1',
   category: 'eCjK3IHuhErwlkyWJ4Wx',
   intercomAgent: 'TIkNFiv8JUDvj0FMVF0E',
-  ticketSource: 'ZfA3rPJQiSU8wRuEFWYP', // ✅ NEW: Ticket Source (Intercom/Email/Manual/Phone)
-  intercomConversationId: 'gk2kXQuactrb8OdIJ3El', // ✅ NEW: Intercom Conversation ID
+  ticketSource: 'ZfA3rPJQiSU8wRuEFWYP',
+  intercomConversationId: 'gk2kXQuactrb8OdIJ3El',
 };
 
 // Stage ID to name mapping
@@ -71,24 +71,10 @@ function getLocationId(): string {
 }
 
 /** Helper to get custom field value from opportunity */
-/** Helper to get custom field value from opportunity */
 function getCustomFieldValue(opp: any, fieldId: string): any {
   const customFields = opp.customFields || [];
-  
-  // Debug logging for intercomConversationId
-  if (fieldId === 'gk2kXQuactrb8OdIJ3El') {
-    console.log('🔍 Opportunity:', opp.id, opp.name);
-    console.log('📋 All custom fields:', JSON.stringify(customFields, null, 2));
-  }
-  
   const field = customFields.find((f: any) => f.id === fieldId);
   const value = field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
-  
-  if (fieldId === 'gk2kXQuactrb8OdIJ3El') {
-    console.log('✅ Found field:', field);
-    console.log('💾 Extracted value:', value);
-  }
-  
   return value;
 }
 
@@ -118,32 +104,88 @@ function getFieldId(key: keyof FieldMap): string | undefined {
 // Cache for ticket data (to track previous state)
 const ticketCache = new Map<string, Ticket>();
 
-/** Fetch tickets from Ticketing System pipeline only - FIXED FOR RATE LIMITS */
+/** Fetch tickets from Ticketing System pipeline with proper pagination */
 export async function fetchTickets(): Promise<Ticket[]> {
   try {
     const locationId = getLocationId();
     
-    console.log('🔄 Fetching tickets (rate-limit optimized)...');
+    console.log('🔄 Fetching all tickets with pagination...');
+    console.log('📍 Location ID:', locationId);
+    console.log('📋 Pipeline ID:', "p14Is7nXjiqS6MVI0cCk");
     
-    // SINGLE API CALL - Get all opportunities with their custom fields included
-    const response = await ghlRequest<{ opportunities: any[] }>(
-      `/opportunities/search`,
-      { 
-        queryParams: { 
-          location_id: locationId,
-          pipeline_id: "p14Is7nXjiqS6MVI0cCk",
-          limit: 500
-        },
-        skipLocationId: true
+    let allOpportunities: any[] = [];
+    let pageCount = 0;
+    let startAfter: string | null = null;
+    const limit = 100;
+    const seenIds = new Set<string>(); // Track IDs to detect infinite loops
+    
+    // Keep fetching pages until we get less than 100 results
+    while (true) {
+      pageCount++;
+      
+      const queryParams: any = {
+        location_id: locationId,
+        pipeline_id: "p14Is7nXjiqS6MVI0cCk",
+        limit: limit
+      };
+      
+      if (startAfter) {
+        queryParams.startAfter = startAfter;
       }
-    );
+      
+      console.log(`📄 Fetching page ${pageCount}${startAfter ? ` (startAfter: ${startAfter.slice(0, 8)}...)` : ''}...`);
+      
+      const response = await ghlRequest<{ opportunities: any[] }>(
+        `/opportunities/search`,
+        { 
+          queryParams,
+          skipLocationId: true
+        }
+      );
+      
+      const opportunities = response.opportunities || [];
+      console.log(`✅ Page ${pageCount}: Got ${opportunities.length} opportunities`);
+      
+      // If no opportunities returned, we're done
+      if (opportunities.length === 0) {
+        console.log('🏁 No more opportunities, stopping pagination');
+        break;
+      }
+      
+      // Check for infinite loop - if we've seen the first ID before, stop
+      const firstId = opportunities[0]?.id;
+      if (firstId && seenIds.has(firstId)) {
+        console.warn('⚠️ Detected infinite loop - same opportunities returned, stopping');
+        break;
+      }
+      
+      // Add all IDs to seen set
+      opportunities.forEach(opp => seenIds.add(opp.id));
+      
+      // Add to collection
+      allOpportunities = [...allOpportunities, ...opportunities];
+      
+      // If we got less than limit, we've reached the end
+      if (opportunities.length < limit) {
+        console.log('🏁 Got less than 100 opportunities, reached the end');
+        break;
+      }
+      
+      // Set cursor for next page using the last opportunity's ID
+      startAfter = opportunities[opportunities.length - 1]?.id;
+      
+      // Safety check: don't loop forever
+      if (pageCount >= 20) {
+        console.warn('⚠️ Reached maximum page limit (20 pages = 2000 tickets)');
+        break;
+      }
+    }
     
-    const opportunities = response.opportunities || [];
-    console.log(`✅ Fetched ${opportunities.length} opportunities in single API call`);
+    console.log(`🎉 Total opportunities fetched: ${allOpportunities.length} across ${pageCount} pages`);
+    console.log('🔍 Sample ticket names:', allOpportunities.slice(0, 10).map(o => o.name));
     
-    // NO MORE INDIVIDUAL API CALLS - Process opportunities directly from search response
-    const tickets = opportunities.map((opp: any) => {
-      // Extract custom fields
+    // Process all opportunities into tickets
+    const tickets = allOpportunities.map((opp: any) => {
       const description = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.description);
       const priority = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.priority) || "Medium";
       const resolutionSummary = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.resolutionSummary);
@@ -151,21 +193,8 @@ export async function fetchTickets(): Promise<Ticket[]> {
       const agencyName = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.agencyName);
       const category = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.category) || "General Questions";
       const intercomAgent = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomAgent);
-      const ticketSource = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketSource); // ✅ NEW
-      const intercomConversationId = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomConversationId); // ✅ NEW
-      
-      console.log('🎫 Mapping opportunity:', opp.id);
-      console.log('📋 Extracted custom fields:', { 
-        description, 
-        priority, 
-        resolutionSummary, 
-        ticketOwner, 
-        agencyName, 
-        category, 
-        intercomAgent,
-        ticketSource, // ✅ NEW
-        intercomConversationId // ✅ NEW
-      });
+      const ticketSource = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.ticketSource);
+      const intercomConversationId = getCustomFieldValue(opp, CUSTOM_FIELD_IDS.intercomConversationId);
       
       return {
         id: opp.id,
@@ -192,15 +221,16 @@ export async function fetchTickets(): Promise<Ticket[]> {
         description: description || "",
         tags: Array.isArray(opp.contact?.tags) ? opp.contact.tags : [],
         intercomAgent: intercomAgent || undefined,
-        ticketSource: ticketSource || undefined, // ✅ NEW
-        intercomConversationId: intercomConversationId || undefined, // ✅ NEW
+        ticketSource: ticketSource || undefined,
+        intercomConversationId: intercomConversationId || undefined,
       } as Ticket;
     });
 
     // Update cache
     tickets.forEach(ticket => ticketCache.set(ticket.id, ticket));
 
-    console.log(`🎯 Successfully processed ${tickets.length} tickets without rate limits`);
+    console.log(`🎯 Successfully processed ${tickets.length} tickets`);
+    
     return tickets;
   } catch (error) {
     console.error('❌ Error fetching tickets:', error);
@@ -244,13 +274,11 @@ export async function fetchStats(): Promise<Stats> {
 }
 
 export async function updateTicketStatus(ticketId: string, newStatus: TicketStatus): Promise<void> {
-  // Get previous ticket state from cache
   const previousTicket = ticketCache.get(ticketId);
   
   const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === newStatus);
   if (!stageId) throw new Error(`Invalid status: ${newStatus}`);
   
-  // Update in GHL
   await ghlRequest(`/opportunities/${ticketId}`, { 
     method: "PUT", 
     body: { 
@@ -258,7 +286,6 @@ export async function updateTicketStatus(ticketId: string, newStatus: TicketStat
     } 
   });
   
-  // Update cache
   if (previousTicket) {
     ticketCache.set(ticketId, { ...previousTicket, status: newStatus, updatedAt: new Date().toISOString() });
   }
@@ -296,23 +323,19 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
   const body: any = {};
   const customFields: Array<{ id: string; value: any }> = [];
 
-  // Update pipeline stage
   if (updates.status) {
     const stageId = Object.keys(STAGE_MAP).find(key => STAGE_MAP[key] === updates.status);
     if (stageId) body.pipelineStageId = stageId;
   }
 
-  // Update opportunity status
   if (updates.opportunityStatus) {
     body.status = updates.opportunityStatus;
   }
 
-  // Update opportunity name
   if (updates.name) {
     body.name = updates.name;
   }
 
-  // Map assignedTo to Ticket Owner custom field
   if (updates.assignedTo !== undefined) {
     customFields.push({ id: CUSTOM_FIELD_IDS.ticketOwner, value: updates.assignedTo });
   }
@@ -337,9 +360,6 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
     customFields.push({ id: CUSTOM_FIELD_IDS.agencyName, value: updates.agencyName });
   }
 
-  // Note: We don't allow updating intercomAgent, ticketSource, or intercomConversationId from the UI 
-  // These are managed by webhooks only
-
   if (customFields.length > 0) {
     body.customFields = customFields;
   }
@@ -355,7 +375,6 @@ export async function bulkUpdatePriority(ids: string[], priority: TicketPriority
   await Promise.all(ids.map((id) => updatePriority(id, priority)));
 }
 
-/** Users - endpoint doesn't exist in OAuth v2 */
 export interface GHLUser {
   id: string;
   name: string;
@@ -363,7 +382,6 @@ export interface GHLUser {
 }
 
 export async function fetchUsers(): Promise<GHLUser[]> {
-  // Return ticket owners from custom field options
   return [
     { id: "Aneela", name: "Aneela" },
     { id: "Carl", name: "Carl" },
@@ -374,28 +392,22 @@ export async function fetchUsers(): Promise<GHLUser[]> {
   ];
 }
 
-/** Tags */
 export interface GHLTag {
   id: string;
   name: string;
   color?: string;
 }
 
-/** Fetch all tags for the location */
 export async function fetchTags(): Promise<GHLTag[]> {
   try {
     const locationId = getLocationId();
-    console.log('Fetching tags for location:', locationId);
     
     const response = await ghlRequest<{ tags: any[] }>(
       `/locations/${locationId}/tags`,
       { skipLocationId: true }
     );
     
-    console.log('Tags API response:', response);
-    
     if (!response.tags || !Array.isArray(response.tags)) {
-      console.error('Invalid tags response:', response);
       return [];
     }
     
@@ -410,18 +422,14 @@ export async function fetchTags(): Promise<GHLTag[]> {
   }
 }
 
-/** Update tags on a contact */
 export async function updateContactTags(contactId: string, tags: string[]): Promise<void> {
   try {
-    console.log('Updating contact tags:', contactId, tags);
-    
     await ghlRequest(`/contacts/${contactId}`, {
       method: "PUT",
       body: { tags },
       skipLocationId: true
     });
     
-    console.log('Contact tags updated successfully');
     toast.success("Tags updated successfully");
   } catch (error) {
     console.error("Failed to update contact tags:", error);
@@ -429,7 +437,6 @@ export async function updateContactTags(contactId: string, tags: string[]): Prom
   }
 }
 
-/** Converters to keep UI types safe */
 export function toTicketStatus(value: string): TicketStatus {
   const allowed: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed", "Escalated to Dev", "Deleted"];
   return (allowed.includes(value as TicketStatus) ? value : "Open") as TicketStatus;
