@@ -375,6 +375,8 @@ export async function updateTicket(ticketId: string, updates: Partial<Ticket>): 
     body.customFields = customFields;
   }
 
+  console.log("🔍 Sending to GHL:", JSON.stringify(body, null, 2));
+  console.log("🔍 Sending to GHL:", JSON.stringify(body, null, 2));
   await ghlRequest(`/opportunities/${ticketId}`, { method: "PUT", body });
 }
 
