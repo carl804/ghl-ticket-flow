@@ -54,6 +54,18 @@ export default function Tickets() {
     [tickets, selectedTicketId]
   );
 
+
+  // Debug: Log selectedTicket data
+  useEffect(() => {
+    if (selectedTicket) {
+      console.log("🎫 selectedTicket data:", {
+        id: selectedTicket.id,
+        name: selectedTicket.name,
+        status: selectedTicket.status,
+        pipelineStageId: selectedTicket.pipelineStageId
+      });
+    }
+  }, [selectedTicket]);
   // Detect new tickets and updates (new messages)
   useEffect(() => {
     console.log('🔍 Notification Detection Running:', {
