@@ -28,7 +28,7 @@ export default function Tickets() {
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     search: "",
@@ -47,6 +47,12 @@ export default function Tickets() {
     queryFn: fetchTickets,
     refetchInterval: 30000, // Poll every 30 seconds
   });
+
+  // Derive selectedTicket from tickets array so it's always fresh
+  const selectedTicket = useMemo(() => 
+    tickets.find(t => t.id === selectedTicketId) || null, 
+    [tickets, selectedTicketId]
+  );
 
   // Detect new tickets and updates (new messages)
   useEffect(() => {
@@ -279,7 +285,7 @@ export default function Tickets() {
     if (isIntercomTicket && ticket.intercomConversationId) {
       navigate(`/tickets/${ticket.id}`);
     } else {
-      setSelectedTicket(ticket);
+      setSelectedTicketId(ticket.id);
       setSheetOpen(true);
     }
   };
