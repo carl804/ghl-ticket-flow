@@ -292,7 +292,7 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
       throw new Error(responseData.message || responseData.error || 'Failed to update ticket');
     }
     
-    console.log(`✅ Updated ${field} successfully`);
+    console.log('✅ Updated ${field} successfully');
     console.log('📦 Response data:', responseData);
     toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
     
@@ -305,9 +305,6 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     // Revert on error
     if (field === 'stage') setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
     if (field === 'priority') setCurrentPriority(initialPriority);
-    if (field === 'category') setCurrentCategory(initialCategory);
-    if (field === 'description') setCurrentDescription(initialDescription);
-    if (field === 'resolutionSummary') setCurrentResolutionSummary(initialResolutionSummary);
   } finally {
     setIsUpdatingField(false);
   }
@@ -468,7 +465,7 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
   setCurrentPriority(initialPriority);
   setCurrentCategory(initialCategory);
   setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
-}, [initialPriority, initialCategory, currentStageId, ticketId]);
+}, [initialPriority, initialCategory, ticketId]);
 
   const isAssigned = intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && intercomTicketOwner.trim() !== '';
 
