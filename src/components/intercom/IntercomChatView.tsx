@@ -214,6 +214,7 @@ export default function IntercomChatView({
   // Sync currentStage when prop changes (like TicketDetailSheet does)
   useEffect(() => {
     if (currentStageId) {
+      console.log("🔄 Syncing currentStage from prop:", currentStageId);
       setCurrentStage(currentStageId);
     }
   }, [currentStageId]);
