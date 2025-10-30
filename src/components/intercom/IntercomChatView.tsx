@@ -210,6 +210,7 @@ export default function IntercomChatView({
   
   // Dropdown states
   const [currentStage, setCurrentStage] = useState(currentStageId || PIPELINE_STAGES.OPEN);
+  const prevTicketIdRef = useRef(ticketId);
   const [currentPriority, setCurrentPriority] = useState(initialPriority);
   const [currentCategory, setCurrentCategory] = useState(initialCategory);
   const [currentDescription, setCurrentDescription] = useState(initialDescription);
@@ -464,7 +465,12 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
   });
   setCurrentPriority(initialPriority);
   setCurrentCategory(initialCategory);
-  setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
+  
+  // Only reset stage when switching tickets
+  if (prevTicketIdRef.current !== ticketId) {
+    setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
+    prevTicketIdRef.current = ticketId;
+  }
 }, [initialPriority, initialCategory, ticketId]);
 
   const isAssigned = intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && intercomTicketOwner.trim() !== '';
