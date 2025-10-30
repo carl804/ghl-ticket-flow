@@ -29,7 +29,7 @@ import {
   Send, 
   Paperclip, 
   Clock, 
-  X as CloseIcon, 
+  X, 
   MessageSquare,
   User,
   AlertCircle,
@@ -74,7 +74,18 @@ const STAGE_OPTIONS = [
 ];
 
 const PRIORITY_OPTIONS = ['Low', 'Medium', 'High', 'Urgent'];
-const CATEGORY_OPTIONS = ['General Questions', 'Technical Support', 'Billing', 'Feature Request', 'Bug Report'];
+
+// ✅ CORRECTED - Match TicketDetailSheet.tsx
+const CATEGORY_OPTIONS = [
+  'Billing',
+  'Technical Support',
+  'Onboarding',
+  'Sales Inquiry',
+  'Report an Outage',
+  'General Questions',
+  'Cancel Account',
+  'Upgrade Plan'
+];
 
 const AGENT_LIST = [
   { name: 'Aneela', fullName: 'Aneela Karim', intercomId: '6465865' },
@@ -1005,7 +1016,7 @@ export default function IntercomChatView({
                 </SelectContent>
               </Select>
 
-              {/* Priotrity Dropdown */}
+              {/* Priority Dropdown */}
               <Select value={currentPriority} onValueChange={handlePriorityChange} disabled={isUpdatingField}>
                 <SelectTrigger className={`h-5 text-[10px] px-1.5 py-0 w-auto gap-1 min-w-[70px] ${
                   currentPriority === 'High' || currentPriority === 'Urgent' 
@@ -1222,7 +1233,7 @@ export default function IntercomChatView({
                       onClick={() => removeImage(index)}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <CloseIcon className="h-3 w-3" />
+                      <X className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
