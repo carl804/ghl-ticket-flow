@@ -57,8 +57,8 @@ const PIPELINE_STAGES = {
 
 // Custom Field IDs
 const CUSTOM_FIELDS = {
-  PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',      // ✅ FIXED
-  CATEGORY: 'BXohaPrmtGLyHJ0wz8F7',      // ✅ FIXED
+  PRIORITY: 'QMiATAEcjFjQc9q8FxW6',           // ← Use same as api-fixed.ts
+  CATEGORY: 'eCjK3IHuhErwlkyWJ4Wx',          // ← Use same as api-fixed.ts
   DESCRIPTION: 'y9aYiEln1CpSuz6u3rtE',
   RESOLUTION_SUMMARY: 'ZzsDH7pErVhwLqJt1NjA'
 };
