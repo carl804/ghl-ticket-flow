@@ -57,8 +57,8 @@ const PIPELINE_STAGES = {
 
 // Custom Field IDs
 const CUSTOM_FIELDS = {
-  PRIORITY: 'QMiATAEcjFjQc9q8FxW6',
-  CATEGORY: 'eCjK3IHuhErwlkyWJ4Wx',
+  PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',      // ✅ FIXED
+  CATEGORY: 'BXohaPrmtGLyHJ0wz8F7',      // ✅ FIXED
   DESCRIPTION: 'y9aYiEln1CpSuz6u3rtE',
   RESOLUTION_SUMMARY: 'ZzsDH7pErVhwLqJt1NjA'
 };
@@ -238,70 +238,82 @@ export default function IntercomChatView({
   }, []);
 
   // Update GHL ticket field
-  const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'description' | 'resolutionSummary', value: string) => {
-    setIsUpdatingField(true);
-    try {
-      const updateData: any = {};
-      
-      if (field === 'stage') {
-        updateData.pipelineStageId = value;
-      } else if (field === 'priority') {
-        updateData.customFields = [{
-          id: CUSTOM_FIELDS.PRIORITY,
-          field_value: value
-        }];
-      } else if (field === 'category') {
-        updateData.customFields = [{
-          id: CUSTOM_FIELDS.CATEGORY,
-          field_value: value
-        }];
-      } else if (field === 'description') {
-        updateData.customFields = [{
-          id: CUSTOM_FIELDS.DESCRIPTION,
-          field_value: value
-        }];
-      } else if (field === 'resolutionSummary') {
-        updateData.customFields = [{
-          id: CUSTOM_FIELDS.RESOLUTION_SUMMARY,
-          field_value: value
-        }];
-      }
-
-      // Call GHL API to update
-      const response = await fetch(`/api/ghl-proxy`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          endpoint: `/opportunities/${ticketId}`,
-          method: 'PUT',
-          body: updateData
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update ticket');
-      }
-      
-      console.log(`✅ Updated ${field} successfully`);
-      toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
-      
-      // Invalidate tickets query to refresh
-      queryClient.invalidateQueries({ queryKey: ['tickets'] });
-    } catch (error: any) {
-      console.error(`❌ Failed to update ${field}:`, error);
-      toast.error(`Failed to update ${field}: ${error.message}`);
-      
-      // Revert on error
-      if (field === 'stage') setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
-      if (field === 'priority') setCurrentPriority(initialPriority);
-      if (field === 'category') setCurrentCategory(initialCategory);
-      if (field === 'description') setCurrentDescription(initialDescription);
-      if (field === 'resolutionSummary') setCurrentResolutionSummary(initialResolutionSummary);
-    } finally {
-      setIsUpdatingField(false);
+const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'description' | 'resolutionSummary', value: string) => {
+  setIsUpdatingField(true);
+  console.log('🎯 Updating ticket:', ticketId, 'Field:', field, 'Value:', value);
+  
+  try {
+    const updateData: any = {};
+    
+    if (field === 'stage') {
+      updateData.pipelineStageId = value;
+    } else if (field === 'priority') {
+      updateData.customFields = [{
+        id: CUSTOM_FIELDS.PRIORITY,
+        field_value: value
+      }];
+    } else if (field === 'category') {
+      updateData.customFields = [{
+        id: CUSTOM_FIELDS.CATEGORY,
+        field_value: value
+      }];
+    } else if (field === 'description') {
+      updateData.customFields = [{
+        id: CUSTOM_FIELDS.DESCRIPTION,
+        field_value: value
+      }];
+    } else if (field === 'resolutionSummary') {
+      updateData.customFields = [{
+        id: CUSTOM_FIELDS.RESOLUTION_SUMMARY,
+        field_value: value
+      }];
     }
-  };
+
+    console.log('📤 Request body:', JSON.stringify({
+      endpoint: `/opportunities/${ticketId}`,
+      method: 'PUT',
+      body: updateData
+    }, null, 2));
+
+    // Call GHL API to update
+    const response = await fetch(`/api/ghl-proxy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endpoint: `/opportunities/${ticketId}`,
+        method: 'PUT',
+        body: updateData
+      })
+    });
+
+    console.log('📡 Response status:', response.status);
+    const responseData = await response.json();
+    console.log('📡 Response data:', responseData);
+
+    if (!response.ok) {
+      console.error('❌ API Error Response:', responseData);
+      throw new Error(responseData.message || responseData.error || 'Failed to update ticket');
+    }
+    
+    console.log(`✅ Updated ${field} successfully`);
+    toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
+    
+    // Invalidate tickets query to refresh
+    queryClient.invalidateQueries({ queryKey: ['tickets'] });
+  } catch (error: any) {
+    console.error(`❌ Failed to update ${field}:`, error);
+    toast.error(`Failed to update ${field}: ${error.message}`);
+    
+    // Revert on error
+    if (field === 'stage') setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
+    if (field === 'priority') setCurrentPriority(initialPriority);
+    if (field === 'category') setCurrentCategory(initialCategory);
+    if (field === 'description') setCurrentDescription(initialDescription);
+    if (field === 'resolutionSummary') setCurrentResolutionSummary(initialResolutionSummary);
+  } finally {
+    setIsUpdatingField(false);
+  }
+};
 
   // Handler functions
   const handleStageChange = async (newStage: string) => {
