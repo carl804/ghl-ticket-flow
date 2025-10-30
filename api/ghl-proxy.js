@@ -3,6 +3,7 @@ const GHL_API_BASE = "https://services.leadconnectorhq.com";
 const CLIENT_ID = process.env.VITE_GHL_CLIENT_ID;
 const CLIENT_SECRET = process.env.VITE_GHL_CLIENT_SECRET;
 const REDIRECT_URI = process.env.VITE_GHL_REDIRECT_URI;
+const GHL_ACCESS_TOKEN = process.env.GHL_ACCESS_TOKEN || process.env.GHL_ACCESS_TOKEN_TEMP; // ✅ ADD THIS
 
 export default async function handler(req, res) {
   // CORS headers
@@ -57,17 +58,21 @@ export default async function handler(req, res) {
       return res.status(response.status).send(text);
     }
 
-    // For all other requests, use the OAuth Bearer token
+    // ✅ MODIFIED: Use client token OR server-side token
     const authHeader = req.headers["authorization"];
+    let accessToken;
     
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      // Use client-provided token (for OAuth flow)
+      accessToken = authHeader.replace("Bearer ", "");
+    } else if (GHL_ACCESS_TOKEN) {
+      // Fallback to server-side token
+      accessToken = GHL_ACCESS_TOKEN;
+    } else {
       return res.status(401).json({ error: "No authorization token provided" });
     }
 
-    // Extract the OAuth access token
-    const accessToken = authHeader.replace("Bearer ", "");
-    
-    // Set authorization header with OAuth token
+    // Set authorization header with token
     reqHeaders["Authorization"] = `Bearer ${accessToken}`;
 
     // Make the request to GHL API
