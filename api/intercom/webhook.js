@@ -278,6 +278,9 @@ async function createGHLTicketFromConversation(conversation) {
     }
     
     // Get customer info from the CONTACTS in the conversation (the real customer, not Fin)
+    console.log('🔍 Full conversation data:', JSON.stringify(fullConversation, null, 2));
+    console.log('🔍 Contacts array:', fullConversation.contacts);
+    console.log('🔍 Contacts.contacts:', fullConversation.contacts?.contacts);
     const customer = fullConversation.contacts?.contacts?.[0] || fullConversation.user;
     
     if (!customer) {
