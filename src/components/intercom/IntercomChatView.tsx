@@ -296,6 +296,7 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     }
     
     console.log(`✅ Updated ${field} successfully`);
+    console.log('📦 Response data:', responseData);
     toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
     
     // Invalidate tickets query to refresh
@@ -461,11 +462,17 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
 
   // Sync dropdown states with updated props
   useEffect(() => {
-    setCurrentPriority(initialPriority);
-    setCurrentCategory(initialCategory);
-    setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
-  }, [initialPriority, initialCategory, currentStageId]);
-  
+  console.log('🔄 Props changed - syncing states:', {
+    priority: initialPriority,
+    category: initialCategory, 
+    stage: currentStageId,
+    ticketId
+  });
+  setCurrentPriority(initialPriority);
+  setCurrentCategory(initialCategory);
+  setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
+}, [initialPriority, initialCategory, currentStageId, ticketId]);
+
   const isAssigned = intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && intercomTicketOwner.trim() !== '';
 
   const { data: conversation, isLoading } = useQuery({
