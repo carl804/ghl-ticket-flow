@@ -247,26 +247,23 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     
     if (field === 'stage') {
       updateData.pipelineStageId = value;
-    } else if (field === 'priority') {
-      updateData.customFields = [{
-        id: CUSTOM_FIELDS.PRIORITY,
-        field_value: value
-      }];
-    } else if (field === 'category') {
-      updateData.customFields = [{
-        id: CUSTOM_FIELDS.CATEGORY,
-        field_value: value
-      }];
-    } else if (field === 'description') {
-      updateData.customFields = [{
-        id: CUSTOM_FIELDS.DESCRIPTION,
-        field_value: value
-      }];
-    } else if (field === 'resolutionSummary') {
-      updateData.customFields = [{
-        id: CUSTOM_FIELDS.RESOLUTION_SUMMARY,
-        field_value: value
-      }];
+    } else {
+      // ✅ FIXED: Use the same format as api-fixed.ts
+      const customFields: Array<{ id: string; value: any }> = [];
+      
+      if (field === 'priority') {
+        customFields.push({ id: CUSTOM_FIELDS.PRIORITY, value });
+      } else if (field === 'category') {
+        customFields.push({ id: CUSTOM_FIELDS.CATEGORY, value });
+      } else if (field === 'description') {
+        customFields.push({ id: CUSTOM_FIELDS.DESCRIPTION, value });
+      } else if (field === 'resolutionSummary') {
+        customFields.push({ id: CUSTOM_FIELDS.RESOLUTION_SUMMARY, value });
+      }
+      
+      if (customFields.length > 0) {
+        updateData.customFields = customFields; // ← plural!
+      }
     }
 
     console.log('📤 Request body:', JSON.stringify({
