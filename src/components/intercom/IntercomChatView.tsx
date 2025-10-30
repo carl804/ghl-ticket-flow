@@ -459,6 +459,13 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [message, isNote, showCustomerDetails]);
 
+  // Sync dropdown states with updated props
+  useEffect(() => {
+    setCurrentPriority(initialPriority);
+    setCurrentCategory(initialCategory);
+    setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
+  }, [initialPriority, initialCategory, currentStageId]);
+  
   const isAssigned = intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && intercomTicketOwner.trim() !== '';
 
   const { data: conversation, isLoading } = useQuery({
