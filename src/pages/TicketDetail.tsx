@@ -289,6 +289,7 @@ export default function TicketDetail() {
               conversationId={intercomConversationId}
               ticketId={ticket.id}
               intercomTicketOwner={ticket.intercomAgent || ticket.assignedTo}
+              currentStageId={ticket.pipelineStageId}
               priority={ticket.priority}
               category={ticket.category}
               opportunityId={ticket.id}
