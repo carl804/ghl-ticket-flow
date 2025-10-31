@@ -21,6 +21,11 @@ export default function IntercomChatPage() {
     queryFn: fetchTickets,
   });
 
+  // ✅ ADDED: Find the ticket that matches this conversation
+  const currentTicket = tickets.find(
+    (t) => t.intercomConversationId === conversationId
+  );
+
   const handleCreateTicket = async () => {
     if (!conversationId) return;
     
@@ -148,14 +153,20 @@ export default function IntercomChatPage() {
         <div className="flex-1 overflow-hidden">
           <IntercomChatView
             conversationId={conversationId}
-            ticketId={undefined} // No ticket yet
+            ticketId={currentTicket?.id || ''}
+            currentStageId={currentTicket?.pipelineStageId}
+            priority={currentTicket?.priority}
+            category={currentTicket?.category}
+            intercomTicketOwner={currentTicket?.intercomAgent}
+            description={currentTicket?.description}
+            resolutionSummary={currentTicket?.resolutionSummary}
           />
         </div>
       </div>
 
       {/* Right Sidebar - Details */}
       <TicketDetailsSidebar
-        ticketId={undefined}
+        ticketId={currentTicket?.id || ''}
         conversationId={conversationId}
         opportunity={undefined}
         conversation={undefined}
