@@ -149,6 +149,21 @@ export default async function handler(req, res) {
       
       const conversation = await convResponse.json();
       
+      // 🚨🚨🚨 EXTREME DEBUG - LOG EVERYTHING 🚨🚨🚨
+      console.log('🚨🚨🚨 FULL CONVERSATION OBJECT START 🚨🚨🚨');
+      console.log(JSON.stringify(conversation, null, 2));
+      console.log('🚨🚨🚨 FULL CONVERSATION OBJECT END 🚨🚨🚨');
+      
+      console.log('🔍🔍🔍 DETAILED BREAKDOWN:');
+      console.log('📌 conversation.source:', JSON.stringify(conversation.source, null, 2));
+      console.log('📌 conversation.source.author:', JSON.stringify(conversation.source?.author, null, 2));
+      console.log('📌 conversation.contacts:', JSON.stringify(conversation.contacts, null, 2));
+      console.log('📌 conversation.contacts.contacts:', JSON.stringify(conversation.contacts?.contacts, null, 2));
+      
+      if (conversation.contacts?.contacts?.[0]) {
+        console.log('👤 FIRST CONTACT DETAILS:', JSON.stringify(conversation.contacts.contacts[0], null, 2));
+      }
+      
       // Extract customer info
       const customerName = conversation.source?.author?.name ||
                            conversation.contacts?.contacts?.[0]?.name ||
@@ -156,10 +171,18 @@ export default async function handler(req, res) {
       const customerEmail = conversation.source?.author?.email ||
                             conversation.contacts?.contacts?.[0]?.email;
       
+      console.log('✅✅✅ EXTRACTED CUSTOMER INFO:');
+      console.log('  👤 Name:', customerName);
+      console.log('  📧 Email:', customerEmail);
+      console.log('  🔍 Source author type:', conversation.source?.author?.type);
+      console.log('  🔍 Source author name:', conversation.source?.author?.name);
+      console.log('  🔍 Source author email:', conversation.source?.author?.email);
+      
       // Find or create contact in GHL
       let contactId;
       
       if (customerEmail) {
+        console.log('🔎 Searching for existing contact with email:', customerEmail);
         const contactSearchResponse = await fetch(
           `https://services.leadconnectorhq.com/contacts/search/duplicate?locationId=${LOCATION_ID}&email=${encodeURIComponent(customerEmail)}`,
           {
@@ -174,12 +197,22 @@ export default async function handler(req, res) {
           const searchData = await contactSearchResponse.json();
           if (searchData.contact) {
             contactId = searchData.contact.id;
+            console.log('✅ Found existing contact:', contactId);
+          } else {
+            console.log('⚠️ No existing contact found');
           }
+        } else {
+          console.log('⚠️ Contact search failed:', contactSearchResponse.status);
         }
+      } else {
+        console.log('⚠️ No email provided, cannot search for existing contact');
       }
       
       // Create contact if needed
       if (!contactId) {
+        console.log('📝 Creating new contact in GHL...');
+        console.log('📝 Contact data:', { name: customerName, email: customerEmail });
+        
         const createContactResponse = await fetch(
           `https://services.leadconnectorhq.com/contacts/`,
           {
@@ -198,11 +231,15 @@ export default async function handler(req, res) {
         );
         
         if (!createContactResponse.ok) {
+          const errorText = await createContactResponse.text();
+          console.error('❌ Failed to create contact:', errorText);
           throw new Error('Failed to create contact in GHL');
         }
         
         const contactData = await createContactResponse.json();
         contactId = contactData.contact.id;
+        console.log('✅ Created new contact:', contactId);
+        console.log('✅ Contact details:', JSON.stringify(contactData.contact, null, 2));
       }
       
       // Get next ticket number from Google Sheets
@@ -210,6 +247,27 @@ export default async function handler(req, res) {
       console.log('🎫 Ticket number from sheets:', ticketNumber);
       
       // Create opportunity in GHL
+      const oppPayload = {
+        locationId: LOCATION_ID,
+        pipelineId: PIPELINE_ID,
+        pipelineStageId: STAGE_ID,
+        contactId: contactId,
+        name: `[Intercom] #${ticketNumber} - ${customerName}`,
+        status: 'open',
+        customFields: [
+          {
+            key: 'gk2kXQuactrb8OdIJ3El', // intercomConversationId
+            field_value: conversationId
+          },
+          {
+            key: 'ZfA3rPJQiSU8wRuEFWYP', // ticketSource
+            field_value: 'Intercom'
+          }
+        ]
+      };
+      
+      console.log('📤 Creating opportunity with payload:', JSON.stringify(oppPayload, null, 2));
+      
       const createOppResponse = await fetch(
         `https://services.leadconnectorhq.com/opportunities/`,
         {
@@ -219,35 +277,25 @@ export default async function handler(req, res) {
             'Version': '2021-07-28',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            locationId: LOCATION_ID,
-            pipelineId: PIPELINE_ID,
-            pipelineStageId: STAGE_ID,
-            contactId: contactId,
-            name: `[Intercom] #${ticketNumber} - ${customerName}`,
-            status: 'open',
-            customFields: [
-              {
-                key: 'gk2kXQuactrb8OdIJ3El', // intercomConversationId
-                field_value: conversationId
-              },
-              {
-                key: 'ZfA3rPJQiSU8wRuEFWYP', // ticketSource
-                field_value: 'Intercom'
-              }
-            ]
-          })
+          body: JSON.stringify(oppPayload)
         }
       );
       
       if (!createOppResponse.ok) {
         const errorData = await createOppResponse.json();
+        console.error('❌ Failed to create opportunity:', JSON.stringify(errorData, null, 2));
         throw new Error(`Failed to create opportunity: ${JSON.stringify(errorData)}`);
       }
       
       const oppData = await createOppResponse.json();
       
-      console.log('✅ Ticket created:', oppData.opportunity.id);
+      console.log('✅✅✅ Ticket created successfully!');
+      console.log('  🎫 Ticket ID:', oppData.opportunity.id);
+      console.log('  🎫 Ticket Number:', ticketNumber);
+      console.log('  🎫 Ticket Name:', oppData.opportunity.name);
+      console.log('  👤 Contact ID:', contactId);
+      console.log('  👤 Contact Name:', customerName);
+      console.log('  📧 Contact Email:', customerEmail);
       
       return res.status(200).json({
         success: true,
@@ -257,7 +305,8 @@ export default async function handler(req, res) {
       });
     
     } catch (error) {
-      console.error('❌ Error creating ticket:', error);
+      console.error('❌❌❌ ERROR CREATING TICKET:', error);
+      console.error('❌ Error message:', error.message);
       console.error('❌ Error stack:', error.stack);
       return res.status(500).json({
         error: 'Failed to create ticket',
