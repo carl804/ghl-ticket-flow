@@ -198,6 +198,7 @@ export default function IntercomChatView({
   onClose,
   onAssignmentChange 
 }: IntercomChatViewProps) {
+  console.log("🎬🎬🎬 IntercomChatView RENDER 🎬🎬🎬", { ticketId, currentStageId });
   const [message, setMessage] = useState('');
   const [isNote, setIsNote] = useState(false);
   const [showAgentSelector, setShowAgentSelector] = useState(false);
@@ -213,11 +214,12 @@ export default function IntercomChatView({
   const prevTicketIdRef = useRef(ticketId);
   // Sync currentStage when prop changes (like TicketDetailSheet does)
   useEffect(() => {
-    if (currentStageId) {
-      console.log("🔄 Syncing currentStage from prop:", currentStageId);
-      setCurrentStage(currentStageId);
-    }
-  }, [currentStageId]);
+  console.log("🚨🚨🚨 PROP CHANGED! currentStageId:", currentStageId, "currentStage:", currentStage);
+  if (currentStageId) {
+    console.log("🔄 Syncing currentStage from prop:", currentStageId);
+    setCurrentStage(currentStageId);
+  }
+}, [currentStageId]);
   const [currentPriority, setCurrentPriority] = useState(initialPriority);
   const [currentCategory, setCurrentCategory] = useState(initialCategory);
   const [currentDescription, setCurrentDescription] = useState(initialDescription);
