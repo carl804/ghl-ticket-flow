@@ -277,11 +277,33 @@ async function createGHLTicketFromConversation(conversation) {
       return;
     }
     
-    // Get customer info from the CONTACTS in the conversation (the real customer, not Fin)
-    console.log('🔍 Full conversation data:', JSON.stringify(fullConversation, null, 2));
-    console.log('🔍 Contacts array:', fullConversation.contacts);
-    console.log('🔍 Contacts.contacts:', fullConversation.contacts?.contacts);
-    const customer = fullConversation.contacts?.contacts?.[0] || fullConversation.user;
+    // Get customer info - log EVERYTHING to find where real customer is
+    console.log('🔍 FULL CONVERSATION:', JSON.stringify(fullConversation, null, 2));
+    console.log('🔍 source:', fullConversation.source);
+    console.log('🔍 contacts:', fullConversation.contacts);
+    console.log('🔍 user:', fullConversation.user);
+    console.log('🔍 customers:', fullConversation.customers);
+
+    // Try to get the real customer (not Fin)
+    let customer = null;
+
+    // Option 1: From source.author (if user initiated)
+    if (fullConversation.source?.author?.type === 'user') {
+      customer = fullConversation.source.author;
+      console.log('✅ Found customer in source.author:', customer);
+    }
+
+    // Option 2: From contacts array
+    if (!customer && fullConversation.contacts?.contacts?.[0]) {
+      customer = fullConversation.contacts.contacts[0];
+      console.log('✅ Found customer in contacts.contacts[0]:', customer);
+    }
+
+    // Option 3: From user object
+    if (!customer && fullConversation.user) {
+      customer = fullConversation.user;
+      console.log('✅ Found customer in user:', customer);
+    }
     
     if (!customer) {
       console.error('❌ No customer found in conversation');
