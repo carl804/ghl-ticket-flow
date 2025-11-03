@@ -1,579 +1,592 @@
-import { useState, useMemo, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Sparkles, RefreshCw, Search, Filter, X, LayoutList, Columns3, LayoutGrid } from "lucide-react";
-import { fetchTickets, updateTicketStatus, updatePriority } from "@/lib/api-fixed";
-import type { Ticket, TicketStatus, TicketPriority, Stats } from "@/lib/types";
-import TableView from "@/components/tickets/TableView";
-import { KanbanView } from "@/components/tickets/KanbanView";
-import CompactView from "@/components/tickets/CompactView";
-import TicketDetailSheet from "@/components/tickets/TicketDetailSheet";
-import StatsCards from "@/components/tickets/StatsCards";
-import { toast } from "sonner";
-import { playNotificationSound } from "@/lib/notificationSound";
+import crypto from 'crypto';
+import { google } from 'googleapis';
 
+const GHL_API_BASE = 'https://services.leadconnectorhq.com';
+const GHL_ACCESS_TOKEN = process.env.GHL_ACCESS_TOKEN || process.env.GHL_ACCESS_TOKEN_TEMP;
+const GHL_LOCATION_ID = process.env.VITE_GHL_LOCATION_ID || process.env.GHL_LOCATION_ID;
+const GHL_PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk';
+const GHL_STAGE_OPEN = '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e';
+const INTERCOM_ACCESS_TOKEN = process.env.INTERCOM_ACCESS_TOKEN;
 
-type ViewMode = "table" | "kanban" | "compact";
+// Custom field IDs - UPDATED with correct ticketSource ID
+const CUSTOM_FIELDS = {
+  INTERCOM_CONVERSATION_ID: 'gk2kXQuactrb8OdIJ3El',
+  TICKET_SOURCE: 'xITVHATbB7UzFdMQLenB', // Updated to correct ID
+  CUSTOMER_EMAIL: 'tpihNBgeALeCppnY3ir5',
+  CATEGORY: 'BXohaPrmtGLyHJ0wz8F7',
+  PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',
+  INTERCOM_TICKET_OWNER: 'TIkNFiv8JUDvj0FMVF0E',
+};
 
-interface Filters {
-  search: string;
-  status: string;
-  priority: string;
-  category: string;
-  assignedTo: string;
-  source: string;
+// Intercom Admin ID to GHL Name Mapping
+const INTERCOM_ASSIGNEE_MAP = {
+  '1755792': 'Mark',
+  '3603553': 'Bot',
+  '4310906': 'Chloe',
+  '5326930': 'Jonathan',
+  '6465865': 'Aneela',
+  '7023191': 'Joyce',
+  '8815155': 'Christian',
+  '8958425': 'Sana',
+  '9123839': 'Carl',
+};
+
+// Intercom Tag ID
+const INTERCOM_TAG_ID = 'qEOvf8oLOGrOAq0SUAAF';
+
+// Google Sheets Setup
+const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const COUNTER_TAB = 'Intercom Counter';
+
+// CRITICAL: Disable Vercel's automatic body parsing for signature verification
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+// Helper to get raw body as string
+async function getRawBody(req) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }
 
-export default function Tickets() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
-  const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [filters, setFilters] = useState<Filters>({
-    search: "",
-    status: "all",
-    priority: "all",
-    category: "all",
-    assignedTo: "all",
-    source: "all",
+// Initialize Google Sheets
+function getGoogleSheetsClient() {
+  const auth = new google.auth.GoogleAuth({
+    credentials: JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
+  return google.sheets({ version: 'v4', auth });
+}
 
-  // Track previous ticket states to detect new tickets AND updates
-  const previousTicketsRef = useRef<Map<string, string>>(new Map());
-
-  const { data: tickets = [], isLoading, refetch } = useQuery({
-    queryKey: ["tickets"],
-    queryFn: fetchTickets,
-    refetchInterval: 30000, // Poll every 30 seconds
-  });
-
-  // Derive selectedTicket from tickets array so it's always fresh
-  const selectedTicket = useMemo(() => 
-    tickets.find(t => t.id === selectedTicketId) || null, 
-    [tickets, selectedTicketId]
-  );
-
-  // Debug: Log selectedTicket data
-  useEffect(() => {
-    if (selectedTicket) {
-      console.log("🎫 selectedTicket data:", {
-        id: selectedTicket.id,
-        name: selectedTicket.name,
-        status: selectedTicket.status,
-        pipelineStageId: selectedTicket.pipelineStageId
-      });
-    }
-  }, [selectedTicket]);
+// Get and increment ticket counter with retry logic
+async function getNextTicketNumber(retryCount = 0) {
+  const MAX_RETRIES = 3;
   
-  // Detect new tickets and updates (new messages)
-  useEffect(() => {
-    console.log('🔍 Notification Detection Running:', {
-      ticketCount: tickets.length,
-      previousCount: previousTicketsRef.current.size,
+  try {
+    const sheets = getGoogleSheetsClient();
+    
+    console.log(`📊 Attempting to get counter (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
+    
+    // Read current counter
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${COUNTER_TAB}!B2`,
+    });
+    
+    const currentNumber = parseInt(response.data.values?.[0]?.[0] || '0');
+    const nextNumber = currentNumber + 1;
+    
+    console.log(`📊 Current counter: ${currentNumber}, Next: ${nextNumber}`);
+    
+    // Update counter
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${COUNTER_TAB}!B2`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [[nextNumber]],
+      },
+    });
+    
+    console.log(`✅ Successfully generated ticket number: ${nextNumber}`);
+    return String(nextNumber).padStart(5, '0'); // "00001"
+    
+  } catch (error) {
+    console.error(`❌ Error getting ticket number (attempt ${retryCount + 1}):`, error.message);
+    console.error('❌ Error code:', error.code);
+    console.error('❌ Error details:', error);
+    
+    // Retry logic
+    if (retryCount < MAX_RETRIES) {
+      const waitTime = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+      console.log(`🔄 Retrying in ${waitTime}ms... (${retryCount + 1}/${MAX_RETRIES})`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      return getNextTicketNumber(retryCount + 1);
+    }
+    
+    // All retries failed - use fallback
+    console.error('❌ All retries exhausted. Using timestamp fallback.');
+    console.error('⚠️ THIS SHOULD BE INVESTIGATED - Check Google Sheets permissions and quotas');
+    
+    const fallback = String(Date.now()).slice(-5);
+    console.error(`⚠️ Fallback ticket number: ${fallback}`);
+    
+    return fallback;
+  }
+}
+
+// Fetch full conversation details from Intercom API
+async function fetchIntercomConversation(conversationId) {
+  if (!INTERCOM_ACCESS_TOKEN) {
+    console.warn('⚠️ INTERCOM_ACCESS_TOKEN not set - cannot fetch conversation details');
+    return null;
+  }
+
+  try {
+    console.log(`🔍 Fetching conversation ${conversationId} from Intercom API...`);
+    const response = await fetch(`https://api.intercom.io/conversations/${conversationId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${INTERCOM_ACCESS_TOKEN}`,
+        'Accept': 'application/json',
+        'Intercom-Version': '2.11'
+      }
+    });
+
+    if (!response.ok) {
+      console.error(`❌ Intercom API error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const conversation = await response.json();
+    console.log('✅ Fetched conversation from Intercom API');
+    console.log('📦 admin_assignee_id from Intercom:', conversation.admin_assignee_id);
+    console.log('📦 team_assignee_id from Intercom:', conversation.team_assignee_id);
+    return conversation;
+  } catch (error) {
+    console.error('❌ Error fetching from Intercom API:', error);
+    return null;
+  }
+}
+
+// Map Intercom assignee to GHL dropdown value (reads from admin_assignee_id)
+function mapIntercomAssigneeToGHL(adminAssigneeId) {
+  console.log('🔍 Mapping admin_assignee_id:', adminAssigneeId);
+  
+  // Check if unassigned
+  if (!adminAssigneeId || adminAssigneeId === null) {
+    console.log('✅ No assignee detected (admin_assignee_id is null) - using Unassigned');
+    return 'Unassigned';
+  }
+  
+  const assigneeId = String(adminAssigneeId);
+  const mappedName = INTERCOM_ASSIGNEE_MAP[assigneeId];
+  
+  if (mappedName) {
+    console.log(`✅ Mapped assignee: ID ${assigneeId} → ${mappedName}`);
+    return mappedName;
+  }
+  
+  // Fallback: return Unassigned for unknown assignees
+  console.warn(`⚠️ Unknown assignee ID ${assigneeId}, using Unassigned`);
+  return 'Unassigned';
+}
+
+// Verify Intercom webhook signature (supports both sha1 and sha256)
+function verifyIntercomSignature(body, signature) {
+  const secret = process.env.INTERCOM_WEBHOOK_SECRET;
+  if (!secret) {
+    return false; // Return false instead of true for security
+  }
+
+  // Detect algorithm from signature prefix (sha1= or sha256=)
+  const algorithm = signature.startsWith('sha1=') ? 'sha1' : 'sha256';
+  const [prefix] = signature.split('=');
+  
+  const hash = crypto
+    .createHmac(algorithm, secret)
+    .update(body)
+    .digest('hex');
+
+  const expectedSignature = `${prefix}=${hash}`;
+  return expectedSignature === signature;
+}
+
+// Find or create contact in GHL and tag with "intercom"
+async function findOrCreateContact(email, name) {
+  try {
+    console.log(`🔍 Searching for contact: ${email}`);
+    
+    // Search for existing contact
+    const searchResponse = await fetch(
+      `${GHL_API_BASE}/contacts/?locationId=${GHL_LOCATION_ID}&query=${encodeURIComponent(email)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+          Version: '2021-07-28',
+        },
+      }
+    );
+
+    const searchData = await searchResponse.json();
+    
+    if (searchData.contacts && searchData.contacts.length > 0) {
+      const existingContact = searchData.contacts[0];
+      console.log(`✅ Found existing contact: ${existingContact.id}`);
+      
+      // Check if already has intercom tag
+      const hasTags = existingContact.tags && existingContact.tags.includes('intercom');
+      
+      if (!hasTags) {
+        console.log('🏷️ Adding intercom tag to existing contact...');
+        await fetch(`${GHL_API_BASE}/contacts/${existingContact.id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            Version: '2021-07-28',
+          },
+          body: JSON.stringify({
+            tags: [...(existingContact.tags || []), 'intercom']
+          }),
+        });
+      }
+      
+      return existingContact.id;
+    }
+
+    // Create new contact with intercom tag
+    console.log('➕ Creating new contact...');
+    const createResponse = await fetch(`${GHL_API_BASE}/contacts/`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+        Version: '2021-07-28',
+      },
+      body: JSON.stringify({
+        email,
+        name,
+        locationId: GHL_LOCATION_ID,
+        tags: ['intercom'],
+      }),
+    });
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      
+      // Handle duplicate contact error
+      if (errorText.includes('Contact already exists')) {
+        console.warn('⚠️ Contact already exists (race condition), extracting ID...');
+        const match = errorText.match(/"id":"([^"]+)"/);
+        if (match) {
+          console.log(`✅ Extracted existing contact ID: ${match[1]}`);
+          return match[1];
+        }
+      }
+      
+      throw new Error(`Failed to create contact: ${errorText}`);
+    }
+
+    const newContact = await createResponse.json();
+    console.log(`✅ Created new contact: ${newContact.contact.id}`);
+    return newContact.contact.id;
+
+  } catch (error) {
+    console.error('❌ Error with contact:', error);
+    throw error;
+  }
+}
+
+// Create GHL ticket from Intercom conversation
+async function createGHLTicketFromConversation(conversation) {
+  try {
+    const conversationId = conversation.id;
+    
+    // Fetch full conversation from Intercom API to get accurate customer info
+    console.log('🔍 Fetching full conversation to get real customer info...');
+    const fullConversation = await fetchIntercomConversation(conversationId);
+    
+    if (!fullConversation) {
+      console.error('❌ Could not fetch full conversation from Intercom');
+      return;
+    }
+    
+    // Get customer info - log EVERYTHING to find where real customer is
+    console.log('🔍 FULL CONVERSATION:', JSON.stringify(fullConversation, null, 2));
+    console.log('🔍 source:', fullConversation.source);
+    console.log('🔍 contacts:', fullConversation.contacts);
+    console.log('🔍 user:', fullConversation.user);
+    console.log('🔍 customers:', fullConversation.customers);
+
+    // Try to get the real customer (not Fin)
+    let customer = null;
+
+    // Option 1: From source.author (if user initiated)
+    if (fullConversation.source?.author?.type === 'user') {
+      customer = fullConversation.source.author;
+      console.log('✅ Found customer in source.author:', customer);
+    }
+
+    // Option 2: From contacts array
+    if (!customer && fullConversation.contacts?.contacts?.[0]) {
+      customer = fullConversation.contacts.contacts[0];
+      console.log('✅ Found customer in contacts.contacts[0]:', customer);
+    }
+
+    // Option 3: From user object
+    if (!customer && fullConversation.user) {
+      customer = fullConversation.user;
+      console.log('✅ Found customer in user:', customer);
+    }
+    
+    if (!customer) {
+      console.error('❌ No customer found in conversation');
+      return;
+    }
+
+    const customerName = customer.name || customer.email || 'Unknown Customer';
+    const customerEmail = customer.email || '';
+    
+    console.log('✅ Real customer:', { name: customerName, email: customerEmail });
+    
+    // Get ticket number
+    const ticketNumber = await getNextTicketNumber();
+    const ticketName = `[Intercom] #${ticketNumber} - ${customerName}`;
+    
+    // Get assignee from admin_assignee_id
+    const adminAssigneeId = fullConversation?.admin_assignee_id;
+    
+    console.log('📦 Final admin_assignee_id to process:', adminAssigneeId);
+    const ghlAssignee = mapIntercomAssigneeToGHL(adminAssigneeId);
+    
+    // Find or create contact with intercom tag
+    const contactId = await findOrCreateContact(customerEmail, customerName);
+    
+    // Create opportunity (ticket) in GHL
+    console.log('🎫 Creating ticket in GHL...');
+    const opportunityResponse = await fetch(`${GHL_API_BASE}/opportunities/`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+        Version: '2021-07-28',
+      },
+      body: JSON.stringify({
+        name: ticketName,
+        pipelineId: GHL_PIPELINE_ID,
+        pipelineStageId: GHL_STAGE_OPEN,
+        status: 'open',
+        contactId: contactId,
+        locationId: GHL_LOCATION_ID,
+        customFields: [
+          {
+            id: CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID,
+            field_value: conversationId,
+          },
+          {
+            id: CUSTOM_FIELDS.TICKET_SOURCE,
+            field_value: 'Intercom',
+          },
+          {
+            id: CUSTOM_FIELDS.CUSTOMER_EMAIL,
+            field_value: customerEmail,
+          },
+          {
+            id: CUSTOM_FIELDS.INTERCOM_TICKET_OWNER,
+            field_value: ghlAssignee,
+          },
+        ],
+      }),
+    });
+
+    if (!opportunityResponse.ok) {
+      const errorText = await opportunityResponse.text();
+      throw new Error(`Failed to create opportunity: ${errorText}`);
+    }
+
+    const opportunity = await opportunityResponse.json();
+    console.log(`✅ Created ticket: ${opportunity.opportunity.id} - ${ticketName}`);
+    console.log(`✅ Assigned to: ${ghlAssignee}`);
+    
+  } catch (error) {
+    console.error('❌ Error creating GHL ticket:', error);
+    throw error;
+  }
+}
+
+// Update ticket assignee when conversation assignment changes
+async function updateTicketAssignment(conversationId) {
+  try {
+    console.log(`🔍 Searching for ticket with Intercom ID: ${conversationId}`);
+    
+    // Fetch full conversation from Intercom API
+    const fullConversation = await fetchIntercomConversation(conversationId);
+    if (!fullConversation) {
+      console.error('❌ Could not fetch conversation from Intercom API');
+      return;
+    }
+
+    const newAssignee = mapIntercomAssigneeToGHL(fullConversation.admin_assignee_id);
+    console.log(`🔄 New assignee from Intercom: ${newAssignee}`);
+    
+    // Search for the ticket in GHL by Intercom Conversation ID
+    const searchUrl = `${GHL_API_BASE}/opportunities/search?location_id=${GHL_LOCATION_ID}&pipeline_id=${GHL_PIPELINE_ID}`;
+    console.log('🔍 Searching for ticket with URL:', searchUrl);
+    console.log('🔍 Using location ID:', GHL_LOCATION_ID);
+    console.log('🔍 Using pipeline ID:', GHL_PIPELINE_ID);
+    console.log('🔍 Using access token:', GHL_ACCESS_TOKEN ? 'SET' : 'NOT SET');
+    
+    const searchResponse = await fetch(searchUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+        Version: '2021-07-28',
+      },
+    });
+
+    console.log('📡 Search response status:', searchResponse.status);
+    
+    if (!searchResponse.ok) {
+      const errorText = await searchResponse.text();
+      console.error('❌ Search failed:', errorText);
+      return;
+    }
+
+    const searchData = await searchResponse.json();
+    console.log('📦 Raw search response:', JSON.stringify(searchData, null, 2));
+    console.log(`📋 Found ${searchData.opportunities?.length || 0} total tickets in pipeline`);
+    
+    // Find the ticket with matching Intercom Conversation ID
+    console.log('🔍 Checking all tickets for matching Intercom Conversation ID...');
+    const matchingTicket = searchData.opportunities?.find(opp => {
+      const intercomIdField = opp.customFields?.find(
+        field => field.id === CUSTOM_FIELDS.INTERCOM_CONVERSATION_ID
+      );
+      const ticketIntercomId = intercomIdField?.fieldValueString || intercomIdField?.value;
+      console.log(`- Ticket: ${opp.name} | Intercom ID: ${ticketIntercomId || 'NOT SET'}`);
+      return ticketIntercomId === conversationId;
+    });
+
+    if (!matchingTicket) {
+      console.error(`❌ No ticket found with Intercom ID: ${conversationId}`);
+      return;
+    }
+
+    console.log(`✅ Found matching ticket: ${matchingTicket.id} - ${matchingTicket.name}`);
+    
+    // Update the ticket's Intercom Ticket Owner field
+    const updateResponse = await fetch(
+      `${GHL_API_BASE}/opportunities/${matchingTicket.id}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+          Version: '2021-07-28',
+        },
+        body: JSON.stringify({
+          customFields: [
+            {
+              id: CUSTOM_FIELDS.INTERCOM_TICKET_OWNER,
+              field_value: newAssignee,
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      throw new Error(`Failed to update ticket: ${errorText}`);
+    }
+
+    console.log(`✅ Updated ticket owner to: ${newAssignee}`);
+    
+  } catch (error) {
+    console.error('❌ Error updating ticket assignment:', error);
+    throw error;
+  }
+}
+
+// Main webhook handler
+export default async function handler(req, res) {
+  // Health check for GET requests
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      status: 'ok',
+      message: 'Intercom webhook endpoint is ready',
+      config: {
+        hasAccessToken: !!GHL_ACCESS_TOKEN,
+        hasIntercomToken: !!INTERCOM_ACCESS_TOKEN,
+        hasSheetId: !!SHEET_ID,
+        hasWebhookSecret: !!process.env.INTERCOM_WEBHOOK_SECRET,
+        assigneesConfigured: Object.keys(INTERCOM_ASSIGNEE_MAP).length
+      }
+    });
+  }
+
+  // Only accept POST requests
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    // Get RAW body for signature verification (BEFORE parsing)
+    const rawBody = await getRawBody(req);
+    const signature = req.headers['x-hub-signature'];
+    
+    // Verify signature BEFORE parsing JSON
+    const secret = process.env.INTERCOM_WEBHOOK_SECRET;
+    
+    if (!secret) {
+      console.warn('⚠️ INTERCOM_WEBHOOK_SECRET not set - skipping signature verification');
+      console.warn('⚠️ This is a SECURITY RISK! Set INTERCOM_WEBHOOK_SECRET in your environment variables');
+    } else if (signature) {
+      if (!verifyIntercomSignature(rawBody, signature)) {
+        console.error('❌ Invalid Intercom signature');
+        console.error('🔍 Expected signature format: sha256=...');
+        console.error('🔍 Received:', signature);
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+      console.log('✅ Signature verified');
+    } else {
+      console.warn('⚠️ No signature provided in webhook request');
+    }
+    
+    // NOW parse the JSON
+    const payload = JSON.parse(rawBody);
+    
+    console.log('🔍 Full webhook data:', JSON.stringify(payload, null, 2));
+    console.log('📨 Received Intercom webhook:', payload.topic);
+
+    // Handle different event types
+    switch (payload.topic) {
+      case 'conversation.user.created':
+        console.log('🆕 New conversation from user');
+        const conversation = payload.data.item;
+        await createGHLTicketFromConversation(conversation);
+        break;
+
+      case 'conversation.admin.assigned':
+        console.log('👤 Admin assigned to conversation');
+        const assignedConvo = payload.data.item;
+        console.log('📦 Assignee info:', JSON.stringify(assignedConvo.assignee));
+        console.log('📦 Conversation ID:', assignedConvo.id);
+        console.log(`🔄 Assignee changed for conversation: ${assignedConvo.id}`);
+        await updateTicketAssignment(assignedConvo.id);
+        break;
+
+      case 'conversation.user.replied':
+        console.log('💬 User replied to conversation');
+        break;
+
+      case 'conversation.admin.closed':
+        console.log('🔒 Admin closed conversation');
+        break;
+
+      default:
+        console.log('ℹ️ Unhandled event type:', payload.topic);
+    }
+
+    return res.status(200).json({ 
+      received: true,
+      topic: payload.topic,
       timestamp: new Date().toISOString()
     });
 
-    if (tickets.length === 0) {
-      console.log('⚠️ No tickets loaded yet');
-      return;
-    }
-
-    const previousTickets = previousTicketsRef.current;
-    
-    // First load - just store tickets, don't play sound
-    if (previousTickets.size === 0) {
-      console.log('📋 First load - storing ticket states:', tickets.map(t => ({
-        id: t.id,
-        name: t.name,
-        updatedAt: t.updatedAt
-      })));
-      tickets.forEach(t => previousTickets.set(t.id, t.updatedAt));
-      return;
-    }
-
-    let hasNewTickets = false;
-    let hasUpdatedTickets = false;
-    const activityLog: string[] = [];
-
-    tickets.forEach(ticket => {
-      const previousUpdateTime = previousTickets.get(ticket.id);
-      
-      // New ticket (never seen before)
-      if (!previousUpdateTime) {
-        const msg = `🆕 NEW TICKET: ${ticket.name} (${ticket.id})`;
-        console.log(msg);
-        activityLog.push(msg);
-        hasNewTickets = true;
-      }
-      // Updated ticket (timestamp changed - new message)
-      else if (previousUpdateTime !== ticket.updatedAt) {
-        const msg = `📬 UPDATED: ${ticket.name} | Old: ${previousUpdateTime} → New: ${ticket.updatedAt}`;
-        console.log(msg);
-        activityLog.push(msg);
-        hasUpdatedTickets = true;
-      }
-      
-      // Update stored timestamp
-      previousTickets.set(ticket.id, ticket.updatedAt);
+  } catch (error) {
+    console.error('❌ Webhook processing error:', error);
+    return res.status(500).json({ 
+      error: 'Webhook processing failed',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
-
-    // Play appropriate sound based on activity type
-    if (hasNewTickets) {
-      console.log('🎫 NEW TICKET NOTIFICATION TRIGGERED!');
-      console.log('Activity Summary:', activityLog);
-      
-      // Check notification settings
-      const settings = {
-        enabled: localStorage.getItem("notification-sound-enabled"),
-        volume: localStorage.getItem("notification-volume"),
-        soundType: localStorage.getItem("notification-sound-type-new-ticket") || 'ding'
-      };
-      console.log('🔊 New Ticket Notification Settings:', settings);
-      
-      // Play new ticket sound
-      try {
-        const soundType = localStorage.getItem("notification-sound-type-new-ticket") as any || 'ding';
-        playNotificationSound(soundType);
-        console.log('✅ New ticket sound played successfully');
-      } catch (error) {
-        console.error('❌ New ticket sound play failed:', error);
-      }
-      
-      // Trigger bell
-      try {
-        window.dispatchEvent(new Event('ticket-notification'));
-        console.log('🔔 Bell animation triggered');
-      } catch (error) {
-        console.error('❌ Bell animation failed:', error);
-      }
-    } else if (hasUpdatedTickets) {
-      console.log('📬 NEW MESSAGE NOTIFICATION TRIGGERED!');
-      console.log('Activity Summary:', activityLog);
-      
-      // Check notification settings
-      const settings = {
-        enabled: localStorage.getItem("notification-sound-enabled"),
-        volume: localStorage.getItem("notification-volume"),
-        soundType: localStorage.getItem("notification-sound-type") || 'tritone'
-      };
-      console.log('🔊 New Message Notification Settings:', settings);
-      
-      // Play new message sound
-      try {
-        const soundType = localStorage.getItem("notification-sound-type") as any || 'tritone';
-        playNotificationSound(soundType);
-        console.log('✅ New message sound played successfully');
-      } catch (error) {
-        console.error('❌ New message sound play failed:', error);
-      }
-      
-      // Trigger bell
-      try {
-        window.dispatchEvent(new Event('ticket-notification'));
-        console.log('🔔 Bell animation triggered');
-      } catch (error) {
-        console.error('❌ Bell animation failed:', error);
-      }
-    } else {
-      console.log('✓ No new activity detected');
-    }
-  }, [tickets]);
-
-  // Status change mutation
-  const statusMutation = useMutation({
-    mutationFn: ({ ticketId, status }: { ticketId: string; status: TicketStatus }) =>
-      updateTicketStatus(ticketId, status),
-    onMutate: async ({ ticketId, status }) => {
-      await queryClient.cancelQueries({ queryKey: ["tickets"] });
-      const previousTickets = queryClient.getQueryData<Ticket[]>(["tickets"]);
-      queryClient.setQueryData<Ticket[]>(["tickets"], (old = []) =>
-        old.map((t) => (t.id === ticketId ? { ...t, status } : t))
-      );
-      return { previousTickets };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousTickets) {
-        queryClient.setQueryData(["tickets"], context.previousTickets);
-      }
-      toast.error("Failed to update ticket status");
-    },
-    onSuccess: () => {
-      toast.success("Ticket status updated");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-    },
-  });
-
-  // Priority change mutation
-  const priorityMutation = useMutation({
-    mutationFn: ({ ticketId, priority }: { ticketId: string; priority: TicketPriority }) =>
-      updatePriority(ticketId, priority),
-    onMutate: async ({ ticketId, priority }) => {
-      await queryClient.cancelQueries({ queryKey: ["tickets"] });
-      const previousTickets = queryClient.getQueryData<Ticket[]>(["tickets"]);
-      queryClient.setQueryData<Ticket[]>(["tickets"], (old = []) =>
-        old.map((t) => (t.id === ticketId ? { ...t, priority } : t))
-      );
-      return { previousTickets };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousTickets) {
-        queryClient.setQueryData(["tickets"], context.previousTickets);
-      }
-      toast.error("Failed to update ticket priority");
-    },
-    onSuccess: () => {
-      toast.success("Ticket priority updated");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-    },
-  });
-
-  // Calculate stats from tickets
-  const stats: Stats = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    const resolved = tickets.filter((t) => t.status === "Resolved");
-    const avgMs = resolved.length > 0
-      ? resolved.reduce(
-          (acc, t) => acc + (new Date(t.updatedAt).getTime() - new Date(t.createdAt).getTime()),
-          0
-        ) / resolved.length
-      : 0;
-    const avgHours = Math.round(avgMs / (1000 * 60 * 60));
-    const avgResolutionTime = avgHours < 24 ? `${avgHours}h` : `${Math.round(avgHours / 24)}d`;
-    
-    return {
-      total: tickets.length,
-      open: tickets.filter((t) => t.status === "Open").length,
-      inProgress: tickets.filter((t) => t.status === "In Progress").length,
-      escalated: tickets.filter((t) => t.status === "Escalated to Dev").length,
-      resolved: resolved.length,
-      closed: tickets.filter((t) => t.status === "Closed").length,
-      deleted: tickets.filter((t) => t.status === "Deleted").length,
-      pendingCustomer: tickets.filter((t) => t.status === "Pending Customer").length,
-      resolvedToday: tickets.filter(
-        (t) => t.status === "Resolved" && new Date(t.updatedAt) >= todayStart
-      ).length,
-      avgResolutionTime,
-    };
-  }, [tickets]);
-  
-  // Filter tickets based on filters
-  const filteredTickets = useMemo(() => {
-    // DEBUG: Log unique ticket sources
-    const uniqueSources = new Set(tickets.map(t => t.ticketSource));
-    console.log('🔍 Unique ticket sources in data:', Array.from(uniqueSources));
-    console.log('🔍 Current filter:', filters.source);
-    
-    return tickets.filter((ticket) => {
-      const searchLower = filters.search.toLowerCase();
-      const matchesSearch =
-        !filters.search ||
-        ticket.name.toLowerCase().includes(searchLower) ||
-        ticket.contact.name?.toLowerCase().includes(searchLower) ||
-        ticket.contact.email?.toLowerCase().includes(searchLower) ||
-        ticket.contact.phone?.toLowerCase().includes(searchLower) ||
-        ticket.agencyName?.toLowerCase().includes(searchLower);
-
-      const matchesStatus = filters.status === "all" || ticket.status === filters.status;
-      const matchesPriority = filters.priority === "all" || ticket.priority === filters.priority;
-      const matchesCategory = filters.category === "all" || ticket.category === filters.category;
-      const matchesAssignedTo = filters.assignedTo === "all" || ticket.assignedTo === filters.assignedTo;
-      const matchesSource = filters.source === "all" || ticket.ticketSource === filters.source;
-
-      // DEBUG: Log a few tickets when filtering by source
-      if (filters.source !== "all" && tickets.indexOf(ticket) < 5) {
-        console.log(`Ticket: ${ticket.name}, ticketSource: "${ticket.ticketSource}", matches: ${matchesSource}`);
-      }
-
-      return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesAssignedTo && matchesSource;
-    });
-  }, [tickets, filters]);
-
-  // Get unique values for filters
-  const assignees = useMemo(() => {
-    const unique = new Set(tickets.map((t) => t.assignedTo).filter(Boolean));
-    return Array.from(unique) as string[];
-  }, [tickets]);
-
-  const handleTicketClick = (ticket: Ticket) => {
-    const isIntercomTicket = ticket.ticketSource === 'Intercom' || ticket.name?.includes('[Intercom]');
-    
-    if (isIntercomTicket && ticket.intercomConversationId) {
-      navigate(`/tickets/${ticket.id}`);
-    } else {
-      setSelectedTicketId(ticket.id);
-      setSheetOpen(true);
-    }
-  };
-
-  const handleStatusChange = (ticketId: string, status: TicketStatus) => {
-    statusMutation.mutate({ ticketId, status });
-  };
-
-  const handlePriorityChange = (ticketId: string, priority: TicketPriority) => {
-    priorityMutation.mutate({ ticketId, priority });
-  };
-
-  const handleSelectTicket = (ticketId: string) => {
-    setSelectedTickets((prev) =>
-      prev.includes(ticketId)
-        ? prev.filter((id) => id !== ticketId)
-        : [...prev, ticketId]
-    );
-  };
-
-  const handleSelectAll = () => {
-    if (selectedTickets.length === filteredTickets.length) {
-      setSelectedTickets([]);
-    } else {
-      setSelectedTickets(filteredTickets.map((t) => t.id));
-    }
-  };
-
-  const hasActiveFilters =
-    filters.search ||
-    filters.status !== "all" ||
-    filters.priority !== "all" ||
-    filters.category !== "all" ||
-    filters.assignedTo !== "all" ||
-    filters.source !== "all";
-
-  const clearFilters = () => {
-    setFilters({
-      search: "",
-      status: "all",
-      priority: "all",
-      category: "all",
-      assignedTo: "all",
-      source: "all",
-    });
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/10 dark:to-purple-950/10">
-      {/* Premium Header - Sticky */}
-      <div className="sticky top-0 z-50 border-b border-gray-200/50 dark:border-gray-800/50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-sm">
-        <div className="max-w-[1600px] mx-auto px-6 py-3">
-          <div className="flex items-center justify-between gap-6">
-            {/* Left: Branding + Views */}
-            <div className="flex items-center gap-6">
-              {/* Title with Icon */}
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4890F8] to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                  <Sparkles className="h-4 w-4 text-white" />
-                </div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Support Tickets
-                </h1>
-              </div>
-              
-              {/* View Switcher */}
-              <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800/50 rounded-full p-1">
-                <button
-                  onClick={() => setViewMode("table")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 ${
-                    viewMode === "table"
-                      ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-md"
-                      : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50"
-                  }`}
-                >
-                  <LayoutList className="h-3 w-3" />
-                  Table
-                </button>
-                <button
-                  onClick={() => setViewMode("kanban")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 ${
-                    viewMode === "kanban"
-                      ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-md"
-                      : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50"
-                  }`}
-                >
-                  <Columns3 className="h-3 w-3" />
-                  Kanban
-                </button>
-                <button
-                  onClick={() => setViewMode("compact")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 ${
-                    viewMode === "compact"
-                      ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-md"
-                      : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50"
-                  }`}
-                >
-                  <LayoutGrid className="h-3 w-3" />
-                  Compact
-                </button>
-              </div>
-            </div>
-
-            {/* Right: Refresh Button */}
-            <button 
-              onClick={() => refetch()}
-              className="px-3 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:border-gray-400 dark:hover:border-gray-600 hover:shadow-sm transition-all flex items-center gap-1.5 group"
-            >
-              <RefreshCw className="h-3 w-3 text-gray-700 dark:text-gray-300 group-hover:rotate-180 transition-transform duration-500" />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-6 py-4 space-y-3">
-        {/* Stats Bar - Single Row */}
-        <StatsCards stats={stats} isLoading={isLoading} />
-
-        {/* Filter Bar */}
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-xl shadow-md border border-gray-200/50 dark:border-gray-700/50 p-3">
-          <div className="flex items-center gap-3">
-            {/* Search */}
-            <div className="relative flex-1">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <Search className="h-3.5 w-3.5 text-[#4890F8]" />
-                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search by ticket, contact, phone, or email..."
-                value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="w-full pl-12 pr-3 py-2 text-sm bg-gray-50/80 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-[#4890F8] focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all"
-              />
-            </div>
-
-            {/* Filter Pills */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium pr-2 border-r border-gray-300 dark:border-gray-600">
-                <Filter className="h-3.5 w-3.5" />
-                <span>Filters</span>
-              </div>
-              
-              <select
-                value={filters.source}
-                onChange={(e) => setFilters({ ...filters, source: e.target.value })}
-                className="px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-[#4890F8] hover:text-white hover:border-[#4890F8] hover:shadow-md transition-all duration-200 cursor-pointer"
-              >
-                <option value="all">Source</option>
-                <option value="Email">Email</option>
-                <option value="Intercom">Intercom</option>
-                <option value="Manual">Manual</option>
-                <option value="Phone">Phone</option>
-              </select>
-
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-[#4890F8] hover:text-white hover:border-[#4890F8] hover:shadow-md transition-all duration-200 cursor-pointer"
-              >
-                <option value="all">Status</option>
-                <option value="Open">Open</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Escalated to Dev">Escalated</option>
-                <option value="Resolved">Resolved</option>
-                <option value="Closed">Closed</option>
-              </select>
-
-              <select
-                value={filters.priority}
-                onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-                className="px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-[#4890F8] hover:text-white hover:border-[#4890F8] hover:shadow-md transition-all duration-200 cursor-pointer"
-              >
-                <option value="all">Priority</option>
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-                <option value="Urgent">Urgent</option>
-              </select>
-
-              <select
-                value={filters.category}
-                onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                className="px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-[#4890F8] hover:text-white hover:border-[#4890F8] hover:shadow-md transition-all duration-200 cursor-pointer"
-              >
-                <option value="all">Category</option>
-                <option value="Billing">Billing</option>
-                <option value="Tech">Tech</option>
-                <option value="Sales">Sales</option>
-                <option value="Onboarding">Onboarding</option>
-                <option value="Outage">Outage</option>
-                <option value="General Questions">General</option>
-              </select>
-
-              <select
-                value={filters.assignedTo}
-                onChange={(e) => setFilters({ ...filters, assignedTo: e.target.value })}
-                className="px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-[#4890F8] hover:text-white hover:border-[#4890F8] hover:shadow-md transition-all duration-200 cursor-pointer"
-              >
-                <option value="all">Assignee</option>
-                {assignees.map((assignee) => (
-                  <option key={assignee} value={assignee}>
-                    {assignee}
-                  </option>
-                ))}
-              </select>
-
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-md transition-all"
-                  title="Clear all filters"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Views */}
-        {isLoading ? (
-          <div className="flex justify-center py-20">
-            <RefreshCw className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        ) : (
-          <>
-            {viewMode === "kanban" && (
-              <KanbanView
-                tickets={filteredTickets}
-                onTicketClick={handleTicketClick}
-                onStatusChange={handleStatusChange}
-              />
-            )}
-            {viewMode === "table" && (
-              <TableView
-                tickets={filteredTickets}
-                onTicketClick={handleTicketClick}
-                onStatusChange={handleStatusChange}
-                onPriorityChange={handlePriorityChange}
-                selectedTickets={selectedTickets}
-                onSelectTicket={handleSelectTicket}
-                onSelectAll={handleSelectAll}
-              />
-            )}
-            {viewMode === "compact" && (
-              <CompactView
-                tickets={filteredTickets}
-                onTicketClick={handleTicketClick}
-                onStatusChange={handleStatusChange}
-                onPriorityChange={handlePriorityChange}
-              />
-            )}
-          </>
-        )}
-      </div>
-
-      <TicketDetailSheet
-        ticket={selectedTicket}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onStatusChange={handleStatusChange}
-      />
-    </div>
-  );
+  }
 }
