@@ -509,6 +509,8 @@ export default async function handler(req, res) {
       }
       console.log('✅ Signature verified');
     }
+    
+    console.log('🔍 Full webhook data:', JSON.stringify(req.body, null, 2));
 
     // Parse the webhook payload
     const payload = req.body;
