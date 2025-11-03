@@ -2,8 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Sparkles, RefreshCw, Search, Filter, X, LayoutList, Columns3, LayoutGrid } from "lucide-react";
-import { fetchTickets, updateTicketStatus, updatePriority, getFieldPicklistOptions } from "@/lib/api-fixed";
-import FilterDropdown from "@/components/ui/FilterDropdown";
+import { fetchTickets, updateTicketStatus, updatePriority } from "@/lib/api-fixed";
 import type { Ticket, TicketStatus, TicketPriority, Stats } from "@/lib/types";
 import TableView from "@/components/tickets/TableView";
 import { KanbanView } from "@/components/tickets/KanbanView";
@@ -50,13 +49,6 @@ export default function Tickets() {
     refetchInterval: 30000, // Poll every 30 seconds
   });
 
-  // Fetch source options from GHL custom field
-  const { data: sourceOptions = [] } = useQuery({
-    queryKey: ['field-options', 'opportunity.ticket_source'],
-    queryFn: () => getFieldPicklistOptions('opportunity.ticket_source'),
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
-
   // Derive selectedTicket from tickets array so it's always fresh
   const selectedTicket = useMemo(() => 
     tickets.find(t => t.id === selectedTicketId) || null, 
@@ -74,6 +66,7 @@ export default function Tickets() {
       });
     }
   }, [selectedTicket]);
+  
   // Detect new tickets and updates (new messages)
   useEffect(() => {
     console.log('🔍 Notification Detection Running:', {
@@ -273,6 +266,11 @@ export default function Tickets() {
   
   // Filter tickets based on filters
   const filteredTickets = useMemo(() => {
+    // DEBUG: Log unique ticket sources
+    const uniqueSources = new Set(tickets.map(t => t.ticketSource));
+    console.log('🔍 Unique ticket sources in data:', Array.from(uniqueSources));
+    console.log('🔍 Current filter:', filters.source);
+    
     return tickets.filter((ticket) => {
       const searchLower = filters.search.toLowerCase();
       const matchesSearch =
@@ -288,6 +286,11 @@ export default function Tickets() {
       const matchesCategory = filters.category === "all" || ticket.category === filters.category;
       const matchesAssignedTo = filters.assignedTo === "all" || ticket.assignedTo === filters.assignedTo;
       const matchesSource = filters.source === "all" || ticket.ticketSource === filters.source;
+
+      // DEBUG: Log a few tickets when filtering by source
+      if (filters.source !== "all" && tickets.indexOf(ticket) < 5) {
+        console.log(`Ticket: ${ticket.name}, ticketSource: "${ticket.ticketSource}", matches: ${matchesSource}`);
+      }
 
       return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesAssignedTo && matchesSource;
     });
@@ -451,15 +454,17 @@ export default function Tickets() {
                 <span>Filters</span>
               </div>
               
-              <FilterDropdown
-                label="Source"
+              <select
                 value={filters.source}
-                options={[
-                  { value: 'all', label: 'Source' },
-                  ...sourceOptions.map(opt => ({ value: opt, label: opt }))
-                ]}
-                onChange={(value: string) => setFilters({ ...filters, source: value })}
-              />
+                onChange={(e) => setFilters({ ...filters, source: e.target.value })}
+                className="px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-[#4890F8] hover:text-white hover:border-[#4890F8] hover:shadow-md transition-all duration-200 cursor-pointer"
+              >
+                <option value="all">Source</option>
+                <option value="Email">Email</option>
+                <option value="Intercom">Intercom</option>
+                <option value="Manual">Manual</option>
+                <option value="Phone">Phone</option>
+              </select>
 
               <select
                 value={filters.status}
