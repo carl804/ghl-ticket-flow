@@ -91,7 +91,7 @@ export async function initializeFieldMap(): Promise<void> {
     resolutionSummary: fields.find((f) => f.fieldKey === "resolutionSummary")?.id,
     agencyName: fields.find((f) => f.fieldKey === "agencyName")?.id,
     intercomAgent: fields.find((f) => f.fieldKey === "intercomAgent")?.id,
-    ticketSource: fields.find((f) => f.fieldKey === "ticketSource")?.id,
+    ticketSource: fields.find((f) => f.fieldKey === "opportunity.ticket_source")?.id,
     intercomConversationId: fields.find((f) => f.fieldKey === "intercomConversationId")?.id,
   };
 }
