@@ -165,8 +165,7 @@ function mapIntercomAssigneeToGHL(adminAssigneeId) {
 function verifyIntercomSignature(body, signature) {
   const secret = process.env.INTERCOM_WEBHOOK_SECRET;
   if (!secret) {
-    console.warn('⚠️ INTERCOM_WEBHOOK_SECRET not set - skipping signature verification');
-    return true;
+    return false; // Return false instead of true for security
   }
 
   const hash = crypto
@@ -486,6 +485,7 @@ export default async function handler(req, res) {
         hasAccessToken: !!GHL_ACCESS_TOKEN,
         hasIntercomToken: !!INTERCOM_ACCESS_TOKEN,
         hasSheetId: !!SHEET_ID,
+        hasWebhookSecret: !!process.env.INTERCOM_WEBHOOK_SECRET,
         assigneesConfigured: Object.keys(INTERCOM_ASSIGNEE_MAP).length
       }
     });
@@ -501,13 +501,20 @@ export default async function handler(req, res) {
     const signature = req.headers['x-hub-signature'];
     const body = JSON.stringify(req.body);
 
-    // Verify signature (optional for initial testing)
-    if (signature && process.env.NODE_ENV === 'production') {
+    // Verify signature
+    const secret = process.env.INTERCOM_WEBHOOK_SECRET;
+    
+    if (!secret) {
+      console.warn('⚠️ INTERCOM_WEBHOOK_SECRET not set - skipping signature verification');
+      console.warn('⚠️ This is a SECURITY RISK! Set INTERCOM_WEBHOOK_SECRET in your environment variables');
+    } else if (signature) {
       if (!verifyIntercomSignature(body, signature)) {
         console.error('❌ Invalid Intercom signature');
         return res.status(401).json({ error: 'Invalid signature' });
       }
       console.log('✅ Signature verified');
+    } else {
+      console.warn('⚠️ No signature provided in webhook request');
     }
     
     console.log('🔍 Full webhook data:', JSON.stringify(req.body, null, 2));
