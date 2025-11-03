@@ -8,10 +8,10 @@ const GHL_PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk';
 const GHL_STAGE_OPEN = '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e';
 const INTERCOM_ACCESS_TOKEN = process.env.INTERCOM_ACCESS_TOKEN;
 
-// Custom field IDs
+// Custom field IDs - UPDATED with correct ticketSource ID
 const CUSTOM_FIELDS = {
   INTERCOM_CONVERSATION_ID: 'gk2kXQuactrb8OdIJ3El',
-  TICKET_SOURCE: 'ZfA3rPJQiSU8wRuEFWYP',
+  TICKET_SOURCE: 'xITVHATbB7UzFdMQLenB', // Updated to correct ID
   CUSTOMER_EMAIL: 'tpihNBgeALeCppnY3ir5',
   CATEGORY: 'BXohaPrmtGLyHJ0wz8F7',
   PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',
@@ -37,6 +37,22 @@ const INTERCOM_TAG_ID = 'qEOvf8oLOGrOAq0SUAAF';
 // Google Sheets Setup
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const COUNTER_TAB = 'Intercom Counter';
+
+// CRITICAL: Disable Vercel's automatic body parsing for signature verification
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+// Helper to get raw body as string
+async function getRawBody(req) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
 
 // Initialize Google Sheets
 function getGoogleSheetsClient() {
@@ -497,19 +513,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Get signature for verification
+    // Get RAW body for signature verification (BEFORE parsing)
+    const rawBody = await getRawBody(req);
     const signature = req.headers['x-hub-signature'];
-    const body = JSON.stringify(req.body);
-
-    // Verify signature
+    
+    // Verify signature BEFORE parsing JSON
     const secret = process.env.INTERCOM_WEBHOOK_SECRET;
     
     if (!secret) {
       console.warn('⚠️ INTERCOM_WEBHOOK_SECRET not set - skipping signature verification');
       console.warn('⚠️ This is a SECURITY RISK! Set INTERCOM_WEBHOOK_SECRET in your environment variables');
     } else if (signature) {
-      if (!verifyIntercomSignature(body, signature)) {
+      if (!verifyIntercomSignature(rawBody, signature)) {
         console.error('❌ Invalid Intercom signature');
+        console.error('🔍 Expected signature format: sha256=...');
+        console.error('🔍 Received:', signature);
         return res.status(401).json({ error: 'Invalid signature' });
       }
       console.log('✅ Signature verified');
@@ -517,10 +535,10 @@ export default async function handler(req, res) {
       console.warn('⚠️ No signature provided in webhook request');
     }
     
-    console.log('🔍 Full webhook data:', JSON.stringify(req.body, null, 2));
-
-    // Parse the webhook payload
-    const payload = req.body;
+    // NOW parse the JSON
+    const payload = JSON.parse(rawBody);
+    
+    console.log('🔍 Full webhook data:', JSON.stringify(payload, null, 2));
     console.log('📨 Received Intercom webhook:', payload.topic);
 
     // Handle different event types
