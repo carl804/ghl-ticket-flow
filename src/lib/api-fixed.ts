@@ -33,7 +33,7 @@ const STAGE_MAP: Record<string, TicketStatus> = {
   "3f3482b8-14c4-4de2-8a3c-4a336d01bb6e": "Open",
   "bef596b8-d63d-40bd-b59a-5e0e474f1c8f": "In Progress",
   "4e24e27c-2e44-435b-bc1b-964e93518f20": "Resolved",
-  "fdbed144-2dd3-48b7-981d-b0869082cc4e": "Closed",
+  "fdbed144-2dd3-48b7-981d-b0869082cc6e": "Closed",
   "7558330f-4b0e-48fd-af40-ab57f38c4141": "Escalated to Dev",
   "4a6eb7bf-51b0-4f4e-ad07-40256b92fe5b": "Deleted",
 };
@@ -85,7 +85,6 @@ export async function initializeFieldMap(): Promise<void> {
     `/locations/${locationId}/customFields`
   );
   const fields = response.customFields || [];
-
   FIELD_MAP = {
     priority: fields.find((f) => f.fieldKey === "priority")?.id,
     category: fields.find((f) => f.fieldKey === "category")?.id,
@@ -95,6 +94,18 @@ export async function initializeFieldMap(): Promise<void> {
     ticketSource: fields.find((f) => f.fieldKey === "ticketSource")?.id,
     intercomConversationId: fields.find((f) => f.fieldKey === "intercomConversationId")?.id,
   };
+}
+
+/** Get picklist options for a custom field */
+export async function getFieldPicklistOptions(fieldKey: string): Promise<string[]> {
+  const locationId = getLocationId();
+  const response = await ghlRequest<{ customFields: any[] }>(
+    `/locations/${locationId}/customFields`,
+    { skipLocationId: true }
+  );
+  const fields = response.customFields || [];
+  const field = fields.find((f) => f.fieldKey === fieldKey);
+  return field?.picklistOptions || [];
 }
 
 function getFieldId(key: keyof FieldMap): string | undefined {

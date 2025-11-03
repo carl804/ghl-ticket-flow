@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Sparkles, RefreshCw, Search, Filter, X, LayoutList, Columns3, LayoutGrid } from "lucide-react";
-import { fetchTickets, updateTicketStatus, updatePriority } from "@/lib/api-fixed";
+import { fetchTickets, updateTicketStatus, updatePriority, getFieldPicklistOptions } from "@/lib/api-fixed";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 import type { Ticket, TicketStatus, TicketPriority, Stats } from "@/lib/types";
 import TableView from "@/components/tickets/TableView";
 import { KanbanView } from "@/components/tickets/KanbanView";
@@ -11,6 +12,7 @@ import TicketDetailSheet from "@/components/tickets/TicketDetailSheet";
 import StatsCards from "@/components/tickets/StatsCards";
 import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notificationSound";
+
 
 type ViewMode = "table" | "kanban" | "compact";
 
@@ -46,6 +48,13 @@ export default function Tickets() {
     queryKey: ["tickets"],
     queryFn: fetchTickets,
     refetchInterval: 30000, // Poll every 30 seconds
+  });
+
+  // Fetch source options from GHL custom field
+  const { data: sourceOptions = [] } = useQuery({
+    queryKey: ['field-options', 'ticketSource'],
+    queryFn: () => getFieldPicklistOptions('ticketSource'),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   // Derive selectedTicket from tickets array so it's always fresh
@@ -443,17 +452,15 @@ export default function Tickets() {
                 <span>Filters</span>
               </div>
               
-              <select
+              <FilterDropdown
+                label="Source"
                 value={filters.source}
-                onChange={(e) => setFilters({ ...filters, source: e.target.value })}
-                className="px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-[#4890F8] hover:text-white hover:border-[#4890F8] hover:shadow-md transition-all duration-200 cursor-pointer"
-              >
-                <option value="all">Source</option>
-                <option value="Intercom">Intercom</option>
-                <option value="Email">Email</option>
-                <option value="Manual">Manual</option>
-                <option value="Phone">Phone</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Source' },
+                  ...sourceOptions.map(opt => ({ value: opt, label: opt }))
+                ]}
+                onChange={(value) => setFilters({ ...filters, source: value })}
+              />
 
               <select
                 value={filters.status}
