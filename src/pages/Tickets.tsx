@@ -52,8 +52,8 @@ export default function Tickets() {
 
   // Fetch source options from GHL custom field
   const { data: sourceOptions = [] } = useQuery({
-    queryKey: ['field-options', 'ticketSource'],
-    queryFn: () => getFieldPicklistOptions('ticketSource'),
+    queryKey: ['field-options', 'opportunity.ticket_source'],
+    queryFn: () => getFieldPicklistOptions('opportunity.ticket_source'),
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
@@ -62,7 +62,6 @@ export default function Tickets() {
     tickets.find(t => t.id === selectedTicketId) || null, 
     [tickets, selectedTicketId]
   );
-
 
   // Debug: Log selectedTicket data
   useEffect(() => {
@@ -459,7 +458,7 @@ export default function Tickets() {
                   { value: 'all', label: 'Source' },
                   ...sourceOptions.map(opt => ({ value: opt, label: opt }))
                 ]}
-                onChange={(value) => setFilters({ ...filters, source: value })}
+                onChange={(value: string) => setFilters({ ...filters, source: value })}
               />
 
               <select
