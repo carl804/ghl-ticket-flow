@@ -200,7 +200,13 @@ const verifyIntercomSignature = (body, signature) => {
 // Find or create contact in GHL and tag with "intercom"
 const findOrCreateContact = async (email, name) => {
   try {
-    console.log(`🔍 Searching for contact: ${email}`);
+    // CRITICAL: Never accept Fin's email
+    if (!email || email.includes('operator+') || email.includes('@intercom.io')) {
+      console.error('❌ Refusing to search for Fin/operator email:', email);
+      throw new Error('Invalid email - cannot use Fin or operator email');
+    }
+    
+    console.log(`🔍 Searching for contact: ${email} (${name})`);
     
     // Search for existing contact
     const searchResponse = await fetch(
@@ -216,32 +222,48 @@ const findOrCreateContact = async (email, name) => {
     const searchData = await searchResponse.json();
     
     if (searchData.contacts && searchData.contacts.length > 0) {
-      const existingContact = searchData.contacts[0];
-      console.log(`✅ Found existing contact: ${existingContact.id}`);
+      // Filter out any Fin/operator contacts from results
+      const validContacts = searchData.contacts.filter(contact => {
+        const contactEmail = contact.email || '';
+        const isFinContact = contactEmail.includes('operator+') || 
+                            contactEmail.includes('@intercom.io') ||
+                            contact.name === 'Fin';
+        
+        if (isFinContact) {
+          console.warn('⚠️ Filtered out Fin/operator contact from search results:', contact.id);
+          return false;
+        }
+        return true;
+      });
       
-      // Check if already has intercom tag
-      const hasTags = existingContact.tags && existingContact.tags.includes('intercom');
-      
-      if (!hasTags) {
-        console.log('🏷️ Adding intercom tag to existing contact...');
-        await fetch(`${GHL_API_BASE}/contacts/${existingContact.id}`, {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
-            'Content-Type': 'application/json',
-            Version: '2021-07-28',
-          },
-          body: JSON.stringify({
-            tags: [...(existingContact.tags || []), 'intercom']
-          }),
-        });
+      if (validContacts.length > 0) {
+        const existingContact = validContacts[0];
+        console.log(`✅ Found existing valid contact: ${existingContact.id} (${existingContact.name})`);
+        
+        // Check if already has intercom tag
+        const hasTags = existingContact.tags && existingContact.tags.includes('intercom');
+        
+        if (!hasTags) {
+          console.log('🏷️ Adding intercom tag to existing contact...');
+          await fetch(`${GHL_API_BASE}/contacts/${existingContact.id}`, {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+              'Content-Type': 'application/json',
+              Version: '2021-07-28',
+            },
+            body: JSON.stringify({
+              tags: [...(existingContact.tags || []), 'intercom']
+            }),
+          });
+        }
+        
+        return existingContact.id;
       }
-      
-      return existingContact.id;
     }
 
     // Create new contact with intercom tag
-    console.log('➕ Creating new contact...');
+    console.log('➕ Creating new contact with email:', email, 'name:', name);
     const createResponse = await fetch(`${GHL_API_BASE}/contacts/`, {
       method: 'POST',
       headers: {
@@ -265,8 +287,28 @@ const findOrCreateContact = async (email, name) => {
         console.warn('⚠️ Contact already exists (race condition), extracting ID...');
         const match = errorText.match(/"id":"([^"]+)"/);
         if (match) {
-          console.log(`✅ Extracted existing contact ID: ${match[1]}`);
-          return match[1];
+          const extractedId = match[1];
+          console.log(`✅ Extracted existing contact ID: ${extractedId}`);
+          
+          // Verify this isn't Fin's contact
+          const verifyResponse = await fetch(`${GHL_API_BASE}/contacts/${extractedId}`, {
+            headers: {
+              Authorization: `Bearer ${GHL_ACCESS_TOKEN}`,
+              Version: '2021-07-28',
+            },
+          });
+          
+          if (verifyResponse.ok) {
+            const verifyData = await verifyResponse.json();
+            const verifyEmail = verifyData.contact?.email || '';
+            
+            if (verifyEmail.includes('operator+') || verifyEmail.includes('@intercom.io')) {
+              console.error('❌ Extracted contact is Fin! Refusing to use it.');
+              throw new Error('Cannot use Fin contact');
+            }
+          }
+          
+          return extractedId;
         }
       }
       
@@ -274,8 +316,9 @@ const findOrCreateContact = async (email, name) => {
     }
 
     const newContact = await createResponse.json();
-    console.log(`✅ Created new contact: ${newContact.contact.id}`);
-    return newContact.contact.id;
+    const newContactId = newContact.contact.id;
+    console.log(`✅ Created new contact: ${newContactId} (${name} - ${email})`);
+    return newContactId;
 
   } catch (error) {
     console.error('❌ Error with contact:', error);
