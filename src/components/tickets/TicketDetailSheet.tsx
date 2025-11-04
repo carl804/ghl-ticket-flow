@@ -560,6 +560,8 @@ function TicketDetailSheet({ ticket, open, onOpenChange, onStatusChange }: Ticke
                 description={ticket.description || ''}
                 resolutionSummary={ticket.resolutionSummary || ''}
                 opportunityId={ticket.id}
+                contactName={ticket.contact?.name || 'Unknown'}  // ← ADD THIS
+                contactEmail={ticket.contact?.email || ''}        // ← ADD THIS
                 onClose={() => onOpenChange(false)}
                 onAssignmentChange={(assignee) => {
                   setEditedTicket({ ...editedTicket, assignedTo: assignee });
