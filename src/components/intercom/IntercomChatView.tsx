@@ -175,6 +175,8 @@ interface IntercomChatViewProps {
   description?: string;
   resolutionSummary?: string;
   opportunityId?: string;
+  contactName?: string;        // ← ADD THIS
+  contactEmail?: string;       // ← ADD THIS
   onClose?: () => void;
   onAssignmentChange?: (assignee: string) => void;
 }
