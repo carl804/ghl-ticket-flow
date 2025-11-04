@@ -307,19 +307,46 @@ const createGHLTicketFromConversation = async (conversation) => {
     // Try to get the real customer (not Fin)
     let customer = null;
 
-    // Option 1: From source.author (if user initiated)
-    if (fullConversation.source?.author?.type === 'user') {
-      customer = fullConversation.source.author;
-      console.log('✅ Found customer in source.author:', customer);
+    // Option 1: From contacts array (PRIORITIZE THIS - real customer is here)
+    if (fullConversation.contacts?.contacts?.[0]) {
+      const contactId = fullConversation.contacts.contacts[0].id;
+      console.log('🔍 Found contact ID, fetching full details:', contactId);
+      
+      // Fetch full contact details from Intercom
+      try {
+        const contactResponse = await fetch(`https://api.intercom.io/contacts/${contactId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${INTERCOM_ACCESS_TOKEN}`,
+            'Accept': 'application/json',
+            'Intercom-Version': '2.11'
+          }
+        });
+        
+        if (contactResponse.ok) {
+          customer = await contactResponse.json();
+          console.log('✅ Found real customer from contacts:', customer);
+        } else {
+          console.error('❌ Failed to fetch contact details:', contactResponse.status);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching contact:', error);
+      }
     }
 
-    // Option 2: From contacts array
-    if (!customer && fullConversation.contacts?.contacts?.[0]) {
-      customer = fullConversation.contacts.contacts[0];
-      console.log('✅ Found customer in contacts.contacts[0]:', customer);
+    // Option 2: From source.author (only if not Fin/bot)
+    if (!customer && fullConversation.source?.author?.type === 'user') {
+      const author = fullConversation.source.author;
+      // Skip if it's Fin or operator email
+      if (!author.email?.includes('operator+') && author.name !== 'Fin') {
+        customer = author;
+        console.log('✅ Found customer in source.author:', customer);
+      } else {
+        console.log('⚠️ Skipping Fin/operator in source.author');
+      }
     }
 
-    // Option 3: From user object
+    // Option 3: From user object (legacy fallback)
     if (!customer && fullConversation.user) {
       customer = fullConversation.user;
       console.log('✅ Found customer in user:', customer);
