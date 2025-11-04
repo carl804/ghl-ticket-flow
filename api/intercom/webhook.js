@@ -301,11 +301,11 @@ const createGHLTicketFromConversation = async (conversation) => {
     console.log('🔍 FULL CONVERSATION:', JSON.stringify(fullConversation, null, 2));
     console.log('🔍 source:', fullConversation.source);
     console.log('🔍 contacts:', fullConversation.contacts);
-    console.log('🔍 user:', fullConversation.user);
-    console.log('🔍 customers:', fullConversation.customers);
 
     // Try to get the real customer (not Fin)
     let customer = null;
+    let customerEmail = '';
+    let customerName = '';
 
     // Option 1: From contacts array (PRIORITIZE THIS - real customer is here)
     if (fullConversation.contacts?.contacts?.[0]) {
@@ -324,8 +324,34 @@ const createGHLTicketFromConversation = async (conversation) => {
         });
         
         if (contactResponse.ok) {
-          customer = await contactResponse.json();
-          console.log('✅ Found real customer from contacts:', customer);
+          const contactData = await contactResponse.json();
+          console.log('✅ Raw contact data from Intercom:', JSON.stringify(contactData, null, 2));
+          
+          // Extract email - try multiple possible locations
+          const email = contactData.email || 
+                        contactData.primary_email ||
+                        (contactData.emails && contactData.emails.length > 0 ? contactData.emails[0] : '') ||
+                        '';
+          
+          const name = contactData.name || 
+                       contactData.display_name ||
+                       email ||
+                       'Unknown Customer';
+          
+          console.log('🔍 Extracted from contact:', { email, name });
+          
+          // CRITICAL: Only use this contact if it has a real email and is NOT Fin/operator
+          if (email && 
+              !email.includes('operator+') && 
+              !email.includes('@intercom.io') &&
+              name !== 'Fin') {
+            customer = contactData;
+            customerEmail = email;
+            customerName = name;
+            console.log('✅ Found real customer from contacts:', { name: customerName, email: customerEmail });
+          } else {
+            console.warn('⚠️ Contact is Fin/operator or has no valid email:', { email, name });
+          }
         } else {
           console.error('❌ Failed to fetch contact details:', contactResponse.status);
         }
@@ -334,33 +360,48 @@ const createGHLTicketFromConversation = async (conversation) => {
       }
     }
 
-    // Option 2: From source.author (only if not Fin/bot)
+    // Option 2: From source.author (only if not Fin/bot and Option 1 failed)
     if (!customer && fullConversation.source?.author?.type === 'user') {
       const author = fullConversation.source.author;
+      const email = author.email || '';
+      const name = author.name || email || 'Unknown Customer';
+      
       // Skip if it's Fin or operator email
-      if (!author.email?.includes('operator+') && author.name !== 'Fin') {
+      if (email && 
+          !email.includes('operator+') && 
+          !email.includes('@intercom.io') &&
+          name !== 'Fin') {
         customer = author;
-        console.log('✅ Found customer in source.author:', customer);
+        customerEmail = email;
+        customerName = name;
+        console.log('✅ Found customer in source.author:', { name: customerName, email: customerEmail });
       } else {
-        console.log('⚠️ Skipping Fin/operator in source.author');
+        console.log('⚠️ Skipping Fin/operator in source.author:', { email, name });
       }
     }
 
     // Option 3: From user object (legacy fallback)
     if (!customer && fullConversation.user) {
-      customer = fullConversation.user;
-      console.log('✅ Found customer in user:', customer);
+      const user = fullConversation.user;
+      const email = user.email || '';
+      const name = user.name || email || 'Unknown Customer';
+      
+      if (email && !email.includes('operator+') && !email.includes('@intercom.io')) {
+        customer = user;
+        customerEmail = email;
+        customerName = name;
+        console.log('✅ Found customer in user:', { name: customerName, email: customerEmail });
+      }
     }
     
-    if (!customer) {
-      console.error('❌ No customer found in conversation');
+    // Final validation - make absolutely sure we're not using Fin
+    if (!customer || !customerEmail || customerEmail.includes('operator+') || customerName === 'Fin') {
+      console.error('❌ No valid customer found or customer is Fin/operator');
+      console.error('❌ Customer details:', { name: customerName, email: customerEmail });
       return;
     }
 
-    const customerName = customer.name || customer.email || 'Unknown Customer';
-    const customerEmail = customer.email || '';
-    
-    console.log('✅ Real customer:', { name: customerName, email: customerEmail });
+    console.log('✅ FINAL Real customer:', { name: customerName, email: customerEmail });
     
     // Get ticket number
     const ticketNumber = await getNextTicketNumber();
@@ -372,8 +413,10 @@ const createGHLTicketFromConversation = async (conversation) => {
     console.log('📦 Final admin_assignee_id to process:', adminAssigneeId);
     const ghlAssignee = mapIntercomAssigneeToGHL(adminAssigneeId);
     
-    // Find or create contact with intercom tag
+    // Find or create contact with intercom tag - using VALIDATED customer details
+    console.log('🔍 About to find/create contact with:', { email: customerEmail, name: customerName });
     const contactId = await findOrCreateContact(customerEmail, customerName);
+    console.log('✅ Got GHL contact ID:', contactId);
     
     // Create opportunity (ticket) in GHL
     console.log('🎫 Creating ticket in GHL...');
@@ -420,6 +463,7 @@ const createGHLTicketFromConversation = async (conversation) => {
     const opportunity = await opportunityResponse.json();
     console.log(`✅ Created ticket: ${opportunity.opportunity.id} - ${ticketName}`);
     console.log(`✅ Assigned to: ${ghlAssignee}`);
+    console.log(`✅ Linked to contact: ${contactId} (${customerName} - ${customerEmail})`);
     
   } catch (error) {
     console.error('❌ Error creating GHL ticket:', error);
