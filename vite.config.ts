@@ -15,4 +15,12 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      external: ['googleapis', 'google-auth-library', 'gaxios', 'node-fetch'],
+    },
+  },
+  optimizeDeps: {
+    exclude: ['googleapis', 'google-auth-library', 'gaxios', 'node-fetch'],
+  },
 }));
