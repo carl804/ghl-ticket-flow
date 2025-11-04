@@ -103,7 +103,8 @@ export default function TicketDetailsSidebar({
     }
   };
 
-  const customer = conversation?.source?.author || {};
+ // Prioritize GHL contact data over Intercom conversation data
+  const customer = contact || conversation?.source?.author || {};
   const intercomTicketOwner = opportunity?.intercomAgent || 'Unassigned';
   
   // Use the helper function to get values by ID
