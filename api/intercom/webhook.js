@@ -178,7 +178,7 @@ function mapIntercomAssigneeToGHL(adminAssigneeId) {
 }
 
 // Verify Intercom webhook signature
-ffunction verifyIntercomSignature(body, signature) {
+function verifyIntercomSignature(body, signature) {
   const secret = process.env.INTERCOM_WEBHOOK_SECRET;
   if (!secret) {
     return false;
