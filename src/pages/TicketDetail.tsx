@@ -285,16 +285,16 @@ export default function TicketDetail() {
           )}
 
           <div className="flex-1 flex flex-col bg-white dark:bg-gray-950 overflow-hidden">
-            <IntercomChatView
-              conversationId={intercomConversationId}
-              ticketId={ticket.id}
-              intercomTicketOwner={ticket.intercomAgent || ticket.assignedTo}
-              currentStageId={ticket.pipelineStageId}
-              priority={ticket.priority}
-              category={ticket.category}
-              opportunityId={ticket.id}
-              onAssignmentChange={handleAssignmentChange}
-            />
+          <IntercomChatView
+            conversationId={intercomConversationId}
+            ticketId={ticket.id}
+            intercomTicketOwner={ticket.intercomAgent || ticket.assignedTo}
+            currentStageId={ticket.pipelineStageId}
+            priority={ticket.priority}
+            category={ticket.category}
+            opportunityId={ticket.id}
+            onAssignmentChange={handleAssignmentChange}
+          />
           </div>
 
           <TicketDetailsSidebar

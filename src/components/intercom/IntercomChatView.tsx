@@ -197,6 +197,8 @@ export default function IntercomChatView({
   description: initialDescription = '',
   resolutionSummary: initialResolutionSummary = '',
   opportunityId,
+  contactName: propContactName,     // ← ADD THIS
+  contactEmail: propContactEmail,   // ← ADD THIS
   onClose,
   onAssignmentChange 
 }: IntercomChatViewProps) {
@@ -862,8 +864,9 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     })),
   ];
 
-  const customerName = conversation.source.author.name || 'Customer';
-  const customerEmail = conversation.source.author.email;
+  // Use contact from GHL opportunity (correct) instead of Intercom conversation (might be Fin)
+  const customerName = propContactName || conversation.source.author.name || 'Customer';
+  const customerEmail = propContactEmail || conversation.source.author.email || '';
   const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (

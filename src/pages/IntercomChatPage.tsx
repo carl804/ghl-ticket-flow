@@ -151,7 +151,10 @@ export default function IntercomChatPage() {
 
         {/* Chat Area */}
         <div className="flex-1 overflow-hidden">
-          <IntercomChatView
+          // Find this section in IntercomChatPage.tsx (around line 140-150)
+// Replace the <IntercomChatView /> component with this:
+
+            <IntercomChatView
             conversationId={conversationId}
             ticketId={currentTicket?.id || ''}
             currentStageId={currentTicket?.pipelineStageId}
@@ -160,6 +163,8 @@ export default function IntercomChatPage() {
             intercomTicketOwner={currentTicket?.intercomAgent}
             description={currentTicket?.description}
             resolutionSummary={currentTicket?.resolutionSummary}
+            contactName={currentTicket?.contact?.name || 'Unknown'}
+            contactEmail={currentTicket?.contact?.email || ''}
           />
         </div>
       </div>
