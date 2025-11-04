@@ -178,18 +178,23 @@ function mapIntercomAssigneeToGHL(adminAssigneeId) {
 }
 
 // Verify Intercom webhook signature
-function verifyIntercomSignature(body, signature) {
+ffunction verifyIntercomSignature(body, signature) {
   const secret = process.env.INTERCOM_WEBHOOK_SECRET;
   if (!secret) {
-    return false; // Return false instead of true for security
+    return false;
   }
 
+  // Detect algorithm from signature prefix (sha1= or sha256=)
+  const algorithm = signature.startsWith('sha1=') ? 'sha1' : 'sha256';
+  const [prefix] = signature.split('=');
+  
   const hash = crypto
-    .createHmac('sha256', secret)
+    .createHmac(algorithm, secret)
     .update(body)
     .digest('hex');
 
-  return `sha256=${hash}` === signature;
+  const expectedSignature = `${prefix}=${hash}`;
+  return expectedSignature === signature;
 }
 
 // Find or create contact in GHL and tag with "intercom"
