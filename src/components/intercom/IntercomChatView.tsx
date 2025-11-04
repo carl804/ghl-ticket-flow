@@ -864,9 +864,11 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     })),
   ];
 
-  // Use contact from GHL opportunity (correct) instead of Intercom conversation (might be Fin)
-  const customerName = propContactName || conversation.source.author.name || 'Customer';
-  const customerEmail = propContactEmail || conversation.source.author.email || '';
+  // Prioritize props from GHL ticket, don't fallback to Intercom conversation data
+  const customerName = propContactName && propContactName !== 'Unknown' 
+  ? propContactName 
+  : conversation.source.author.name || 'Unknown Customer';
+const customerEmail = propContactEmail || conversation.source.author.email || '';
   const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
