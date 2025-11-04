@@ -203,6 +203,7 @@ export default function IntercomChatView({
   onAssignmentChange 
 }: IntercomChatViewProps) {
   console.log("🎬🎬🎬 IntercomChatView RENDER 🎬🎬🎬", { ticketId, currentStageId });
+  console.log("👤👤👤 CONTACT PROPS:", { propContactName, propContactEmail }); // ← ADD THIS LINE
   const [message, setMessage] = useState('');
   const [isNote, setIsNote] = useState(false);
   const [showAgentSelector, setShowAgentSelector] = useState(false);
