@@ -46,25 +46,25 @@ export const config = {
 };
 
 // Helper to get raw body as string
-async function getRawBody(req) {
+const getRawBody = async (req) => {
   const chunks = [];
   for await (const chunk of req) {
     chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
   return Buffer.concat(chunks).toString('utf8');
-}
+};
 
 // Initialize Google Sheets
-function getGoogleSheetsClient() {
+const getGoogleSheetsClient = () => {
   const auth = new google.auth.GoogleAuth({
     credentials: JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS),
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
   return google.sheets({ version: 'v4', auth });
-}
+};
 
 // Get and increment ticket counter with retry logic
-async function getNextTicketNumber(retryCount = 0) {
+const getNextTicketNumber = async (retryCount = 0) => {
   const MAX_RETRIES = 3;
   
   try {
@@ -118,10 +118,10 @@ async function getNextTicketNumber(retryCount = 0) {
     
     return fallback;
   }
-}
+};
 
 // Fetch full conversation details from Intercom API
-async function fetchIntercomConversation(conversationId) {
+const fetchIntercomConversation = async (conversationId) => {
   if (!INTERCOM_ACCESS_TOKEN) {
     console.warn('⚠️ INTERCOM_ACCESS_TOKEN not set - cannot fetch conversation details');
     return null;
@@ -152,10 +152,10 @@ async function fetchIntercomConversation(conversationId) {
     console.error('❌ Error fetching from Intercom API:', error);
     return null;
   }
-}
+};
 
 // Map Intercom assignee to GHL dropdown value (reads from admin_assignee_id)
-function mapIntercomAssigneeToGHL(adminAssigneeId) {
+const mapIntercomAssigneeToGHL = (adminAssigneeId) => {
   console.log('🔍 Mapping admin_assignee_id:', adminAssigneeId);
   
   // Check if unassigned
@@ -175,10 +175,10 @@ function mapIntercomAssigneeToGHL(adminAssigneeId) {
   // Fallback: return Unassigned for unknown assignees
   console.warn(`⚠️ Unknown assignee ID ${assigneeId}, using Unassigned`);
   return 'Unassigned';
-}
+};
 
 // Verify Intercom webhook signature
-function verifyIntercomSignature(body, signature) {
+const verifyIntercomSignature = (body, signature) => {
   const secret = process.env.INTERCOM_WEBHOOK_SECRET;
   if (!secret) {
     return false;
@@ -195,10 +195,10 @@ function verifyIntercomSignature(body, signature) {
 
   const expectedSignature = `${prefix}=${hash}`;
   return expectedSignature === signature;
-}
+};
 
 // Find or create contact in GHL and tag with "intercom"
-async function findOrCreateContact(email, name) {
+const findOrCreateContact = async (email, name) => {
   try {
     console.log(`🔍 Searching for contact: ${email}`);
     
@@ -281,10 +281,10 @@ async function findOrCreateContact(email, name) {
     console.error('❌ Error with contact:', error);
     throw error;
   }
-}
+};
 
 // Create GHL ticket from Intercom conversation
-async function createGHLTicketFromConversation(conversation) {
+const createGHLTicketFromConversation = async (conversation) => {
   try {
     const conversationId = conversation.id;
     
@@ -398,10 +398,10 @@ async function createGHLTicketFromConversation(conversation) {
     console.error('❌ Error creating GHL ticket:', error);
     throw error;
   }
-}
+};
 
 // Update ticket assignee when conversation assignment changes
-async function updateTicketAssignment(conversationId) {
+const updateTicketAssignment = async (conversationId) => {
   try {
     console.log(`🔍 Searching for ticket with Intercom ID: ${conversationId}`);
     
@@ -493,7 +493,7 @@ async function updateTicketAssignment(conversationId) {
     console.error('❌ Error updating ticket assignment:', error);
     throw error;
   }
-}
+};
 
 // Main webhook handler
 export default async function handler(req, res) {
