@@ -304,7 +304,7 @@ export default function TicketDetail() {
             conversationId={intercomConversationId}
             opportunity={ticket}
             conversation={conversation}
-            contact={contact}
+            contact={ticket.contact}  // ✅ Use ticket.contact directly
             messages={conversationMessages}
             onUpdate={() => queryClient.invalidateQueries({ queryKey: ["tickets"] })}
           />
