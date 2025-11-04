@@ -293,6 +293,8 @@ export default function TicketDetail() {
             priority={ticket.priority}
             category={ticket.category}
             opportunityId={ticket.id}
+            contactName={ticket.contact?.name || 'Unknown'}  // ← ADD THIS
+            contactEmail={ticket.contact?.email || ''}        // ← ADD THIS
             onAssignmentChange={handleAssignmentChange}
           />
           </div>
