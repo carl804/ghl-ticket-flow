@@ -108,7 +108,9 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Intercom token not configured' });
   }
   
-  // Handle POST request - Create ticket from conversation
+  // ========================================
+  // POST: Create ticket from conversation
+  // ========================================
   if (req.method === 'POST') {
     const { conversationId } = req.body;
     
@@ -316,18 +318,72 @@ export default async function handler(req, res) {
     }
   }
   
-  // Handle GET request - Fetch conversations
+  // ========================================
+  // GET: Handle all GET requests
+  // ========================================
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   
-  const { conversationId } = req.query;
+  const { conversationId, fetchMacros } = req.query;
   
-  console.log('📝 conversationId:', conversationId);
+  console.log('📝 Query params:', { conversationId, fetchMacros });
   console.log('🔑 Token exists:', !!INTERCOM_TOKEN);
   
   try {
-    // CASE 1: Fetch ALL conversations (inbox list)
+    // ========================================
+    // CASE 1: Fetch MACROS (NEW!)
+    // ========================================
+    if (fetchMacros === 'true') {
+      console.log('💬 Fetching Intercom macros...');
+      
+      const response = await fetch('https://api.intercom.io/macros?per_page=150', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${INTERCOM_TOKEN}`,
+          'Accept': 'application/json',
+          'Intercom-Version': 'Unstable'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Intercom API error:', errorText);
+        return res.status(response.status).json({ 
+          error: 'Failed to fetch macros from Intercom',
+          details: errorText 
+        });
+      }
+
+      const data = await response.json();
+      
+      // Extract and format macros
+      const macros = data.data.map(macro => ({
+        id: macro.id,
+        name: macro.name,
+        bodyPlain: macro.body_plain,
+        bodyHtml: macro.body_html,
+        createdAt: macro.created_at,
+        updatedAt: macro.updated_at
+      }));
+
+      // Sort by name for easier browsing
+      macros.sort((a, b) => a.name.localeCompare(b.name));
+
+      console.log(`✅ Fetched ${macros.length} macros`);
+
+      return res.status(200).json({
+        success: true,
+        macros,
+        count: macros.length,
+        lastUpdated: macros.length > 0 ? macros[0].updatedAt : null,
+        fetchedAt: new Date().toISOString()
+      });
+    }
+    
+    // ========================================
+    // CASE 2: Fetch ALL conversations (inbox list)
+    // ========================================
     if (!conversationId) {
       const startTime = Date.now();
       console.log('📋 Fetching ALL conversations (inbox list)...');
@@ -504,7 +560,9 @@ export default async function handler(req, res) {
       });
     }
     
-    // CASE 2: Fetch SINGLE conversation details
+    // ========================================
+    // CASE 3: Fetch SINGLE conversation details
+    // ========================================
     console.log('💬 Fetching SINGLE conversation:', conversationId);
     const conversationResponse = await fetch(
       `https://api.intercom.io/conversations/${conversationId}`,
