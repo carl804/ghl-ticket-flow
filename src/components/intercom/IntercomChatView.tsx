@@ -25,6 +25,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel
+} from '@/components/ui/dropdown-menu';
 import { 
   Send, 
   Paperclip, 
@@ -40,7 +48,8 @@ import {
   Mail,
   Tag,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
@@ -57,8 +66,8 @@ const PIPELINE_STAGES = {
 
 // Custom Field IDs
 const CUSTOM_FIELDS = {
-  PRIORITY: 'QMiATAEcjFjQc9q8FxW6',           // ← Use same as api-fixed.ts
-  CATEGORY: 'eCjK3IHuhErwlkyWJ4Wx',          // ← Use same as api-fixed.ts
+  PRIORITY: 'QMiATAEcjFjQc9q8FxW6',
+  CATEGORY: 'eCjK3IHuhErwlkyWJ4Wx',
   DESCRIPTION: 'y9aYiEln1CpSuz6u3rtE',
   RESOLUTION_SUMMARY: 'ZzsDH7pErVhwLqJt1NjA'
 };
@@ -75,7 +84,6 @@ const STAGE_OPTIONS = [
 
 const PRIORITY_OPTIONS = ['Low', 'Medium', 'High', 'Urgent'];
 
-// ✅ CORRECTED - Match TicketDetailSheet.tsx
 const CATEGORY_OPTIONS = [
   'Billing',
   'Technical Support',
@@ -175,8 +183,8 @@ interface IntercomChatViewProps {
   description?: string;
   resolutionSummary?: string;
   opportunityId?: string;
-  contactName?: string;        // ← ADD THIS
-  contactEmail?: string;       // ← ADD THIS
+  contactName?: string;
+  contactEmail?: string;
   onClose?: () => void;
   onAssignmentChange?: (assignee: string) => void;
 }
@@ -197,13 +205,13 @@ export default function IntercomChatView({
   description: initialDescription = '',
   resolutionSummary: initialResolutionSummary = '',
   opportunityId,
-  contactName: propContactName,     // ← ADD THIS
-  contactEmail: propContactEmail,   // ← ADD THIS
+  contactName: propContactName,
+  contactEmail: propContactEmail,
   onClose,
   onAssignmentChange 
 }: IntercomChatViewProps) {
   console.log("🎬🎬🎬 IntercomChatView RENDER 🎬🎬🎬", { ticketId, currentStageId });
-  console.log("👤👤👤 CONTACT PROPS:", { propContactName, propContactEmail }); // ← ADD THIS LINE
+  console.log("👤👤👤 CONTACT PROPS:", { propContactName, propContactEmail });
   const [message, setMessage] = useState('');
   const [isNote, setIsNote] = useState(false);
   const [showAgentSelector, setShowAgentSelector] = useState(false);
@@ -213,18 +221,21 @@ export default function IntercomChatView({
   const [selectedAgent, setSelectedAgent] = useState<StoredAgent | null>(null);
   const [attachedImages, setAttachedImages] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
+  const [macros, setMacros] = useState<any[]>([]);
+  const [macrosLoading, setMacrosLoading] = useState(false);
   
   // Dropdown states
   const [currentStage, setCurrentStage] = useState(currentStageId || PIPELINE_STAGES.OPEN);
   const prevTicketIdRef = useRef(ticketId);
-  // Sync currentStage when prop changes (like TicketDetailSheet does)
+  
   useEffect(() => {
-  console.log("🚨🚨🚨 PROP CHANGED! currentStageId:", currentStageId, "currentStage:", currentStage);
-  if (currentStageId) {
-    console.log("🔄 Syncing currentStage from prop:", currentStageId);
-    setCurrentStage(currentStageId);
-  }
-}, [currentStageId]);
+    console.log("🚨🚨🚨 PROP CHANGED! currentStageId:", currentStageId, "currentStage:", currentStage);
+    if (currentStageId) {
+      console.log("🔄 Syncing currentStage from prop:", currentStageId);
+      setCurrentStage(currentStageId);
+    }
+  }, [currentStageId]);
+  
   const [currentPriority, setCurrentPriority] = useState(initialPriority);
   const [currentCategory, setCurrentCategory] = useState(initialCategory);
   const [currentDescription, setCurrentDescription] = useState(initialDescription);
@@ -252,80 +263,125 @@ export default function IntercomChatView({
     }
   }, []);
 
+  // Fetch macros with smart caching
+  useEffect(() => {
+    const fetchMacros = async () => {
+      const CACHE_KEY = 'intercom_macros_cache';
+      const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+      // Check cache first
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          const { macros: cachedMacros, fetchedAt } = JSON.parse(cached);
+          const age = Date.now() - new Date(fetchedAt).getTime();
+          
+          // Use cache if less than 24 hours old
+          if (age < CACHE_DURATION) {
+            setMacros(cachedMacros);
+            console.log('✅ Loaded', cachedMacros.length, 'macros from cache');
+            return;
+          }
+        } catch (e) {
+          console.error('Failed to parse cached macros:', e);
+        }
+      }
+
+      // Fetch fresh macros
+      console.log('🔄 Fetching fresh macros from API...');
+      setMacrosLoading(true);
+      try {
+        const response = await fetch('/api/intercom/conversation?fetchMacros=true');
+        if (response.ok) {
+          const data = await response.json();
+          setMacros(data.macros);
+          console.log('✅ Fetched', data.macros.length, 'macros from API');
+          
+          // Cache the results
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            macros: data.macros,
+            fetchedAt: data.fetchedAt
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch macros:', error);
+      } finally {
+        setMacrosLoading(false);
+      }
+    };
+
+    fetchMacros();
+  }, []);
+
   // Update GHL ticket field
-const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'description' | 'resolutionSummary', value: string) => {
-  setIsUpdatingField(true);
-  console.log('🎯 Updating ticket:', ticketId, 'Field:', field, 'Value:', value);
-  
-  try {
-    const updateData: any = {};
+  const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'description' | 'resolutionSummary', value: string) => {
+    setIsUpdatingField(true);
+    console.log('🎯 Updating ticket:', ticketId, 'Field:', field, 'Value:', value);
     
-    if (field === 'stage') {
-      updateData.pipelineStageId = value;
-    } else {
-      // ✅ FIXED: Use the same format as api-fixed.ts
-      const customFields: Array<{ id: string; value: any }> = [];
+    try {
+      const updateData: any = {};
       
-      if (field === 'priority') {
-        customFields.push({ id: CUSTOM_FIELDS.PRIORITY, value });
-      } else if (field === 'category') {
-        customFields.push({ id: CUSTOM_FIELDS.CATEGORY, value });
-      } else if (field === 'description') {
-        customFields.push({ id: CUSTOM_FIELDS.DESCRIPTION, value });
-      } else if (field === 'resolutionSummary') {
-        customFields.push({ id: CUSTOM_FIELDS.RESOLUTION_SUMMARY, value });
+      if (field === 'stage') {
+        updateData.pipelineStageId = value;
+      } else {
+        const customFields: Array<{ id: string; value: any }> = [];
+        
+        if (field === 'priority') {
+          customFields.push({ id: CUSTOM_FIELDS.PRIORITY, value });
+        } else if (field === 'category') {
+          customFields.push({ id: CUSTOM_FIELDS.CATEGORY, value });
+        } else if (field === 'description') {
+          customFields.push({ id: CUSTOM_FIELDS.DESCRIPTION, value });
+        } else if (field === 'resolutionSummary') {
+          customFields.push({ id: CUSTOM_FIELDS.RESOLUTION_SUMMARY, value });
+        }
+        
+        if (customFields.length > 0) {
+          updateData.customFields = customFields;
+        }
       }
-      
-      if (customFields.length > 0) {
-        updateData.customFields = customFields; // ← plural!
-      }
-    }
 
-    console.log('📤 Request body:', JSON.stringify({
-      endpoint: `/opportunities/${ticketId}`,
-      method: 'PUT',
-      body: updateData
-    }, null, 2));
-
-    // Call GHL API to update
-    const response = await fetch(`/api/ghl-proxy`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      console.log('📤 Request body:', JSON.stringify({
         endpoint: `/opportunities/${ticketId}`,
         method: 'PUT',
         body: updateData
-      })
-    });
+      }, null, 2));
 
-    console.log('📡 Response status:', response.status);
-    const responseData = await response.json();
-    console.log('📡 Response data:', responseData);
+      const response = await fetch(`/api/ghl-proxy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: `/opportunities/${ticketId}`,
+          method: 'PUT',
+          body: updateData
+        })
+      });
 
-    if (!response.ok) {
-      console.error('❌ API Error Response:', responseData);
-      throw new Error(responseData.message || responseData.error || 'Failed to update ticket');
+      console.log('📡 Response status:', response.status);
+      const responseData = await response.json();
+      console.log('📡 Response data:', responseData);
+
+      if (!response.ok) {
+        console.error('❌ API Error Response:', responseData);
+        throw new Error(responseData.message || responseData.error || 'Failed to update ticket');
+      }
+      
+      console.log('✅ Updated ${field} successfully');
+      console.log('📦 Response data:', responseData);
+      toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
+      
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+    } catch (error: any) {
+      console.error(`❌ Failed to update ${field}:`, error);
+      toast.error(`Failed to update ${field}: ${error.message}`);
+      
+      if (field === 'stage') setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
+      if (field === 'priority') setCurrentPriority(initialPriority);
+    } finally {
+      setIsUpdatingField(false);
     }
-    
-    console.log('✅ Updated ${field} successfully');
-    console.log('📦 Response data:', responseData);
-    toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
-    
-    // Invalidate tickets query to refresh
-    queryClient.invalidateQueries({ queryKey: ['tickets'] });
-  } catch (error: any) {
-    console.error(`❌ Failed to update ${field}:`, error);
-    toast.error(`Failed to update ${field}: ${error.message}`);
-    
-    // Revert on error
-    if (field === 'stage') setCurrentStage(currentStageId || PIPELINE_STAGES.OPEN);
-    if (field === 'priority') setCurrentPriority(initialPriority);
-  } finally {
-    setIsUpdatingField(false);
-  }
-};
+  };
 
-  // Handler functions
   const handleStageChange = async (newStage: string) => {
     setCurrentStage(newStage);
     await updateTicketField('stage', newStage);
@@ -341,7 +397,6 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     await updateTicketField('category', newCategory);
   };
 
-  // Handle image file selection
   const handleImageAttachment = (files: File[]) => {
     console.log('📎 handleImageAttachment called with:', files);
     const imageFiles = files.filter(f => f.type.startsWith('image/'));
@@ -350,7 +405,6 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
       return;
     }
 
-    // Create preview URLs
     const newPreviews = imageFiles.map(file => URL.createObjectURL(file));
     console.log('🖼️ Created preview URLs:', newPreviews);
     setAttachedImages(prev => [...prev, ...imageFiles]);
@@ -358,7 +412,6 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     toast.success(`Attached ${imageFiles.length} image(s)`);
   };
 
-  // Remove attached image
   const removeImage = (index: number) => {
     console.log('🗑️ Removing image at index:', index);
     console.log('📦 Current images:', attachedImages.length);
@@ -383,14 +436,12 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     toast.success('Image removed');
   };
 
-  // Clean up preview URLs on unmount
   useEffect(() => {
     return () => {
       imagePreviewUrls.forEach(url => URL.revokeObjectURL(url));
     };
   }, [imagePreviewUrls]);
 
-  // Handle image paste
   useEffect(() => {
     console.log('🎯 useEffect for paste handler running...');
     console.log('📍 messageInputRef.current:', messageInputRef.current);
@@ -412,7 +463,7 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
         console.log(`  📎 Item ${i}:`, items[i].type, items[i].kind);
         if (items[i].type.indexOf('image') !== -1) {
           console.log('✅ IMAGE DETECTED! Processing...');
-          if (!hasImage) { // Only process first image to avoid duplicates
+          if (!hasImage) {
             hasImage = true;
             e.preventDefault();
             const file = items[i].getAsFile();
@@ -444,7 +495,6 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     }
   }, [messageInputRef.current]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -469,18 +519,16 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [message, isNote, showCustomerDetails]);
 
-  // Sync dropdown states with updated props
   useEffect(() => {
-  console.log('🔄 Props changed - syncing states:', {
-    priority: initialPriority,
-    category: initialCategory, 
-    stage: currentStageId,
-    ticketId
-  });
-  setCurrentPriority(initialPriority);
-  setCurrentCategory(initialCategory);
-  
-}, [initialPriority, initialCategory, ticketId]);
+    console.log('🔄 Props changed - syncing states:', {
+      priority: initialPriority,
+      category: initialCategory, 
+      stage: currentStageId,
+      ticketId
+    });
+    setCurrentPriority(initialPriority);
+    setCurrentCategory(initialCategory);
+  }, [initialPriority, initialCategory, ticketId]);
 
   const isAssigned = intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && intercomTicketOwner.trim() !== '';
 
@@ -544,7 +592,6 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     mutationFn: async (messageData: { message: string; isNote: boolean; images?: File[] }) => {
       if (!selectedAgent) throw new Error('No agent selected');
 
-      // If there are images, upload them first
       let attachmentUrls: string[] = [];
       if (messageData.images && messageData.images.length > 0) {
         console.log('📤 Uploading', messageData.images.length, 'images...');
@@ -712,6 +759,31 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     }
   };
 
+  // Manual refresh macros
+  const handleRefreshMacros = async () => {
+    setMacrosLoading(true);
+    try {
+      const response = await fetch('/api/intercom/conversation?fetchMacros=true');
+      if (response.ok) {
+        const data = await response.json();
+        setMacros(data.macros);
+        
+        // Update cache
+        localStorage.setItem('intercom_macros_cache', JSON.stringify({
+          macros: data.macros,
+          fetchedAt: data.fetchedAt
+        }));
+        
+        toast.success('Macros refreshed');
+      }
+    } catch (error) {
+      console.error('Failed to refresh macros:', error);
+      toast.error('Failed to refresh macros');
+    } finally {
+      setMacrosLoading(false);
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation]);
@@ -821,7 +893,6 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
 
   const filteredSnoozeOptions = getFilteredSnoozeOptions();
 
-  // Get current stage label for display
   const getCurrentStageLabel = () => {
     return STAGE_OPTIONS.find(opt => opt.value === currentStage)?.label || 'Open';
   };
@@ -865,11 +936,10 @@ const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'des
     })),
   ];
 
-  // Prioritize props from GHL ticket, don't fallback to Intercom conversation data
   const customerName = propContactName && propContactName !== 'Unknown' 
-  ? propContactName 
-  : conversation.source.author.name || 'Unknown Customer';
-const customerEmail = propContactEmail || conversation.source.author.email || '';
+    ? propContactName 
+    : conversation.source.author.name || 'Unknown Customer';
+  const customerEmail = propContactEmail || conversation.source.author.email || '';
   const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
@@ -1243,15 +1313,61 @@ const customerEmail = propContactEmail || conversation.source.author.email || ''
         {selectedAgent && (
           <div className="border-t border-gray-200 bg-white px-4 py-3 space-y-2">
             <div className="flex items-center justify-between">
-              <Button
-                variant={isNote ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setIsNote(!isNote)}
-                className={`h-7 text-xs ${isNote ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
-              >
-                <MessageSquare className="h-3 w-3 mr-1.5" />
-                {isNote ? 'Internal Note' : 'Reply'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={isNote ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsNote(!isNote)}
+                  className={`h-7 text-xs ${isNote ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
+                >
+                  <MessageSquare className="h-3 w-3 mr-1.5" />
+                  {isNote ? 'Internal Note' : 'Reply'}
+                </Button>
+                
+                {/* Quick Replies Dropdown */}
+                {macros.length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2 h-7 text-xs">
+                        💬 Quick Replies ({macros.length})
+                        {macrosLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64 max-h-96 overflow-y-auto">
+                      <DropdownMenuLabel className="flex items-center justify-between">
+                        <span>Quick Replies</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRefreshMacros();
+                          }}
+                          disabled={macrosLoading}
+                          className="h-6 w-6 p-0"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${macrosLoading ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {macros.map((macro) => (
+                        <DropdownMenuItem
+                          key={macro.id}
+                          onClick={() => setMessage(macro.bodyPlain)}
+                          className="cursor-pointer"
+                        >
+                          <div className="flex flex-col gap-1">
+                            <span className="font-medium text-sm">{macro.name}</span>
+                            <span className="text-xs text-muted-foreground line-clamp-2">
+                              {macro.bodyPlain?.substring(0, 100)}...
+                            </span>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
               <div className="text-[10px] text-gray-400">
                 <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-[9px]">⌘</kbd>+<kbd className="px-1 py-0.5 bg-gray-100 border rounded text-[9px]">↵</kbd>
               </div>
