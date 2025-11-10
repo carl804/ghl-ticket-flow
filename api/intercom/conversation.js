@@ -462,7 +462,7 @@ export default async function handler(req, res) {
         })
       );
       
-      const conversations = conversationsWithDetails.map(conv => {
+      const conversations = await Promise.all(conversationsWithDetails.map(async (conv) => {
         // Get ALL messages (source + parts) to find the absolute latest
         const sourceMsgTime = conv.source?.created_at || 0;
         const parts = conv.conversation_parts?.conversation_parts || [];
@@ -496,30 +496,66 @@ export default async function handler(req, res) {
           }
         }
         
-        // Extract customer - try multiple sources
+        // Extract customer - FETCH FULL CONTACT DETAILS (like webhook.js does!)
         let customerName = 'Unknown';
         let customerEmail = null;
         let customerId = null;
         let customerType = 'user';
         
-        // Try contacts array first (most reliable for real customer)
+        // Try to get contact ID from contacts array
         if (conv.contacts?.contacts?.length > 0) {
-          const contact = conv.contacts.contacts[0];
-          const contactName = contact.name || contact.display_name || '';
-          const contactEmail = contact.email || '';
+          const contactId = conv.contacts.contacts[0].id;
+          console.log(`🔍 Found contact ID for ${conv.id}: ${contactId}, fetching full details...`);
           
-          // Use if NOT Fin
-          if (contactName && contactName !== 'Fin' &&
-              !contactEmail.includes('operator+') && !contactEmail.includes('@intercom.io')) {
-            customerName = contactName;
-            customerEmail = contactEmail;
-            customerId = contact.id;
-            customerType = contact.type || 'user';
-            console.log(`✅ Using contact for ${conv.id}: ${customerName}`);
+          try {
+            // CRITICAL: Fetch FULL contact details (just like webhook.js!)
+            const contactResponse = await fetch(
+              `https://api.intercom.io/contacts/${contactId}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${INTERCOM_TOKEN}`,
+                  'Accept': 'application/json',
+                  'Intercom-Version': '2.11'
+                }
+              }
+            );
+            
+            if (contactResponse.ok) {
+              const contactData = await contactResponse.json();
+              console.log(`✅ Got full contact data for ${conv.id}:`, {
+                name: contactData.name,
+                email: contactData.email
+              });
+              
+              // Extract email - try multiple possible locations
+              const email = contactData.email || 
+                            contactData.primary_email ||
+                            (contactData.emails && contactData.emails.length > 0 ? contactData.emails[0] : '') ||
+                            '';
+              
+              const name = contactData.name || 
+                           contactData.display_name ||
+                           email ||
+                           'Unknown';
+              
+              // Use if NOT Fin
+              if (name && name !== 'Fin' &&
+                  !email.includes('operator+') && !email.includes('@intercom.io')) {
+                customerName = name;
+                customerEmail = email;
+                customerId = contactData.id;
+                customerType = contactData.type || 'user';
+                console.log(`✅ Using full contact for ${conv.id}: ${customerName}`);
+              } else {
+                console.warn(`⚠️ Contact is Fin for ${conv.id}:`, { name, email });
+              }
+            }
+          } catch (error) {
+            console.error(`❌ Error fetching full contact for ${conv.id}:`, error);
           }
         }
         
-        // Fallback to source.author if contacts didn't work
+        // Fallback to source.author if contact fetch didn't work
         if (customerName === 'Unknown' && conv.source?.author) {
           const author = conv.source.author;
           const authorName = author.name || '';
@@ -581,7 +617,7 @@ export default async function handler(req, res) {
           tags: conv.tags?.tags || [],
           topics: conv.topics?.topics || [],
         };
-      });
+      }));
       
       // Calculate total unread count
       const unreadCount = conversations.filter(c => !c.read).length;
