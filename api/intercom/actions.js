@@ -21,7 +21,8 @@ const GHL_ACCESS_TOKEN = process.env.GHL_ACCESS_TOKEN || process.env.GHL_ACCESS_
 const GHL_LOCATION_ID = process.env.VITE_GHL_LOCATION_ID || process.env.GHL_LOCATION_ID;
 const GHL_PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk';
 const CUSTOM_FIELD_INTERCOM_CONVERSATION_ID = 'gk2kXQuactrb8OdIJ3El';
-const CUSTOM_FIELD_INTERCOM_TICKET_OWNER = 'TIkNFiv8JUDvj0FMVF0E';
+const CUSTOM_FIELD_INTERCOM_TICKET_OWNER = 'TIkNFiv8JUDvj0FMVF0E'; // Intercom Ticket Owner (Opp)
+const CUSTOM_FIELD_TICKET_OWNER = 'VYv1QpVAAgns13227Pii';          // Ticket Owner (Opp) - SYNC with Intercom owner
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -192,7 +193,7 @@ export default async function handler(req, res) {
       const assignData = await assignResponse.json();
       console.log('✅ Assigned in Intercom');
 
-      // Update GHL opportunity
+      // Update GHL opportunity with BOTH owner fields
       if (agentName && GHL_ACCESS_TOKEN) {
         try {
           console.log('🔍 Searching for GHL ticket...');
@@ -226,7 +227,7 @@ export default async function handler(req, res) {
           if (matchingTicket) {
             console.log(`✅ Found ticket: ${matchingTicket.id}`);
             
-            // Update Intercom Ticket Owner custom field
+            // Update BOTH Intercom Ticket Owner AND Ticket Owner custom fields
             const updateResponse = await fetch(
               `${GHL_API_BASE}/opportunities/${matchingTicket.id}`,
               {
@@ -242,13 +243,17 @@ export default async function handler(req, res) {
                       id: CUSTOM_FIELD_INTERCOM_TICKET_OWNER,
                       field_value: agentName,
                     },
+                    {
+                      id: CUSTOM_FIELD_TICKET_OWNER,
+                      field_value: agentName, // ✅ SYNC: Update both owner fields
+                    },
                   ],
                 }),
               }
             );
 
             if (updateResponse.ok) {
-              console.log(`✅ Updated GHL ticket owner to: ${agentName}`);
+              console.log(`✅ Updated GHL ticket owner to: ${agentName} (both fields synced)`);
             } else {
               console.error('❌ Failed to update GHL');
             }

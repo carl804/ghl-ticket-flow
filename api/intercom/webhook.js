@@ -8,14 +8,15 @@ const GHL_PIPELINE_ID = 'p14Is7nXjiqS6MVI0cCk';
 const GHL_STAGE_OPEN = '3f3482b8-14c4-4de2-8a3c-4a336d01bb6e';
 const INTERCOM_ACCESS_TOKEN = process.env.INTERCOM_ACCESS_TOKEN;
 
-// Custom field IDs - UPDATED with correct ticketSource ID
+// Custom field IDs - UPDATED with both owner fields
 const CUSTOM_FIELDS = {
   INTERCOM_CONVERSATION_ID: 'gk2kXQuactrb8OdIJ3El',
-  TICKET_SOURCE: 'xITVHATbB7UzFdMQLenB', // Updated to correct ID
+  TICKET_SOURCE: 'xITVHATbB7UzFdMQLenB',
   CUSTOMER_EMAIL: 'tpihNBgeALeCppnY3ir5',
   CATEGORY: 'BXohaPrmtGLyHJ0wz8F7',
   PRIORITY: 'u0oHrYV91ZX8KQMS8Crk',
-  INTERCOM_TICKET_OWNER: 'TIkNFiv8JUDvj0FMVF0E',
+  INTERCOM_TICKET_OWNER: 'TIkNFiv8JUDvj0FMVF0E', // Intercom Ticket Owner (Opp)
+  TICKET_OWNER: 'VYv1QpVAAgns13227Pii',           // Ticket Owner (Opp) - SYNC with Intercom owner
 };
 
 // Intercom Admin ID to GHL Name Mapping
@@ -494,6 +495,10 @@ const createGHLTicketFromConversation = async (conversation) => {
             id: CUSTOM_FIELDS.INTERCOM_TICKET_OWNER,
             field_value: ghlAssignee,
           },
+          {
+            id: CUSTOM_FIELDS.TICKET_OWNER,
+            field_value: ghlAssignee, // ✅ SYNC: Set both owner fields to same value
+          },
         ],
       }),
     });
@@ -505,7 +510,7 @@ const createGHLTicketFromConversation = async (conversation) => {
 
     const opportunity = await opportunityResponse.json();
     console.log(`✅ Created ticket: ${opportunity.opportunity.id} - ${ticketName}`);
-    console.log(`✅ Assigned to: ${ghlAssignee}`);
+    console.log(`✅ Assigned to: ${ghlAssignee} (both owner fields synced)`);
     console.log(`✅ Linked to contact: ${contactId} (${customerName} - ${customerEmail})`);
     
   } catch (error) {
@@ -575,7 +580,7 @@ const updateTicketAssignment = async (conversationId) => {
 
     console.log(`✅ Found matching ticket: ${matchingTicket.id} - ${matchingTicket.name}`);
     
-    // Update the ticket's Intercom Ticket Owner field
+    // Update BOTH ticket owner fields to keep them in sync
     const updateResponse = await fetch(
       `${GHL_API_BASE}/opportunities/${matchingTicket.id}`,
       {
@@ -591,6 +596,10 @@ const updateTicketAssignment = async (conversationId) => {
               id: CUSTOM_FIELDS.INTERCOM_TICKET_OWNER,
               field_value: newAssignee,
             },
+            {
+              id: CUSTOM_FIELDS.TICKET_OWNER,
+              field_value: newAssignee, // ✅ SYNC: Update both owner fields
+            },
           ],
         }),
       }
@@ -601,7 +610,7 @@ const updateTicketAssignment = async (conversationId) => {
       throw new Error(`Failed to update ticket: ${errorText}`);
     }
 
-    console.log(`✅ Updated ticket owner to: ${newAssignee}`);
+    console.log(`✅ Updated ticket owner to: ${newAssignee} (both fields synced)`);
     
   } catch (error) {
     console.error('❌ Error updating ticket assignment:', error);
