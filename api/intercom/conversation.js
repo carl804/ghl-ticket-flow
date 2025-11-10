@@ -502,13 +502,59 @@ export default async function handler(req, res) {
           read: conv.read,
           priority: conv.priority,
           
-          // Customer info
-          customer: {
-            id: conv.source?.author?.id || conv.contacts?.contacts?.[0]?.id,
-            name: conv.source?.author?.name || conv.contacts?.contacts?.[0]?.name || 'Unknown',
-            email: conv.source?.author?.email || conv.contacts?.contacts?.[0]?.email,
-            type: conv.source?.author?.type,
-          },
+          // Customer info - CHECK CONTACTS FIRST, FILTER OUT FIN
+          customer: (() => {
+            let customer = null;
+            
+            // Option 1: Get from contacts array (real customer is here)
+            const firstContact = conv.contacts?.contacts?.[0];
+            if (firstContact) {
+              const email = firstContact.email || '';
+              const name = firstContact.name || '';
+              
+              // Filter out Fin
+              const isFin = email.includes('operator+') || 
+                            email.includes('@intercom.io') || 
+                            name === 'Fin';
+              
+              if (!isFin) {
+                customer = {
+                  id: firstContact.id,
+                  name: name || 'Unknown',
+                  email: email,
+                  type: firstContact.type || 'user',
+                };
+              }
+            }
+            
+            // Option 2: Fallback to source.author (only if not Fin)
+            if (!customer && conv.source?.author) {
+              const author = conv.source.author;
+              const email = author.email || '';
+              const name = author.name || '';
+              
+              const isFin = email.includes('operator+') || 
+                            email.includes('@intercom.io') || 
+                            name === 'Fin';
+              
+              if (!isFin) {
+                customer = {
+                  id: author.id,
+                  name: name || 'Unknown',
+                  email: email,
+                  type: author.type,
+                };
+              }
+            }
+            
+            // Fallback to Unknown if still no valid customer
+            return customer || {
+              id: null,
+              name: 'Unknown',
+              email: null,
+              type: 'user',
+            };
+          })(),
           
           // Assignee info - read from admin_assignee_id and map to names
           assignee: (() => {
