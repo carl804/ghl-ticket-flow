@@ -502,43 +502,48 @@ export default async function handler(req, res) {
           read: conv.read,
           priority: conv.priority,
           
-          // Customer info - Filter out Fin, keep real customers
+          // Customer info - CHECK CONTACTS FIRST (real customer), then source
 customer: (() => {
-  // Check source.author first
-  const sourceName = conv.source?.author?.name;
-  const sourceEmail = conv.source?.author?.email;
-  
-  // Check contacts
-  const contactName = conv.contacts?.contacts?.[0]?.name;
-  const contactEmail = conv.contacts?.contacts?.[0]?.email;
-  
-  // Prefer non-Fin source
-  if (sourceName && sourceName !== 'Fin' && 
-      !sourceEmail?.includes('operator+') && !sourceEmail?.includes('@intercom.io')) {
-    return {
-      id: conv.source.author.id,
-      name: sourceName,
-      email: sourceEmail,
-      type: conv.source.author.type,
-    };
+  // Option 1: Check contacts array FIRST (real customer is here)
+  const contact = conv.contacts?.contacts?.[0];
+  if (contact) {
+    const contactName = contact.name;
+    const contactEmail = contact.email;
+    
+    // Use contact if it's NOT Fin
+    if (contactName && contactName !== 'Fin' && 
+        !contactEmail?.includes('operator+') && !contactEmail?.includes('@intercom.io')) {
+      return {
+        id: contact.id,
+        name: contactName,
+        email: contactEmail,
+        type: contact.type || 'user',
+      };
+    }
   }
   
-  // Try contact if source was Fin
-  if (contactName && contactName !== 'Fin' &&
-      !contactEmail?.includes('operator+') && !contactEmail?.includes('@intercom.io')) {
-    return {
-      id: conv.contacts.contacts[0].id,
-      name: contactName,
-      email: contactEmail,
-      type: conv.contacts.contacts[0].type || 'user',
-    };
+  // Option 2: Fallback to source.author (only if contacts didn't work)
+  const author = conv.source?.author;
+  if (author) {
+    const sourceName = author.name;
+    const sourceEmail = author.email;
+    
+    if (sourceName && sourceName !== 'Fin' &&
+        !sourceEmail?.includes('operator+') && !sourceEmail?.includes('@intercom.io')) {
+      return {
+        id: author.id,
+        name: sourceName,
+        email: sourceEmail,
+        type: author.type,
+      };
+    }
   }
   
-  // Fallback
+  // Final fallback
   return {
-    id: conv.source?.author?.id || conv.contacts?.contacts?.[0]?.id,
+    id: contact?.id || author?.id,
     name: 'Unknown',
-    email: sourceEmail || contactEmail,
+    email: contact?.email || author?.email,
     type: 'user',
   };
 })(),
