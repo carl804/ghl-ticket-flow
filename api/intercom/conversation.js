@@ -502,72 +502,46 @@ export default async function handler(req, res) {
           read: conv.read,
           priority: conv.priority,
           
-          // Customer info - CHECK CONTACTS FIRST, FILTER OUT FIN
-          customer: (() => {
-            let customer = null;
-            
-            // Option 1: Get from contacts array (real customer is here)
-            const firstContact = conv.contacts?.contacts?.[0];
-            if (firstContact) {
-              const email = firstContact.email || '';
-              const name = firstContact.name || '';
-              
-              // Filter out Fin
-              const isFin = email.includes('operator+') || 
-                            email.includes('@intercom.io') || 
-                            name === 'Fin';
-              
-              if (!isFin) {
-                customer = {
-                  id: firstContact.id,
-                  name: name || 'Unknown',
-                  email: email,
-                  type: firstContact.type || 'user',
-                };
-              }
-            }
-            
-            // Option 2: Fallback to source.author (only if not Fin)
-            if (!customer && conv.source?.author) {
-              const author = conv.source.author;
-              const email = author.email || '';
-              const name = author.name || '';
-              
-              const isFin = email.includes('operator+') || 
-                            email.includes('@intercom.io') || 
-                            name === 'Fin';
-              
-              if (!isFin) {
-                customer = {
-                  id: author.id,
-                  name: name || 'Unknown',
-                  email: email,
-                  type: author.type,
-                };
-              }
-            }
-            
-            // Fallback to Unknown if still no valid customer
-            return customer || {
-              id: null,
-              name: 'Unknown',
-              email: null,
-              type: 'user',
-            };
-          })(),
-          
-          // Assignee info - read from admin_assignee_id and map to names
-          assignee: (() => {
-            const adminId = conv.admin_assignee_id;
-            if (!adminId) return null;
-            
-            const assigneeName = INTERCOM_ASSIGNEE_MAP[String(adminId)] || 'Unknown';
-            return {
-              id: adminId,
-              name: assigneeName,
-              type: 'admin',
-            };
-          })(),
+          // Customer info - Filter out Fin, keep real customers
+customer: (() => {
+  // Check source.author first
+  const sourceName = conv.source?.author?.name;
+  const sourceEmail = conv.source?.author?.email;
+  
+  // Check contacts
+  const contactName = conv.contacts?.contacts?.[0]?.name;
+  const contactEmail = conv.contacts?.contacts?.[0]?.email;
+  
+  // Prefer non-Fin source
+  if (sourceName && sourceName !== 'Fin' && 
+      !sourceEmail?.includes('operator+') && !sourceEmail?.includes('@intercom.io')) {
+    return {
+      id: conv.source.author.id,
+      name: sourceName,
+      email: sourceEmail,
+      type: conv.source.author.type,
+    };
+  }
+  
+  // Try contact if source was Fin
+  if (contactName && contactName !== 'Fin' &&
+      !contactEmail?.includes('operator+') && !contactEmail?.includes('@intercom.io')) {
+    return {
+      id: conv.contacts.contacts[0].id,
+      name: contactName,
+      email: contactEmail,
+      type: conv.contacts.contacts[0].type || 'user',
+    };
+  }
+  
+  // Fallback
+  return {
+    id: conv.source?.author?.id || conv.contacts?.contacts?.[0]?.id,
+    name: 'Unknown',
+    email: sourceEmail || contactEmail,
+    type: 'user',
+  };
+})(),
           
           // Last message preview (FIXED - shows absolute latest by timestamp)
           lastMessage: {
