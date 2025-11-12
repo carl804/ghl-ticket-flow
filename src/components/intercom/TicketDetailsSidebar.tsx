@@ -86,15 +86,15 @@ export default function TicketDetailsSidebar({
     queryFn: fetchTags,
   });
 
-  // Sync tags when contact changes
+  // Sync tags from opportunity (ticket) - contact tags are merged into ticket
   useEffect(() => {
-    if (contact?.tags) {
-      setEditedTags(contact.tags);
-      console.log('📋 Loaded contact tags:', contact.tags);
+    if (opportunity?.tags && opportunity.tags.length > 0) {
+      setEditedTags(opportunity.tags);
+      console.log('📋 Loaded tags from opportunity:', opportunity.tags);
     } else {
       setEditedTags([]);
     }
-  }, [contact?.id, contact?.tags]);
+  }, [opportunity?.id, opportunity?.tags]);
 
   // Helper to get custom field value - matches api-fixed.ts logic
   const getCustomFieldValue = (fieldId: string): string => {
@@ -148,15 +148,15 @@ export default function TicketDetailsSidebar({
   };
 
   const handleSaveTags = async () => {
-    if (!contact?.id) {
+    if (!opportunity?.contactId) {
       toast.error("Contact ID not available");
       return;
     }
     
     setIsSavingTags(true);
     try {
-      console.log('💾 Saving tags:', editedTags, 'for contact:', contact.id);
-      await updateContactTags(contact.id, editedTags);
+      console.log('💾 Saving tags:', editedTags, 'for contact:', opportunity.contactId);
+      await updateContactTags(opportunity.contactId, editedTags);
       toast.success("Tags updated");
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       onUpdate?.();
@@ -182,8 +182,9 @@ export default function TicketDetailsSidebar({
   const descriptionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.DESCRIPTION);
   const resolutionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY);
 
-  console.log('🔍 Contact data:', contact);
-  console.log('🔍 Contact tags:', contact?.tags);
+  console.log('🔍 Opportunity data:', opportunity);
+  console.log('🔍 Opportunity tags:', opportunity?.tags);
+  console.log('🔍 Opportunity contactId:', opportunity?.contactId);
   console.log('🔍 Edited tags:', editedTags);
 
   return (
