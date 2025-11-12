@@ -63,20 +63,6 @@ export default function ConversationSummary({
 
   if (!summary) return null;
 
-  const sentimentEmoji = {
-    positive: '😊',
-    neutral: '😐',
-    negative: '😟',
-    urgent: '🚨',
-  }[summary.customerSentiment] || '😐';
-
-  const priorityColor = {
-    low: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700',
-    medium: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700',
-    high: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700',
-    urgent: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700',
-  }[summary.priority] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-
   return (
     <div className="border-b border-gray-200 dark:border-gray-700/50 overflow-hidden">
       {/* Header - Light: Clean gradient / Dark: Bold gradient */}
@@ -121,7 +107,7 @@ export default function ConversationSummary({
       {/* Collapsed State - Show full main issue (NO TRUNCATION) */}
       {!isExpanded && (
         <div className="p-4 bg-white dark:bg-gray-900">
-          <div className="flex items-start gap-3 mb-3">
+          <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 dark:from-blue-600 dark:to-purple-600 flex items-center justify-center flex-shrink-0">
               <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
@@ -135,33 +121,6 @@ export default function ConversationSummary({
               <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
                 {summary.mainIssue}
               </p>
-            </div>
-          </div>
-
-          {/* Stats Row */}
-          <div className="grid grid-cols-3 gap-2">
-            {/* Sentiment */}
-            <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg p-2 text-center hover:shadow-sm dark:hover:shadow-blue-500/10 transition-all">
-              <div className="text-2xl mb-1">{sentimentEmoji}</div>
-              <p className="text-xs text-gray-600 dark:text-gray-300 font-semibold capitalize">
-                {summary.customerSentiment}
-              </p>
-            </div>
-
-            {/* Est. Time */}
-            <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg p-2 text-center hover:shadow-sm dark:hover:shadow-blue-500/10 transition-all">
-              <div className="text-base font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent mb-1">
-                {summary.estimatedResolutionTime}
-              </div>
-              <p className="text-xs text-gray-600 dark:text-gray-300 font-semibold">Est. Time</p>
-            </div>
-
-            {/* Priority */}
-            <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg p-2 text-center hover:shadow-sm dark:hover:shadow-blue-500/10 transition-all">
-              <Badge className={`text-xs font-bold border ${priorityColor} mb-1`}>
-                {summary.priority.toUpperCase()}
-              </Badge>
-              <p className="text-xs text-gray-600 dark:text-gray-300 font-semibold">Priority</p>
             </div>
           </div>
         </div>
@@ -178,36 +137,6 @@ export default function ConversationSummary({
             <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed font-medium">
               {summary.mainIssue}
             </p>
-          </div>
-
-          {/* Stats Row */}
-          <div className="grid grid-cols-3 gap-3">
-            {/* Sentiment */}
-            <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg p-3 text-center hover:shadow-md dark:hover:shadow-blue-500/20 transition-all">
-              <div className="text-2xl mb-1.5">{sentimentEmoji}</div>
-              <p className="text-xs text-gray-600 dark:text-gray-300 font-semibold capitalize">
-                {summary.customerSentiment}
-              </p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Sentiment</p>
-            </div>
-
-            {/* Est. Time */}
-            <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg p-3 text-center hover:shadow-md dark:hover:shadow-blue-500/20 transition-all">
-              <div className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent mb-1.5">
-                {summary.estimatedResolutionTime}
-              </div>
-              <p className="text-xs text-gray-600 dark:text-gray-300 font-semibold">Est. Time</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Resolution</p>
-            </div>
-
-            {/* Priority */}
-            <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg p-3 text-center hover:shadow-md dark:hover:shadow-blue-500/20 transition-all">
-              <Badge className={`text-xs font-bold border ${priorityColor} mb-1.5`}>
-                {summary.priority.toUpperCase()}
-              </Badge>
-              <p className="text-xs text-gray-600 dark:text-gray-300 font-semibold">Priority</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Level</p>
-            </div>
           </div>
 
           {/* Key Points */}

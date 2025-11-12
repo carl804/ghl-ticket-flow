@@ -195,6 +195,13 @@ interface StoredAgent {
   intercomId: string;
 }
 
+interface Macro {
+  id: string;
+  name: string;
+  bodyPlain?: string;
+  bodyHtml?: string;
+}
+
 export default function IntercomChatView({ 
   conversationId, 
   ticketId,
@@ -221,7 +228,7 @@ export default function IntercomChatView({
   const [selectedAgent, setSelectedAgent] = useState<StoredAgent | null>(null);
   const [attachedImages, setAttachedImages] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
-  const [macros, setMacros] = useState<any[]>([]);
+  const [macros, setMacros] = useState<Macro[]>([]);
   const [macrosLoading, setMacrosLoading] = useState(false);
   const [macroLoadProgress, setMacroLoadProgress] = useState({ current: 0, total: 0 });
   const [macroSearch, setMacroSearch] = useState('');
@@ -304,7 +311,7 @@ export default function IntercomChatView({
       }
       
       const listData = await listResponse.json();
-      const macroList = listData.macros || [];
+      const macroList: Macro[] = listData.macros || [];
       console.log(`✅ Got ${macroList.length} macros in list`);
       
       if (macroList.length === 0) {
@@ -1403,7 +1410,15 @@ export default function IntercomChatView({
                         )}
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-80 p-0">
+                    <DropdownMenuContent 
+                      align="end" 
+                      className="w-80 p-0"
+                      onKeyDown={(e) => {
+                        // Block ALL dropdown keyboard navigation
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                    >
                       {macrosLoading ? (
                         <div className="p-4 text-center space-y-2">
                           <Loader2 className="h-6 w-6 animate-spin mx-auto text-indigo-500" />
@@ -1444,15 +1459,12 @@ export default function IntercomChatView({
                             <div className="relative">
                               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                               <input
-                              type="text"
-                              value={macroSearch}
-                              onChange={(e) => setMacroSearch(e.target.value)}
-                              onKeyDown={(e) => e.stopPropagation()} // CRITICAL: Prevent dropdown from capturing keys
-                              onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing
-                              placeholder="Search macros..."
-                              className="w-full pl-8 pr-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                              autoFocus
-                            />
+                                type="text"
+                                value={macroSearch}
+                                onChange={(e) => setMacroSearch(e.target.value)}
+                                placeholder="Search macros..."
+                                className="w-full pl-8 pr-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              />
                             </div>
                             
                             {/* Results Count */}

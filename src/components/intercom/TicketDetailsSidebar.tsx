@@ -1,12 +1,18 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import ConversationSummary from './ConversationSummary';
-import { updateTicket } from '@/lib/api-fixed';
+import { updateTicket, fetchTags, updateContactTags } from '@/lib/api-fixed';
 import type { Ticket } from '@/lib/types';
 import { toast } from 'sonner';
 import { 
@@ -19,7 +25,11 @@ import {
   Tag,
   FileText,
   CheckCircle2,
-  Loader2
+  Loader2,
+  X,
+  Plus,
+  Search,
+  Check
 } from 'lucide-react';
 
 // Custom Field IDs
@@ -66,6 +76,13 @@ export default function TicketDetailsSidebar({
   const [isEditingResolution, setIsEditingResolution] = useState(false);
   const [description, setDescription] = useState('');
   const [resolution, setResolution] = useState('');
+  const [tagSearch, setTagSearch] = useState("");
+  const [tagsOpen, setTagsOpen] = useState(false);
+
+  const { data: availableTags = [] } = useQuery({
+    queryKey: ["tags"],
+    queryFn: fetchTags,
+  });
 
   // Helper to get custom field value - matches api-fixed.ts logic
   const getCustomFieldValue = (fieldId: string): string => {
@@ -103,7 +120,46 @@ export default function TicketDetailsSidebar({
     }
   };
 
- // Prioritize GHL contact data over Intercom conversation data
+  const handleToggleTag = async (tagName: string) => {
+    if (!contact?.id) {
+      toast.error("Contact ID not available");
+      return;
+    }
+    
+    const currentTags = contact.tags || [];
+    const newTags = currentTags.includes(tagName)
+      ? currentTags.filter((tag: string) => tag !== tagName)
+      : [...currentTags, tagName];
+    
+    try {
+      await updateContactTags(contact.id, newTags);
+      toast.success("Tags updated");
+      onUpdate?.();
+    } catch (error) {
+      toast.error("Failed to update tags");
+    }
+  };
+
+  const handleRemoveTag = async (tagName: string) => {
+    if (!contact?.id) return;
+    
+    const currentTags = contact.tags || [];
+    const newTags = currentTags.filter((tag: string) => tag !== tagName);
+    
+    try {
+      await updateContactTags(contact.id, newTags);
+      toast.success("Tag removed");
+      onUpdate?.();
+    } catch (error) {
+      toast.error("Failed to remove tag");
+    }
+  };
+
+  const filteredAvailableTags = availableTags.filter((tag: any) =>
+    tag.name.toLowerCase().includes(tagSearch.toLowerCase())
+  );
+
+  // Prioritize GHL contact data over Intercom conversation data
   const customer = contact || conversation?.source?.author || {};
   const intercomTicketOwner = opportunity?.intercomAgent || 'Unassigned';
   
@@ -349,21 +405,76 @@ export default function TicketDetailsSidebar({
         </Card>
 
         {/* Tags */}
-        {contact?.tags && contact.tags.length > 0 && (
-          <Card className="p-4">
-            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-              <Tag className="w-4 h-4" />
-              Tags
-            </h3>
-            <div className="flex flex-wrap gap-1">
-              {contact.tags.map((tag: string) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          </Card>
-        )}
+        <Card className="p-4">
+          <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+            <Tag className="w-4 h-4" />
+            Tags
+          </h3>
+          
+          {/* Selected Tags */}
+          <div className="flex flex-wrap gap-2 mb-3 min-h-[36px]">
+            {(contact?.tags || []).map((tag: string) => (
+              <Badge key={tag} variant="secondary" className="gap-1 text-xs">
+                {tag}
+                <button
+                  onClick={() => handleRemoveTag(tag)}
+                  className="ml-1 hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+            {(!contact?.tags || contact.tags.length === 0) && (
+              <span className="text-xs text-muted-foreground">No tags assigned</span>
+            )}
+          </div>
+
+          {/* Add Tags Popover */}
+          <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Tags
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="start">
+              <div className="p-2 border-b">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tags..."
+                    value={tagSearch}
+                    onChange={(e) => setTagSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[300px] overflow-y-auto p-2">
+                {filteredAvailableTags.length > 0 ? (
+                  <div className="space-y-1">
+                    {filteredAvailableTags.map((tag: any) => {
+                      const isSelected = (contact?.tags || []).includes(tag.name);
+                      return (
+                        <div
+                          key={tag.id}
+                          className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+                          onClick={() => handleToggleTag(tag.name)}
+                        >
+                          <div className="flex-1">{tag.name}</div>
+                          {isSelected && <Check className="h-4 w-4 text-primary" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    No tags found
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </Card>
 
       </div>
     </div>
