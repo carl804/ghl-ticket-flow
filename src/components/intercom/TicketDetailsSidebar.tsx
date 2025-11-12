@@ -92,12 +92,17 @@ export default function TicketDetailsSidebar({
     return field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
   };
 
-  // Use the same mutation pattern as TicketDetailSheet
+  // ✅ FIXED: Invalidate multiple query keys for immediate updates
   const updateMutation = useMutation({
     mutationFn: (updates: Partial<Ticket>) => updateTicket(ticketId, updates),
     onSuccess: () => {
       toast.success("Updated successfully");
+      
+      // Invalidate ALL ticket-related queries to force refresh
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["opportunity", ticketId] });
+      
       onUpdate?.();
     },
     onError: () => toast.error("Failed to update"),
@@ -138,7 +143,13 @@ export default function TicketDetailsSidebar({
       console.log('💾 Auto-saving tags:', newTags);
       await updateContactTags(opportunity.contactId, newTags);
       toast.success(currentTags.includes(tagName) ? "Tag removed" : "Tag added");
+      
+      // ✅ FIXED: Invalidate ALL related queries
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["opportunity", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["contact", opportunity.contactId] });
+      
       onUpdate?.();
       setTagsOpen(false); // Close dropdown after adding
     } catch (error) {
@@ -161,7 +172,13 @@ export default function TicketDetailsSidebar({
       console.log('💾 Auto-removing tag:', tagName);
       await updateContactTags(opportunity.contactId, newTags);
       toast.success("Tag removed");
+      
+      // ✅ FIXED: Invalidate ALL related queries
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["opportunity", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["contact", opportunity.contactId] });
+      
       onUpdate?.();
     } catch (error) {
       console.error('Failed to remove tag:', error);
