@@ -94,19 +94,33 @@ export default function TicketDetailsSidebar({
 
   // ✅ FIXED: Invalidate multiple query keys for immediate updates
   const updateMutation = useMutation({
-    mutationFn: (updates: Partial<Ticket>) => updateTicket(ticketId, updates),
-    onSuccess: () => {
-      toast.success("Updated successfully");
-      
-      // Invalidate ALL ticket-related queries to force refresh
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      queryClient.invalidateQueries({ queryKey: ["opportunity", ticketId] });
-      
-      onUpdate?.();
-    },
-    onError: () => toast.error("Failed to update"),
-  });
+  mutationFn: (updates: Partial<Ticket>) => updateTicket(ticketId, updates),
+  onMutate: async (updates) => {
+    // ✅ Cancel outgoing refetches
+    await queryClient.cancelQueries({ queryKey: ["tickets"] });
+    
+    // ✅ Update cache immediately for instant UI update
+    queryClient.setQueryData(["tickets"], (old: any[]) => {
+      return old?.map(ticket => 
+        ticket.id === ticketId 
+          ? { ...ticket, ...updates }
+          : ticket
+      ) || [];
+    });
+    
+    toast.success("Updated successfully");
+  },
+  onSuccess: () => {
+    // Refetch to ensure consistency with backend
+    queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    onUpdate?.();
+  },
+  onError: () => {
+    toast.error("Failed to update");
+    // Refetch on error to revert optimistic update
+    queryClient.invalidateQueries({ queryKey: ["tickets"] });
+  },
+});
 
   const handleSaveDescription = async () => {
     try {
