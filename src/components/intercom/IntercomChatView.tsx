@@ -596,14 +596,16 @@ export default function IntercomChatView({
 
   useEffect(() => {
     console.log('🔄 Props changed - syncing states:', {
-      priority: initialPriority,
-      category: initialCategory, 
-      stage: currentStageId,
-      ticketId
+        priority: initialPriority,
+        category: initialCategory, 
+        stage: currentStageId,
+        ticketId
     });
-    setCurrentPriority(initialPriority);
-    setCurrentCategory(initialCategory);
-  }, [initialPriority, initialCategory, ticketId]);
+    
+    if (initialPriority) setCurrentPriority(initialPriority);
+    if (initialCategory) setCurrentCategory(initialCategory);
+    if (currentStageId) setCurrentStage(currentStageId);
+  }, [initialPriority, initialCategory, currentStageId, ticketId]);
 
   const isAssigned = intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && intercomTicketOwner.trim() !== '';
 
@@ -1181,70 +1183,84 @@ export default function IntercomChatView({
             </div>
 
             {/* Middle - Dropdowns (wrap on small screens) */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {/* Intercom State Badge (read-only) */}
-              <Badge className={`text-[10px] px-1.5 py-0 h-5 whitespace-nowrap ${
-                conversation.state === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
-              }`}>
-                {conversation.state === 'open' && <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1" />}
-                {conversation.state}
-              </Badge>
+<div className="flex items-center gap-1.5 flex-wrap">
+  {/* Intercom State Badge (read-only) */}
+  <Badge className={`text-[10px] px-1.5 py-0 h-5 whitespace-nowrap ${
+    conversation.state === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+  }`}>
+    {conversation.state === 'open' && <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1" />}
+    {conversation.state}
+  </Badge>
 
-              {/* Stage Dropdown */}
-              <Select value={currentStage} onValueChange={handleStageChange} disabled={isUpdatingField}>
-                <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700 w-auto gap-1 min-w-[80px]">
-                  <SelectValue>{getCurrentStageLabel()}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {STAGE_OPTIONS.map(stage => (
-                    <SelectItem key={stage.value} value={stage.value} className="text-xs">
-                      {stage.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+  {/* Stage Dropdown */}
+  <Select value={currentStage} onValueChange={handleStageChange} disabled={isUpdatingField}>
+    <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700 w-auto gap-1 min-w-[80px]">
+      <SelectValue placeholder="Select stage..." />
+    </SelectTrigger>
+    <SelectContent>
+      {STAGE_OPTIONS.map(stage => (
+        <SelectItem key={stage.value} value={stage.value} className="text-xs">
+          {stage.label}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
 
-              {/* Priority Dropdown */}
-              <Select value={currentPriority} onValueChange={handlePriorityChange} disabled={isUpdatingField}>
-                <SelectTrigger className={`h-5 text-[10px] px-1.5 py-0 w-auto gap-1 min-w-[70px] ${
-                  currentPriority === 'High' || currentPriority === 'Urgent' 
-                    ? 'bg-red-50 text-red-700 border-red-200'
-                    : currentPriority === 'Medium'
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-blue-50 text-blue-700 border-blue-200'
-                }`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRIORITY_OPTIONS.map(priority => (
-                    <SelectItem key={priority} value={priority} className="text-xs">
-                      {priority}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+  {/* Priority Dropdown */}
+  <Select 
+    value={currentPriority || undefined} 
+    onValueChange={handlePriorityChange} 
+    disabled={isUpdatingField}
+  >
+    <SelectTrigger className={`h-5 text-[10px] px-1.5 py-0 w-auto gap-1 min-w-[70px] ${
+      !currentPriority 
+        ? 'bg-gray-50 text-gray-500 border-gray-200'
+        : currentPriority === 'High' || currentPriority === 'Urgent' 
+        ? 'bg-red-50 text-red-700 border-red-200'
+        : currentPriority === 'Medium'
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-blue-50 text-blue-700 border-blue-200'
+    }`}>
+      <SelectValue placeholder="Pick priority..." />
+    </SelectTrigger>
+    <SelectContent>
+      {PRIORITY_OPTIONS.map(priority => (
+        <SelectItem key={priority} value={priority} className="text-xs">
+          {priority}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
 
-              {/* Category Dropdown */}
-              <Select value={currentCategory} onValueChange={handleCategoryChange} disabled={isUpdatingField}>
-                <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700 w-auto gap-1 min-w-[90px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORY_OPTIONS.map(category => (
-                    <SelectItem key={category} value={category} className="text-xs">
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+  {/* Category Dropdown */}
+  <Select 
+    value={currentCategory || undefined} 
+    onValueChange={handleCategoryChange} 
+    disabled={isUpdatingField}
+  >
+    <SelectTrigger className={`h-5 text-[10px] px-1.5 py-0 w-auto gap-1 min-w-[90px] ${
+      !currentCategory 
+        ? 'bg-gray-50 text-gray-500 border-gray-200'
+        : 'border-blue-200 bg-blue-50 text-blue-700'
+    }`}>
+      <SelectValue placeholder="Pick category..." />
+    </SelectTrigger>
+    <SelectContent>
+      {CATEGORY_OPTIONS.map(category => (
+        <SelectItem key={category} value={category} className="text-xs">
+          {category}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
 
-              {/* Assignee Badge */}
-              {intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-purple-50 text-purple-700 border-purple-200 whitespace-nowrap">
-                  👤 {intercomTicketOwner}
-                </Badge>
-              )}
-            </div>
+  {/* Assignee Badge */}
+  {intercomTicketOwner && intercomTicketOwner !== 'Unassigned' && (
+    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-purple-50 text-purple-700 border-purple-200 whitespace-nowrap">
+      👤 {intercomTicketOwner}
+    </Badge>
+  )}
+</div>
 
             {/* Right side - Actions (push to end) */}
             <div className="flex items-center gap-2 ml-auto flex-shrink-0">
