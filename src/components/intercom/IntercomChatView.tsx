@@ -1353,13 +1353,13 @@ export default function IntercomChatView({
                       {macros.map((macro) => (
                         <DropdownMenuItem
                           key={macro.id}
-                          onClick={() => setMessage(macro.bodyPlain)}
+                          onClick={() => macro.bodyPlain && setMessage(macro.bodyPlain)}
                           className="cursor-pointer"
                         >
                           <div className="flex flex-col gap-1">
                             <span className="font-medium text-sm">{macro.name}</span>
                             <span className="text-xs text-muted-foreground line-clamp-2">
-                              {macro.bodyPlain?.substring(0, 100)}...
+                              {macro.bodyPlain ? macro.bodyPlain.substring(0, 100) + "..." : "No preview"}
                             </span>
                           </div>
                         </DropdownMenuItem>
