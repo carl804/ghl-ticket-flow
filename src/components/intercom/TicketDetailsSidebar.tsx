@@ -92,124 +92,51 @@ export default function TicketDetailsSidebar({
     return field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
   };
 
-  // ✅ FIXED: Invalidate multiple query keys for immediate updates
-  c// Replace the updateMutation section (around line 95) with this:
-
-const updateMutation = useMutation({
-  mutationFn: (updates: Partial<Ticket>) => updateTicket(ticketId, updates),
-  onMutate: async (updates) => {
-    // ✅ INSTANT UPDATE: Cancel outgoing refetches
-    await queryClient.cancelQueries({ queryKey: ["tickets"] });
-    
-    // ✅ INSTANT UPDATE: Snapshot the previous value
-    const previousTickets = queryClient.getQueryData(["tickets"]);
-    
-    // ✅ INSTANT UPDATE: Optimistically update the cache
-    queryClient.setQueryData(["tickets"], (old: any) => {
-      if (!old) return old;
-      return old.map((ticket: any) => 
-        ticket.id === ticketId 
-          ? { ...ticket, ...updates }
-          : ticket
-      );
-    });
-    
-    toast.success("Updated successfully");
-    
-    // Return context with previous value
-    return { previousTickets };
-  },
-  onError: (err, updates, context) => {
-    // ✅ Rollback on error
-    if (context?.previousTickets) {
-      queryClient.setQueryData(["tickets"], context.previousTickets);
-    }
-    toast.error("Failed to update");
-  },
-  onSettled: () => {
-    // ✅ Always refetch after mutation (success or error) to sync with backend
-    queryClient.invalidateQueries({ queryKey: ["tickets"] });
-    onUpdate?.();
-  },
-});
-
-// Replace handleToggleTag (around line 130) with this:
-const handleToggleTag = async (tagName: string) => {
-  if (!opportunity?.contactId) {
-    toast.error("Contact ID not available");
-    return;
-  }
-
-  const currentTags = opportunity?.tags || [];
-  const newTags = currentTags.includes(tagName)
-    ? currentTags.filter((tag: string) => tag !== tagName)
-    : [...currentTags, tagName];
-  
-  setSavingTagId(tagName);
-  
-  // ✅ INSTANT UPDATE: Update cache immediately
-  await queryClient.cancelQueries({ queryKey: ["tickets"] });
-  queryClient.setQueryData(["tickets"], (old: any) => {
-    if (!old) return old;
-    return old.map((ticket: any) => 
-      ticket.id === ticketId 
-        ? { ...ticket, tags: newTags }
-        : ticket
-    );
+  // ✅ OPTIMISTIC UPDATE: Instant UI updates
+  const updateMutation = useMutation({
+    mutationFn: (updates: Partial<Ticket>) => updateTicket(ticketId, updates),
+    onMutate: async (updates) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["tickets"] });
+      
+      // Snapshot the previous value
+      const previousTickets = queryClient.getQueryData(["tickets"]);
+      
+      // Optimistically update the cache INSTANTLY
+      queryClient.setQueryData(["tickets"], (old: any) => {
+        if (!old) return old;
+        return old.map((ticket: any) => 
+          ticket.id === ticketId 
+            ? { ...ticket, customFields: ticket.customFields?.map((field: any) => {
+                if (updates.description && field.id === CUSTOM_FIELD_IDS.DESCRIPTION) {
+                  return { ...field, fieldValueString: updates.description, value: updates.description };
+                }
+                if (updates.resolutionSummary && field.id === CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY) {
+                  return { ...field, fieldValueString: updates.resolutionSummary, value: updates.resolutionSummary };
+                }
+                return field;
+              }), ...updates }
+            : ticket
+        );
+      });
+      
+      toast.success("Updated successfully");
+      
+      return { previousTickets };
+    },
+    onError: (err, updates, context) => {
+      // Rollback on error
+      if (context?.previousTickets) {
+        queryClient.setQueryData(["tickets"], context.previousTickets);
+      }
+      toast.error("Failed to update");
+    },
+    onSettled: () => {
+      // Always refetch after mutation to sync with backend
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      onUpdate?.();
+    },
   });
-  
-  try {
-    console.log('💾 Saving tags to backend:', newTags);
-    await updateContactTags(opportunity.contactId, newTags);
-    toast.success(currentTags.includes(tagName) ? "Tag removed" : "Tag added");
-    setTagsOpen(false);
-  } catch (error) {
-    console.error('Failed to update tags:', error);
-    toast.error("Failed to update tags");
-    // Refetch on error to revert
-    queryClient.invalidateQueries({ queryKey: ["tickets"] });
-  } finally {
-    setSavingTagId(null);
-    queryClient.invalidateQueries({ queryKey: ["tickets"] });
-    onUpdate?.();
-  }
-};
-
-// Replace handleRemoveTag (around line 165) with this:
-const handleRemoveTag = async (tagName: string) => {
-  if (!opportunity?.contactId) return;
-  
-  const currentTags = opportunity?.tags || [];
-  const newTags = currentTags.filter((tag: string) => tag !== tagName);
-  
-  setSavingTagId(tagName);
-  
-  // ✅ INSTANT UPDATE: Update cache immediately
-  await queryClient.cancelQueries({ queryKey: ["tickets"] });
-  queryClient.setQueryData(["tickets"], (old: any) => {
-    if (!old) return old;
-    return old.map((ticket: any) => 
-      ticket.id === ticketId 
-        ? { ...ticket, tags: newTags }
-        : ticket
-    );
-  });
-  
-  try {
-    console.log('💾 Removing tag from backend:', tagName);
-    await updateContactTags(opportunity.contactId, newTags);
-    toast.success("Tag removed");
-  } catch (error) {
-    console.error('Failed to remove tag:', error);
-    toast.error("Failed to remove tag");
-    // Refetch on error to revert
-    queryClient.invalidateQueries({ queryKey: ["tickets"] });
-  } finally {
-    setSavingTagId(null);
-    queryClient.invalidateQueries({ queryKey: ["tickets"] });
-    onUpdate?.();
-  }
-};
 
   const handleSaveDescription = async () => {
     try {
@@ -242,24 +169,31 @@ const handleRemoveTag = async (tagName: string) => {
     
     setSavingTagId(tagName);
     
+    // ✅ INSTANT UPDATE: Update cache immediately
+    await queryClient.cancelQueries({ queryKey: ["tickets"] });
+    queryClient.setQueryData(["tickets"], (old: any) => {
+      if (!old) return old;
+      return old.map((ticket: any) => 
+        ticket.id === ticketId 
+          ? { ...ticket, tags: newTags }
+          : ticket
+      );
+    });
+    
     try {
-      console.log('💾 Auto-saving tags:', newTags);
+      console.log('💾 Saving tags to backend:', newTags);
       await updateContactTags(opportunity.contactId, newTags);
       toast.success(currentTags.includes(tagName) ? "Tag removed" : "Tag added");
-      
-      // ✅ FIXED: Invalidate ALL related queries
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      queryClient.invalidateQueries({ queryKey: ["opportunity", ticketId] });
-      queryClient.invalidateQueries({ queryKey: ["contact", opportunity.contactId] });
-      
-      onUpdate?.();
-      setTagsOpen(false); // Close dropdown after adding
+      setTagsOpen(false);
     } catch (error) {
       console.error('Failed to update tags:', error);
       toast.error("Failed to update tags");
+      // Refetch on error to revert
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
     } finally {
       setSavingTagId(null);
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      onUpdate?.();
     }
   };
 
@@ -271,23 +205,30 @@ const handleRemoveTag = async (tagName: string) => {
     
     setSavingTagId(tagName);
     
+    // ✅ INSTANT UPDATE: Update cache immediately
+    await queryClient.cancelQueries({ queryKey: ["tickets"] });
+    queryClient.setQueryData(["tickets"], (old: any) => {
+      if (!old) return old;
+      return old.map((ticket: any) => 
+        ticket.id === ticketId 
+          ? { ...ticket, tags: newTags }
+          : ticket
+      );
+    });
+    
     try {
-      console.log('💾 Auto-removing tag:', tagName);
+      console.log('💾 Removing tag from backend:', tagName);
       await updateContactTags(opportunity.contactId, newTags);
       toast.success("Tag removed");
-      
-      // ✅ FIXED: Invalidate ALL related queries
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      queryClient.invalidateQueries({ queryKey: ["opportunity", ticketId] });
-      queryClient.invalidateQueries({ queryKey: ["contact", opportunity.contactId] });
-      
-      onUpdate?.();
     } catch (error) {
       console.error('Failed to remove tag:', error);
       toast.error("Failed to remove tag");
+      // Refetch on error to revert
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
     } finally {
       setSavingTagId(null);
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      onUpdate?.();
     }
   };
 
