@@ -224,6 +224,7 @@ export default function IntercomChatView({
   const [macros, setMacros] = useState<any[]>([]);
   const [macrosLoading, setMacrosLoading] = useState(false);
   const [macroLoadProgress, setMacroLoadProgress] = useState({ current: 0, total: 0 });
+  const [macroSearch, setMacroSearch] = useState('');
   
   // Dropdown states
   const [currentStage, setCurrentStage] = useState(currentStageId || PIPELINE_STAGES.OPEN);
@@ -1385,54 +1386,131 @@ export default function IntercomChatView({
                   {isNote ? 'Internal Note' : 'Reply'}
                 </Button>
                 
-                {/* Quick Replies Dropdown */}
-                {macros.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-2 h-7 text-xs">
-                        💬 Quick Replies ({macros.length})
-                        {macrosLoading && <Loader2 className="h-3 w-3 animate-spin" />}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64 max-h-96 overflow-y-auto">
-                      <DropdownMenuLabel className="flex items-center justify-between">
-                        <span>Quick Replies</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRefreshMacros();
-                          }}
-                          disabled={macrosLoading}
-                          className="h-6 w-6 p-0"
-                        >
-                          <RefreshCw className={`h-3 w-3 ${macrosLoading ? 'animate-spin' : ''}`} />
-                        </Button>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {macros.map((macro) => (
-                        <DropdownMenuItem
-                          key={macro.id}
-                          onClick={() => macro.bodyPlain && setMessage(macro.bodyPlain)}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium text-sm">{macro.name}</span>
-                            <span className="text-xs text-muted-foreground line-clamp-2">
-                              {macro.bodyPlain ? macro.bodyPlain.substring(0, 100) + "..." : "No preview"}
-                            </span>
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-              <div className="text-[10px] text-gray-400">
-                <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-[9px]">⌘</kbd>+<kbd className="px-1 py-0.5 bg-gray-100 border rounded text-[9px]">↵</kbd>
-              </div>
+                {/* Quick Replies Dropdown - WITH SEARCH */}
+{macros.length > 0 || macrosLoading ? (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="outline" size="sm" className="gap-2 h-7 text-xs">
+        {macrosLoading ? (
+          <>
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Loading {macroLoadProgress.current}/{macroLoadProgress.total}
+          </>
+        ) : (
+          <>
+            💬 Quick Replies ({macros.length})
+          </>
+        )}
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-80 p-0">
+      {macrosLoading ? (
+        <div className="p-4 text-center space-y-2">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto text-indigo-500" />
+          <p className="text-sm font-medium">Loading macros...</p>
+          <p className="text-xs text-muted-foreground">
+            {macroLoadProgress.current}/{macroLoadProgress.total}
+          </p>
+          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+            <div 
+              className="bg-indigo-500 h-full transition-all duration-300"
+              style={{ 
+                width: `${(macroLoadProgress.current / macroLoadProgress.total) * 100}%` 
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Search Header - Sticky */}
+          <div className="sticky top-0 z-10 bg-white border-b p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <DropdownMenuLabel className="p-0 m-0">Quick Replies</DropdownMenuLabel>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRefreshMacros();
+                }}
+                disabled={macrosLoading}
+                className="h-6 w-6 p-0"
+              >
+                <RefreshCw className={`h-3 w-3 ${macrosLoading ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
+            
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <input
+                type="text"
+                value={macroSearch}
+                onChange={(e) => setMacroSearch(e.target.value)}
+                placeholder="Search macros..."
+                className="w-full pl-8 pr-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                autoFocus
+              />
+            </div>
+            
+            {/* Results Count */}
+            {macroSearch && (
+              <p className="text-xs text-muted-foreground">
+                Showing {macros.filter(m => 
+                  m.name.toLowerCase().includes(macroSearch.toLowerCase()) ||
+                  m.bodyPlain?.toLowerCase().includes(macroSearch.toLowerCase())
+                ).length} of {macros.length}
+              </p>
+            )}
+          </div>
+
+          {/* Scrollable Macro List */}
+          <div className="max-h-96 overflow-y-auto">
+            {macros
+              .filter(m => 
+                !macroSearch || 
+                m.name.toLowerCase().includes(macroSearch.toLowerCase()) ||
+                m.bodyPlain?.toLowerCase().includes(macroSearch.toLowerCase())
+              )
+              .map((macro) => (
+                <DropdownMenuItem
+                  key={macro.id}
+                  onClick={() => {
+                    if (macro.bodyPlain) {
+                      setMessage(macro.bodyPlain);
+                      setMacroSearch(''); // Clear search after selection
+                    }
+                  }}
+                  className="cursor-pointer px-3 py-2 focus:bg-indigo-50"
+                >
+                  <div className="flex flex-col gap-1 w-full">
+                    <span className="font-medium text-sm">{macro.name}</span>
+                    {macro.bodyPlain && (
+                      <span className="text-xs text-muted-foreground line-clamp-2">
+                        {macro.bodyPlain.substring(0, 100)}...
+                      </span>
+                    )}
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            
+            {/* No Results */}
+            {macroSearch && macros.filter(m => 
+              m.name.toLowerCase().includes(macroSearch.toLowerCase()) ||
+              m.bodyPlain?.toLowerCase().includes(macroSearch.toLowerCase())
+            ).length === 0 && (
+              <div className="p-8 text-center">
+                <Search className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No macros found</p>
+                <p className="text-xs text-gray-400 mt-1">Try a different search term</p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </DropdownMenuContent>
+  </DropdownMenu>
+) : null}
 
             {/* Image Previews */}
             {imagePreviewUrls.length > 0 && (
