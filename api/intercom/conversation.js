@@ -325,60 +325,201 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   
-  const { conversationId, fetchMacros } = req.query;
+  const { conversationId, fetchMacros, macroId } = req.query;
   
-  console.log('📝 Query params:', { conversationId, fetchMacros });
+  console.log('📝 Query params:', { conversationId, fetchMacros, macroId });
   console.log('🔑 Token exists:', !!INTERCOM_TOKEN);
   
   try {
     // ========================================
-    // CASE 1: Fetch MACROS (NEW!)
+    // CASE 1: Fetch MACROS (list or individual)
     // ========================================
     if (fetchMacros === 'true') {
-      console.log('💬 Fetching Intercom macros...');
       
-      const response = await fetch('https://api.intercom.io/macros?per_page=150', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${INTERCOM_TOKEN}`,
-          'Accept': 'application/json',
-          'Intercom-Version': 'Unstable'
-        }
-      });
+      // INDIVIDUAL MACRO (with full body)
+      if (macroId) {
+        console.log('🚨🚨🚨 FETCHING INDIVIDUAL MACRO START 🚨🚨🚨');
+        console.log('📝 Macro ID:', macroId);
+        console.log('🔑 Has INTERCOM_TOKEN:', !!INTERCOM_TOKEN);
+        console.log('🔑 Token length:', INTERCOM_TOKEN?.length);
+        
+        const macroStartTime = Date.now();
+        
+        try {
+          const response = await fetch(`https://api.intercom.io/macros/${macroId}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${INTERCOM_TOKEN}`,
+              'Accept': 'application/json',
+              'Intercom-Version': 'Unstable'
+            }
+          });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Intercom API error:', errorText);
-        return res.status(response.status).json({ 
-          error: 'Failed to fetch macros from Intercom',
-          details: errorText 
+          const fetchTime = Date.now() - macroStartTime;
+          console.log(`⏱️ Intercom API responded in ${fetchTime}ms`);
+          console.log('📊 Response status:', response.status);
+          console.log('📊 Response ok:', response.ok);
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌❌❌ INTERCOM API ERROR START ❌❌❌');
+            console.error('❌ Status:', response.status);
+            console.error('❌ Status Text:', response.statusText);
+            console.error('❌ Error Body:', errorText);
+            console.error('❌❌❌ INTERCOM API ERROR END ❌❌❌');
+            return res.status(response.status).json({ 
+              error: 'Failed to fetch macro from Intercom',
+              details: errorText 
+            });
+          }
+
+          const data = await response.json();
+          const totalTime = Date.now() - macroStartTime;
+          
+          console.log('🚨🚨🚨 FULL MACRO OBJECT START 🚨🚨🚨');
+          console.log(JSON.stringify(data, null, 2));
+          console.log('🚨🚨🚨 FULL MACRO OBJECT END 🚨🚨🚨');
+          
+          console.log('✅✅✅ MACRO FETCH SUCCESS:');
+          console.log('  📝 Macro ID:', data.id);
+          console.log('  📝 Macro Name:', data.name);
+          console.log('  📝 Body Text Length:', data.body_text?.length || 0);
+          console.log('  📝 Body HTML Length:', data.body_html?.length || 0);
+          console.log('  📝 Created At:', data.created_at);
+          console.log('  📝 Updated At:', data.updated_at);
+          console.log('  ⏱️ Total fetch time:', totalTime, 'ms');
+
+          return res.status(200).json({
+            success: true,
+            macro: {
+              id: data.id,
+              name: data.name,
+              bodyPlain: data.body_text,
+              bodyHtml: data.body_html,
+              createdAt: data.created_at,
+              updatedAt: data.updated_at
+            }
+          });
+          
+        } catch (error) {
+          console.error('❌❌❌ ERROR FETCHING INDIVIDUAL MACRO ❌❌❌');
+          console.error('❌ Macro ID:', macroId);
+          console.error('❌ Error message:', error.message);
+          console.error('❌ Error stack:', error.stack);
+          return res.status(500).json({
+            error: 'Failed to fetch macro',
+            details: error.message
+          });
+        }
+      }
+      
+      // LIST OF ALL MACROS (names only)
+      console.log('🚨🚨🚨 FETCHING MACRO LIST START 🚨🚨🚨');
+      console.log('🔑 Has INTERCOM_TOKEN:', !!INTERCOM_TOKEN);
+      console.log('🔑 Token length:', INTERCOM_TOKEN?.length);
+      
+      const listStartTime = Date.now();
+      
+      try {
+        const response = await fetch('https://api.intercom.io/macros?per_page=150', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${INTERCOM_TOKEN}`,
+            'Accept': 'application/json',
+            'Intercom-Version': 'Unstable'
+          }
+        });
+
+        const fetchTime = Date.now() - listStartTime;
+        console.log(`⏱️ Intercom API responded in ${fetchTime}ms`);
+        console.log('📊 Response status:', response.status);
+        console.log('📊 Response ok:', response.ok);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌❌❌ INTERCOM API ERROR START ❌❌❌');
+          console.error('❌ Status:', response.status);
+          console.error('❌ Status Text:', response.statusText);
+          console.error('❌ Error Body:', errorText);
+          console.error('❌❌❌ INTERCOM API ERROR END ❌❌❌');
+          return res.status(response.status).json({ 
+            error: 'Failed to fetch macros from Intercom',
+            details: errorText 
+          });
+        }
+
+        const data = await response.json();
+        const parseTime = Date.now() - listStartTime;
+        console.log(`⏱️ Parsed response in ${parseTime}ms`);
+        
+        console.log('🚨🚨🚨 FULL MACRO LIST RESPONSE START 🚨🚨🚨');
+        console.log('📊 Raw data.data length:', data.data?.length);
+        console.log('📊 Full response structure:', JSON.stringify({
+          type: data.type,
+          total_count: data.total_count,
+          data_length: data.data?.length,
+          pages: data.pages
+        }, null, 2));
+        console.log('🚨🚨🚨 FULL MACRO LIST RESPONSE END 🚨🚨🚨');
+        
+        // Log first 3 macros for debugging
+        if (data.data?.length > 0) {
+          console.log('📋 SAMPLE MACROS (first 3):');
+          data.data.slice(0, 3).forEach((macro, index) => {
+            console.log(`  ${index + 1}. ${macro.name} (ID: ${macro.id})`);
+            console.log(`     - body_text: ${macro.body_text?.substring(0, 50) || 'N/A'}...`);
+            console.log(`     - body_html: ${macro.body_html?.substring(0, 50) || 'N/A'}...`);
+          });
+        }
+        
+        const transformStart = Date.now();
+        
+        // Extract and format macros
+        const macros = data.data.map(macro => ({
+          id: macro.id,
+          name: macro.name,
+          bodyPlain: macro.body_text,
+          bodyHtml: macro.body_html,
+          createdAt: macro.created_at,
+          updatedAt: macro.updated_at
+        }));
+
+        console.log('📝 Macros BEFORE sorting:', macros.slice(0, 3).map(m => m.name));
+
+        // Sort by name for easier browsing
+        macros.sort((a, b) => a.name.localeCompare(b.name));
+
+        console.log('📝 Macros AFTER sorting:', macros.slice(0, 3).map(m => m.name));
+        
+        const transformTime = Date.now() - transformStart;
+        const totalTime = Date.now() - listStartTime;
+
+        console.log('✅✅✅ MACRO LIST FETCH SUCCESS:');
+        console.log('  📊 Total macros fetched:', macros.length);
+        console.log('  📊 Macros with body_text:', macros.filter(m => m.bodyPlain).length);
+        console.log('  📊 Macros with body_html:', macros.filter(m => m.bodyHtml).length);
+        console.log('  📊 Macros without body:', macros.filter(m => !m.bodyPlain && !m.bodyHtml).length);
+        console.log('  ⏱️ Transform time:', transformTime, 'ms');
+        console.log('  ⏱️ Total time:', totalTime, 'ms');
+        console.log('  📅 Last updated:', macros.length > 0 ? macros[0].updatedAt : 'N/A');
+
+        return res.status(200).json({
+          success: true,
+          macros,
+          count: macros.length,
+          lastUpdated: macros.length > 0 ? macros[0].updatedAt : null,
+          fetchedAt: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('❌❌❌ ERROR FETCHING MACRO LIST ❌❌❌');
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error stack:', error.stack);
+        return res.status(500).json({
+          error: 'Failed to fetch macros',
+          details: error.message
         });
       }
-
-      const data = await response.json();
-      
-      // Extract and format macros
-      const macros = data.data.map(macro => ({
-        id: macro.id,
-        name: macro.name,
-        bodyPlain: macro.body_plain,
-        bodyHtml: macro.body_html,
-        createdAt: macro.created_at,
-        updatedAt: macro.updated_at
-      }));
-
-      // Sort by name for easier browsing
-      macros.sort((a, b) => a.name.localeCompare(b.name));
-
-      console.log(`✅ Fetched ${macros.length} macros`);
-
-      return res.status(200).json({
-        success: true,
-        macros,
-        count: macros.length,
-        lastUpdated: macros.length > 0 ? macros[0].updatedAt : null,
-        fetchedAt: new Date().toISOString()
-      });
     }
     
     // ========================================
