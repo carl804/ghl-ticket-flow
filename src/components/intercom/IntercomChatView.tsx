@@ -1444,13 +1444,15 @@ export default function IntercomChatView({
                             <div className="relative">
                               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                               <input
-  type="text"
-  value={macroSearch}
-  onChange={(e) => setMacroSearch(e.target.value)}
-  placeholder="Search macros..."
-  className="w-full pl-8 pr-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-  autoFocus
-/>
+                              type="text"
+                              value={macroSearch}
+                              onChange={(e) => setMacroSearch(e.target.value)}
+                              onKeyDown={(e) => e.stopPropagation()} // CRITICAL: Prevent dropdown from capturing keys
+                              onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing
+                              placeholder="Search macros..."
+                              className="w-full pl-8 pr-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              autoFocus
+                            />
                             </div>
                             
                             {/* Results Count */}
