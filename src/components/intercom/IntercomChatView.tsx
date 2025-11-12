@@ -105,6 +105,12 @@ const AGENT_LIST = [
   { name: 'Mark', fullName: 'Mark Helton', intercomId: '1755792' },
 ];
 
+// Helper function to check if ticket is assigned to current user
+const isAssignedToMe = (owner: string | undefined, currentAgent: { name: string; fullName: string } | null) => {
+  if (!owner || !currentAgent) return false;
+  return owner === currentAgent.name || owner === currentAgent.fullName;
+};
+
 // Snooze options helper
 function getSnoozeOptions() {
   const now = new Date();
@@ -274,113 +280,113 @@ export default function IntercomChatView({
 
   // Fetch macros with smart caching
   useEffect(() => {
-  const fetchMacros = async () => {
-    const CACHE_KEY = 'intercom_macros_cache';
-    const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+    const fetchMacros = async () => {
+      const CACHE_KEY = 'intercom_macros_cache';
+      const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-    // Check cache first
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      try {
-        const { macros: cachedMacros, fetchedAt } = JSON.parse(cached);
-        const age = Date.now() - new Date(fetchedAt).getTime();
-        
-        // Use cache if less than 24 hours old
-        if (age < CACHE_DURATION) {
-          setMacros(cachedMacros);
-          console.log('✅ Loaded', cachedMacros.length, 'macros from cache (age:', Math.round(age / 1000 / 60), 'minutes)');
-          return;
-        } else {
-          console.log('⏰ Cache expired (age:', Math.round(age / 1000 / 60 / 60), 'hours)');
+      // Check cache first
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          const { macros: cachedMacros, fetchedAt } = JSON.parse(cached);
+          const age = Date.now() - new Date(fetchedAt).getTime();
+          
+          // Use cache if less than 24 hours old
+          if (age < CACHE_DURATION) {
+            setMacros(cachedMacros);
+            console.log('✅ Loaded', cachedMacros.length, 'macros from cache (age:', Math.round(age / 1000 / 60), 'minutes)');
+            return;
+          } else {
+            console.log('⏰ Cache expired (age:', Math.round(age / 1000 / 60 / 60), 'hours)');
+          }
+        } catch (e) {
+          console.error('Failed to parse cached macros:', e);
         }
-      } catch (e) {
-        console.error('Failed to parse cached macros:', e);
-      }
-    }
-
-    // Fetch fresh macros with full bodies
-    console.log('🚀 Starting fresh macro fetch...');
-    setMacrosLoading(true);
-    
-    try {
-      // Step 1: Fetch the list (just IDs and names)
-      console.log('📋 Step 1: Fetching macro list...');
-      const listResponse = await fetch('/api/intercom/conversation?fetchMacros=true');
-      if (!listResponse.ok) {
-        throw new Error('Failed to fetch macro list');
-      }
-      
-      const listData = await listResponse.json();
-      const macroList: Macro[] = listData.macros || [];
-      console.log(`✅ Got ${macroList.length} macros in list`);
-      
-      if (macroList.length === 0) {
-        setMacros([]);
-        setMacrosLoading(false);
-        return;
       }
 
-      // Step 2: Batch-fetch all individual macros with full bodies
-      console.log('📦 Step 2: Batch-fetching individual macros...');
-      const BATCH_SIZE = 25;
-      const allMacrosWithBodies = [];
+      // Fetch fresh macros with full bodies
+      console.log('🚀 Starting fresh macro fetch...');
+      setMacrosLoading(true);
       
-      setMacroLoadProgress({ current: 0, total: macroList.length });
-      
-      for (let i = 0; i < macroList.length; i += BATCH_SIZE) {
-        const batch = macroList.slice(i, i + BATCH_SIZE);
-        console.log(`📦 Fetching batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(macroList.length / BATCH_SIZE)} (${batch.length} macros)...`);
+      try {
+        // Step 1: Fetch the list (just IDs and names)
+        console.log('📋 Step 1: Fetching macro list...');
+        const listResponse = await fetch('/api/intercom/conversation?fetchMacros=true');
+        if (!listResponse.ok) {
+          throw new Error('Failed to fetch macro list');
+        }
         
-        // Fetch batch in parallel
-        const batchResults = await Promise.all(
-          batch.map(async (macro) => {
-            try {
-              const response = await fetch(`/api/intercom/conversation?fetchMacros=true&macroId=${macro.id}`);
-              if (response.ok) {
-                const data = await response.json();
-                return data.macro;
-              } else {
-                console.error(`Failed to fetch macro ${macro.id}`);
+        const listData = await listResponse.json();
+        const macroList: Macro[] = listData.macros || [];
+        console.log(`✅ Got ${macroList.length} macros in list`);
+        
+        if (macroList.length === 0) {
+          setMacros([]);
+          setMacrosLoading(false);
+          return;
+        }
+
+        // Step 2: Batch-fetch all individual macros with full bodies
+        console.log('📦 Step 2: Batch-fetching individual macros...');
+        const BATCH_SIZE = 25;
+        const allMacrosWithBodies = [];
+        
+        setMacroLoadProgress({ current: 0, total: macroList.length });
+        
+        for (let i = 0; i < macroList.length; i += BATCH_SIZE) {
+          const batch = macroList.slice(i, i + BATCH_SIZE);
+          console.log(`📦 Fetching batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(macroList.length / BATCH_SIZE)} (${batch.length} macros)...`);
+          
+          // Fetch batch in parallel
+          const batchResults = await Promise.all(
+            batch.map(async (macro) => {
+              try {
+                const response = await fetch(`/api/intercom/conversation?fetchMacros=true&macroId=${macro.id}`);
+                if (response.ok) {
+                  const data = await response.json();
+                  return data.macro;
+                } else {
+                  console.error(`Failed to fetch macro ${macro.id}`);
+                  return { ...macro, bodyPlain: 'Failed to load', bodyHtml: 'Failed to load' };
+                }
+              } catch (err) {
+                console.error(`Error fetching macro ${macro.id}:`, err);
                 return { ...macro, bodyPlain: 'Failed to load', bodyHtml: 'Failed to load' };
               }
-            } catch (err) {
-              console.error(`Error fetching macro ${macro.id}:`, err);
-              return { ...macro, bodyPlain: 'Failed to load', bodyHtml: 'Failed to load' };
-            }
-          })
-        );
+            })
+          );
+          
+          allMacrosWithBodies.push(...batchResults);
+          
+          // Update progress
+          const currentProgress = Math.min(i + BATCH_SIZE, macroList.length);
+          setMacroLoadProgress({ current: currentProgress, total: macroList.length });
+          console.log(`✅ Progress: ${currentProgress}/${macroList.length} macros loaded`);
+        }
+
+        console.log(`✅ Successfully loaded ${allMacrosWithBodies.length} macros with full bodies`);
+        console.log(`📊 Macros with content: ${allMacrosWithBodies.filter(m => m.bodyPlain && m.bodyPlain !== 'Failed to load').length}`);
         
-        allMacrosWithBodies.push(...batchResults);
+        setMacros(allMacrosWithBodies);
         
-        // Update progress
-        const currentProgress = Math.min(i + BATCH_SIZE, macroList.length);
-        setMacroLoadProgress({ current: currentProgress, total: macroList.length });
-        console.log(`✅ Progress: ${currentProgress}/${macroList.length} macros loaded`);
+        // Cache the results
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          macros: allMacrosWithBodies,
+          fetchedAt: new Date().toISOString()
+        }));
+        console.log('💾 Cached macros for 24 hours');
+        
+      } catch (error) {
+        console.error('❌ Failed to fetch macros:', error);
+        toast.error('Failed to load Quick Replies');
+      } finally {
+        setMacrosLoading(false);
+        setMacroLoadProgress({ current: 0, total: 0 });
       }
+    };
 
-      console.log(`✅ Successfully loaded ${allMacrosWithBodies.length} macros with full bodies`);
-      console.log(`📊 Macros with content: ${allMacrosWithBodies.filter(m => m.bodyPlain && m.bodyPlain !== 'Failed to load').length}`);
-      
-      setMacros(allMacrosWithBodies);
-      
-      // Cache the results
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        macros: allMacrosWithBodies,
-        fetchedAt: new Date().toISOString()
-      }));
-      console.log('💾 Cached macros for 24 hours');
-      
-    } catch (error) {
-      console.error('❌ Failed to fetch macros:', error);
-      toast.error('Failed to load Quick Replies');
-    } finally {
-      setMacrosLoading(false);
-      setMacroLoadProgress({ current: 0, total: 0 });
-    }
-  };
-
-  fetchMacros();
-}, []);
+    fetchMacros();
+  }, []);
 
   // Update GHL ticket field
   const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'description' | 'resolutionSummary', value: string) => {
@@ -435,7 +441,7 @@ export default function IntercomChatView({
         throw new Error(responseData.message || responseData.error || 'Failed to update ticket');
       }
       
-      console.log('✅ Updated ${field} successfully');
+      console.log(`✅ Updated ${field} successfully`);
       console.log('📦 Response data:', responseData);
       toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
       
@@ -632,6 +638,8 @@ export default function IntercomChatView({
       });
 
       if (!intercomResponse.ok) throw new Error('Failed to assign in Intercom');
+      
+      const result = await intercomResponse.json();
 
       await fetch('/api/intercom/actions', {
         method: 'POST',
@@ -639,7 +647,7 @@ export default function IntercomChatView({
         body: JSON.stringify({
           conversationId,
           action: 'reply',
-          message: `Assigned to ${selectedAgent.name}`,
+          message: `Assigned to ${selectedAgent.name}${result.reopened ? ' (conversation reopened)' : ''}`,
           isNote: true,
           agentName: selectedAgent.name,
           intercomAdminId: selectedAgent.intercomId,
@@ -647,10 +655,13 @@ export default function IntercomChatView({
       }).catch(err => console.error('Failed to add audit log:', err));
 
       if (onAssignmentChange) onAssignmentChange(selectedAgent.name);
-      return intercomResponse.json();
+      return result;
     },
-    onSuccess: () => {
-      toast.success(`Assigned to ${selectedAgent?.name}`);
+    onSuccess: (data) => {
+      const message = data.reopened 
+        ? `Assigned to ${selectedAgent?.name} (conversation reopened)` 
+        : `Assigned to ${selectedAgent?.name}`;
+      toast.success(message);
       queryClient.invalidateQueries({ queryKey: ['intercom-conversation', conversationId] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
     },
@@ -1282,13 +1293,13 @@ export default function IntercomChatView({
             </div>
           </div>
 
-          {/* Assignment Alert - Compact */}
+          {/* Assignment Alerts - Shows different states */}
           {!isAssigned && (
             <div className="px-4 pb-2">
               <Alert className="bg-amber-50 border-amber-200 py-2">
                 <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
                 <AlertDescription className="flex items-center justify-between text-amber-800 text-xs">
-                  <span>Assign ticket to reply</span>
+                  <span>Assign ticket to reply to customers</span>
                   <Button
                     size="sm"
                     onClick={() => assignMutation.mutate()}
@@ -1296,7 +1307,28 @@ export default function IntercomChatView({
                     className="ml-3 bg-amber-600 hover:bg-amber-700 gap-1.5 h-6 px-2 text-xs"
                   >
                     {assignMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
-                    Assign
+                    Assign to me
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          {/* Reassign Alert - Shows when assigned to someone else */}
+          {isAssigned && !isAssignedToMe(intercomTicketOwner, selectedAgent) && (
+            <div className="px-4 pb-2">
+              <Alert className="bg-blue-50 border-blue-200 py-2">
+                <Info className="h-3.5 w-3.5 text-blue-600" />
+                <AlertDescription className="flex items-center justify-between text-blue-800 text-xs">
+                  <span>Currently assigned to {intercomTicketOwner}. Take over this ticket?</span>
+                  <Button
+                    size="sm"
+                    onClick={() => assignMutation.mutate()}
+                    disabled={assignMutation.isPending || !selectedAgent}
+                    className="ml-3 bg-blue-600 hover:bg-blue-700 gap-1.5 h-6 px-2 text-xs"
+                  >
+                    {assignMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                    Reassign to me
                   </Button>
                 </AlertDescription>
               </Alert>

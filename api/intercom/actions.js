@@ -164,11 +164,59 @@ export default async function handler(req, res) {
       });
     }
 
-    // ROUTE 4: Assign conversation
+    // ROUTE 4: Assign conversation (with reopen if closed)
     if (action === 'assign') {
       console.log(`🔄 Assigning conversation ${conversationId} to ${agentName}`);
       
-      // Assign conversation to admin in Intercom
+      // Step 1: Check if conversation is closed - if so, reopen it first
+      const checkResponse = await fetch(
+        `https://api.intercom.io/conversations/${conversationId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${INTERCOM_TOKEN}`,
+            'Accept': 'application/json',
+            'Intercom-Version': '2.11'
+          }
+        }
+      );
+
+      if (!checkResponse.ok) {
+        throw new Error('Failed to fetch conversation state');
+      }
+
+      const conversationData = await checkResponse.json();
+      const isClosed = conversationData.state === 'closed';
+
+      if (isClosed) {
+        console.log('🔓 Conversation is closed - reopening before assignment...');
+        
+        // Reopen the conversation
+        const reopenResponse = await fetch(
+          `https://api.intercom.io/conversations/${conversationId}`,
+          {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${INTERCOM_TOKEN}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Intercom-Version': '2.11'
+            },
+            body: JSON.stringify({
+              state: 'open'
+            })
+          }
+        );
+
+        if (!reopenResponse.ok) {
+          const errorData = await reopenResponse.json();
+          throw new Error(`Failed to reopen conversation: ${JSON.stringify(errorData)}`);
+        }
+
+        console.log('✅ Conversation reopened');
+      }
+
+      // Step 2: Assign conversation to admin in Intercom
       const assignResponse = await fetch(
         `https://api.intercom.io/conversations/${conversationId}`,
         {
@@ -193,7 +241,7 @@ export default async function handler(req, res) {
       const assignData = await assignResponse.json();
       console.log('✅ Assigned in Intercom');
 
-      // Update GHL opportunity with BOTH owner fields
+      // Step 3: Update GHL opportunity with BOTH owner fields
       if (agentName && GHL_ACCESS_TOKEN) {
         try {
           console.log('🔍 Searching for GHL ticket...');
@@ -266,7 +314,11 @@ export default async function handler(req, res) {
         }
       }
 
-      return res.status(200).json({ success: true, data: assignData });
+      return res.status(200).json({ 
+        success: true, 
+        data: assignData,
+        reopened: isClosed // Let the frontend know if we reopened the conversation
+      });
     }
 
     // Unknown action
