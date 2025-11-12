@@ -223,6 +223,7 @@ export default function IntercomChatView({
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const [macros, setMacros] = useState<any[]>([]);
   const [macrosLoading, setMacrosLoading] = useState(false);
+  const [macroLoadProgress, setMacroLoadProgress] = useState({ current: 0, total: 0 });
   
   // Dropdown states
   const [currentStage, setCurrentStage] = useState(currentStageId || PIPELINE_STAGES.OPEN);
@@ -265,53 +266,113 @@ export default function IntercomChatView({
 
   // Fetch macros with smart caching
   useEffect(() => {
-    const fetchMacros = async () => {
-      const CACHE_KEY = 'intercom_macros_cache';
-      const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+  const fetchMacros = async () => {
+    const CACHE_KEY = 'intercom_macros_cache';
+    const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-      // Check cache first
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        try {
-          const { macros: cachedMacros, fetchedAt } = JSON.parse(cached);
-          const age = Date.now() - new Date(fetchedAt).getTime();
-          
-          // Use cache if less than 24 hours old
-          if (age < CACHE_DURATION) {
-            setMacros(cachedMacros);
-            console.log('✅ Loaded', cachedMacros.length, 'macros from cache');
-            return;
-          }
-        } catch (e) {
-          console.error('Failed to parse cached macros:', e);
-        }
-      }
-
-      // Fetch fresh macros
-      console.log('🔄 Fetching fresh macros from API...');
-      setMacrosLoading(true);
+    // Check cache first
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
       try {
-        const response = await fetch('/api/intercom/conversation?fetchMacros=true');
-        if (response.ok) {
-          const data = await response.json();
-          setMacros(data.macros);
-          console.log('✅ Fetched', data.macros.length, 'macros from API');
-          
-          // Cache the results
-          localStorage.setItem(CACHE_KEY, JSON.stringify({
-            macros: data.macros,
-            fetchedAt: data.fetchedAt
-          }));
+        const { macros: cachedMacros, fetchedAt } = JSON.parse(cached);
+        const age = Date.now() - new Date(fetchedAt).getTime();
+        
+        // Use cache if less than 24 hours old
+        if (age < CACHE_DURATION) {
+          setMacros(cachedMacros);
+          console.log('✅ Loaded', cachedMacros.length, 'macros from cache (age:', Math.round(age / 1000 / 60), 'minutes)');
+          return;
+        } else {
+          console.log('⏰ Cache expired (age:', Math.round(age / 1000 / 60 / 60), 'hours)');
         }
-      } catch (error) {
-        console.error('Failed to fetch macros:', error);
-      } finally {
-        setMacrosLoading(false);
+      } catch (e) {
+        console.error('Failed to parse cached macros:', e);
       }
-    };
+    }
 
-    fetchMacros();
-  }, []);
+    // Fetch fresh macros with full bodies
+    console.log('🚀 Starting fresh macro fetch...');
+    setMacrosLoading(true);
+    
+    try {
+      // Step 1: Fetch the list (just IDs and names)
+      console.log('📋 Step 1: Fetching macro list...');
+      const listResponse = await fetch('/api/intercom/conversation?fetchMacros=true');
+      if (!listResponse.ok) {
+        throw new Error('Failed to fetch macro list');
+      }
+      
+      const listData = await listResponse.json();
+      const macroList = listData.macros || [];
+      console.log(`✅ Got ${macroList.length} macros in list`);
+      
+      if (macroList.length === 0) {
+        setMacros([]);
+        setMacrosLoading(false);
+        return;
+      }
+
+      // Step 2: Batch-fetch all individual macros with full bodies
+      console.log('📦 Step 2: Batch-fetching individual macros...');
+      const BATCH_SIZE = 25;
+      const allMacrosWithBodies = [];
+      
+      setMacroLoadProgress({ current: 0, total: macroList.length });
+      
+      for (let i = 0; i < macroList.length; i += BATCH_SIZE) {
+        const batch = macroList.slice(i, i + BATCH_SIZE);
+        console.log(`📦 Fetching batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(macroList.length / BATCH_SIZE)} (${batch.length} macros)...`);
+        
+        // Fetch batch in parallel
+        const batchResults = await Promise.all(
+          batch.map(async (macro) => {
+            try {
+              const response = await fetch(`/api/intercom/conversation?fetchMacros=true&macroId=${macro.id}`);
+              if (response.ok) {
+                const data = await response.json();
+                return data.macro;
+              } else {
+                console.error(`Failed to fetch macro ${macro.id}`);
+                return { ...macro, bodyPlain: 'Failed to load', bodyHtml: 'Failed to load' };
+              }
+            } catch (err) {
+              console.error(`Error fetching macro ${macro.id}:`, err);
+              return { ...macro, bodyPlain: 'Failed to load', bodyHtml: 'Failed to load' };
+            }
+          })
+        );
+        
+        allMacrosWithBodies.push(...batchResults);
+        
+        // Update progress
+        const currentProgress = Math.min(i + BATCH_SIZE, macroList.length);
+        setMacroLoadProgress({ current: currentProgress, total: macroList.length });
+        console.log(`✅ Progress: ${currentProgress}/${macroList.length} macros loaded`);
+      }
+
+      console.log(`✅ Successfully loaded ${allMacrosWithBodies.length} macros with full bodies`);
+      console.log(`📊 Macros with content: ${allMacrosWithBodies.filter(m => m.bodyPlain && m.bodyPlain !== 'Failed to load').length}`);
+      
+      setMacros(allMacrosWithBodies);
+      
+      // Cache the results
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        macros: allMacrosWithBodies,
+        fetchedAt: new Date().toISOString()
+      }));
+      console.log('💾 Cached macros for 24 hours');
+      
+    } catch (error) {
+      console.error('❌ Failed to fetch macros:', error);
+      toast.error('Failed to load Quick Replies');
+    } finally {
+      setMacrosLoading(false);
+      setMacroLoadProgress({ current: 0, total: 0 });
+    }
+  };
+
+  fetchMacros();
+}, []);
 
   // Update GHL ticket field
   const updateTicketField = async (field: 'stage' | 'priority' | 'category' | 'description' | 'resolutionSummary', value: string) => {
