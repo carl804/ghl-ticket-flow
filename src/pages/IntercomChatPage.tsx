@@ -19,6 +19,7 @@ export default function IntercomChatPage() {
   const { data: tickets = [] } = useQuery({
   queryKey: ["tickets"],
   queryFn: fetchTickets,
+  refetchInterval: 2000, // ✅ Auto-refresh every 2 seconds
   });
 
   // ✅ ADDED: Find the ticket that matches this conversation
@@ -151,8 +152,6 @@ export default function IntercomChatPage() {
 
         {/* Chat Area */}
         <div className="flex-1 overflow-hidden">
-          // Find this section in IntercomChatPage.tsx (around line 140-150)
-// Replace the <IntercomChatView /> component with this:
 
             <IntercomChatView
             conversationId={conversationId}
