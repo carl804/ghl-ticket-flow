@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -78,11 +78,23 @@ export default function TicketDetailsSidebar({
   const [resolution, setResolution] = useState('');
   const [tagSearch, setTagSearch] = useState("");
   const [tagsOpen, setTagsOpen] = useState(false);
+  const [editedTags, setEditedTags] = useState<string[]>([]);
+  const [isSavingTags, setIsSavingTags] = useState(false);
 
   const { data: availableTags = [] } = useQuery({
     queryKey: ["tags"],
     queryFn: fetchTags,
   });
+
+  // Sync tags when contact changes
+  useEffect(() => {
+    if (contact?.tags) {
+      setEditedTags(contact.tags);
+      console.log('📋 Loaded contact tags:', contact.tags);
+    } else {
+      setEditedTags([]);
+    }
+  }, [contact?.id, contact?.tags]);
 
   // Helper to get custom field value - matches api-fixed.ts logic
   const getCustomFieldValue = (fieldId: string): string => {
@@ -120,38 +132,39 @@ export default function TicketDetailsSidebar({
     }
   };
 
-  const handleToggleTag = async (tagName: string) => {
+  const handleToggleTag = (tagName: string) => {
+    const newTags = editedTags.includes(tagName)
+      ? editedTags.filter((tag: string) => tag !== tagName)
+      : [...editedTags, tagName];
+    
+    console.log('🏷️ Toggling tag:', tagName, 'New tags:', newTags);
+    setEditedTags(newTags);
+  };
+
+  const handleRemoveTag = (tagName: string) => {
+    const newTags = editedTags.filter((tag: string) => tag !== tagName);
+    console.log('🗑️ Removing tag:', tagName, 'New tags:', newTags);
+    setEditedTags(newTags);
+  };
+
+  const handleSaveTags = async () => {
     if (!contact?.id) {
       toast.error("Contact ID not available");
       return;
     }
     
-    const currentTags = contact.tags || [];
-    const newTags = currentTags.includes(tagName)
-      ? currentTags.filter((tag: string) => tag !== tagName)
-      : [...currentTags, tagName];
-    
+    setIsSavingTags(true);
     try {
-      await updateContactTags(contact.id, newTags);
+      console.log('💾 Saving tags:', editedTags, 'for contact:', contact.id);
+      await updateContactTags(contact.id, editedTags);
       toast.success("Tags updated");
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
       onUpdate?.();
     } catch (error) {
+      console.error('Failed to update tags:', error);
       toast.error("Failed to update tags");
-    }
-  };
-
-  const handleRemoveTag = async (tagName: string) => {
-    if (!contact?.id) return;
-    
-    const currentTags = contact.tags || [];
-    const newTags = currentTags.filter((tag: string) => tag !== tagName);
-    
-    try {
-      await updateContactTags(contact.id, newTags);
-      toast.success("Tag removed");
-      onUpdate?.();
-    } catch (error) {
-      toast.error("Failed to remove tag");
+    } finally {
+      setIsSavingTags(false);
     }
   };
 
@@ -169,8 +182,9 @@ export default function TicketDetailsSidebar({
   const descriptionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.DESCRIPTION);
   const resolutionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY);
 
-  console.log('🔍 Opportunity data:', opportunity);
-  console.log('🔍 Custom fields:', opportunity?.customFields);
+  console.log('🔍 Contact data:', contact);
+  console.log('🔍 Contact tags:', contact?.tags);
+  console.log('🔍 Edited tags:', editedTags);
 
   return (
     <div className="w-80 border-l bg-white dark:bg-gray-950 overflow-y-auto">
@@ -412,9 +426,9 @@ export default function TicketDetailsSidebar({
           </h3>
           
           {/* Selected Tags */}
-          <div className="flex flex-wrap gap-2 mb-3 min-h-[36px]">
-            {(contact?.tags || []).map((tag: string) => (
-              <Badge key={tag} variant="secondary" className="gap-1 text-xs">
+          <div className="flex flex-wrap gap-2 mb-3 min-h-[36px] p-2 border rounded-md bg-background">
+            {editedTags.map((tag: string) => (
+              <Badge key={tag} variant="secondary" className="gap-1">
                 {tag}
                 <button
                   onClick={() => handleRemoveTag(tag)}
@@ -424,15 +438,15 @@ export default function TicketDetailsSidebar({
                 </button>
               </Badge>
             ))}
-            {(!contact?.tags || contact.tags.length === 0) && (
-              <span className="text-xs text-muted-foreground">No tags assigned</span>
+            {editedTags.length === 0 && (
+              <span className="text-sm text-muted-foreground">No tags assigned</span>
             )}
           </div>
 
           {/* Add Tags Popover */}
           <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full">
+              <Button variant="outline" size="sm" className="w-full mb-2">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Tags
               </Button>
@@ -453,7 +467,7 @@ export default function TicketDetailsSidebar({
                 {filteredAvailableTags.length > 0 ? (
                   <div className="space-y-1">
                     {filteredAvailableTags.map((tag: any) => {
-                      const isSelected = (contact?.tags || []).includes(tag.name);
+                      const isSelected = editedTags.includes(tag.name);
                       return (
                         <div
                           key={tag.id}
@@ -474,6 +488,23 @@ export default function TicketDetailsSidebar({
               </div>
             </PopoverContent>
           </Popover>
+
+          {/* Save Tags Button */}
+          <Button 
+            size="sm" 
+            className="w-full" 
+            onClick={handleSaveTags}
+            disabled={isSavingTags}
+          >
+            {isSavingTags ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Tags'
+            )}
+          </Button>
         </Card>
 
       </div>
