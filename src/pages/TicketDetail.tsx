@@ -98,9 +98,10 @@ export default function TicketDetail() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
 
-  const { data: tickets = [] } = useQuery({
+    const { data: tickets = [] } = useQuery({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
+    refetchInterval: 2000, // ✅ Auto-refresh every 2 seconds
   });
 
   const ticket = tickets.find((t) => t.id === id);
@@ -304,7 +305,7 @@ export default function TicketDetail() {
             conversationId={intercomConversationId}
             opportunity={ticket}
             conversation={conversation}
-            contact={ticket.contact}  // ✅ Use ticket.contact directly
+            contact={contact}
             messages={conversationMessages}
             onUpdate={() => queryClient.invalidateQueries({ queryKey: ["tickets"] })}
           />
