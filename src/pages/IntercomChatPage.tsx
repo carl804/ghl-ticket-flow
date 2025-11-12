@@ -19,7 +19,6 @@ export default function IntercomChatPage() {
   const { data: tickets = [] } = useQuery({
   queryKey: ["tickets"],
   queryFn: fetchTickets,
-  refetchInterval: 2000, // ✅ Auto-refresh every 2 seconds
   });
 
   // ✅ ADDED: Find the ticket that matches this conversation

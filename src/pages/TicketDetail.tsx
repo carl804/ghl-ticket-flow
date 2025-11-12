@@ -101,7 +101,6 @@ export default function TicketDetail() {
     const { data: tickets = [] } = useQuery({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
-    refetchInterval: 2000, // ✅ Auto-refresh every 2 seconds
   });
 
   const ticket = tickets.find((t) => t.id === id);
