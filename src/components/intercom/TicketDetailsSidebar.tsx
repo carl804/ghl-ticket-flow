@@ -78,23 +78,12 @@ export default function TicketDetailsSidebar({
   const [resolution, setResolution] = useState('');
   const [tagSearch, setTagSearch] = useState("");
   const [tagsOpen, setTagsOpen] = useState(false);
-  const [editedTags, setEditedTags] = useState<string[]>([]);
-  const [isSavingTags, setIsSavingTags] = useState(false);
+  const [savingTagId, setSavingTagId] = useState<string | null>(null);
 
   const { data: availableTags = [] } = useQuery({
     queryKey: ["tags"],
     queryFn: fetchTags,
   });
-
-  // Sync tags from opportunity (ticket) - contact tags are merged into ticket
-  useEffect(() => {
-    if (opportunity?.tags && opportunity.tags.length > 0) {
-      setEditedTags(opportunity.tags);
-      console.log('📋 Loaded tags from opportunity:', opportunity.tags);
-    } else {
-      setEditedTags([]);
-    }
-  }, [opportunity?.id, opportunity?.tags]);
 
   // Helper to get custom field value - matches api-fixed.ts logic
   const getCustomFieldValue = (fieldId: string): string => {
@@ -132,39 +121,53 @@ export default function TicketDetailsSidebar({
     }
   };
 
-  const handleToggleTag = (tagName: string) => {
-    const newTags = editedTags.includes(tagName)
-      ? editedTags.filter((tag: string) => tag !== tagName)
-      : [...editedTags, tagName];
-    
-    console.log('🏷️ Toggling tag:', tagName, 'New tags:', newTags);
-    setEditedTags(newTags);
-  };
-
-  const handleRemoveTag = (tagName: string) => {
-    const newTags = editedTags.filter((tag: string) => tag !== tagName);
-    console.log('🗑️ Removing tag:', tagName, 'New tags:', newTags);
-    setEditedTags(newTags);
-  };
-
-  const handleSaveTags = async () => {
+  const handleToggleTag = async (tagName: string) => {
     if (!opportunity?.contactId) {
       toast.error("Contact ID not available");
       return;
     }
+
+    const currentTags = opportunity?.tags || [];
+    const newTags = currentTags.includes(tagName)
+      ? currentTags.filter((tag: string) => tag !== tagName)
+      : [...currentTags, tagName];
     
-    setIsSavingTags(true);
+    setSavingTagId(tagName);
+    
     try {
-      console.log('💾 Saving tags:', editedTags, 'for contact:', opportunity.contactId);
-      await updateContactTags(opportunity.contactId, editedTags);
-      toast.success("Tags updated");
+      console.log('💾 Auto-saving tags:', newTags);
+      await updateContactTags(opportunity.contactId, newTags);
+      toast.success(currentTags.includes(tagName) ? "Tag removed" : "Tag added");
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       onUpdate?.();
+      setTagsOpen(false); // Close dropdown after adding
     } catch (error) {
       console.error('Failed to update tags:', error);
       toast.error("Failed to update tags");
     } finally {
-      setIsSavingTags(false);
+      setSavingTagId(null);
+    }
+  };
+
+  const handleRemoveTag = async (tagName: string) => {
+    if (!opportunity?.contactId) return;
+    
+    const currentTags = opportunity?.tags || [];
+    const newTags = currentTags.filter((tag: string) => tag !== tagName);
+    
+    setSavingTagId(tagName);
+    
+    try {
+      console.log('💾 Auto-removing tag:', tagName);
+      await updateContactTags(opportunity.contactId, newTags);
+      toast.success("Tag removed");
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      onUpdate?.();
+    } catch (error) {
+      console.error('Failed to remove tag:', error);
+      toast.error("Failed to remove tag");
+    } finally {
+      setSavingTagId(null);
     }
   };
 
@@ -182,10 +185,7 @@ export default function TicketDetailsSidebar({
   const descriptionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.DESCRIPTION);
   const resolutionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY);
 
-  console.log('🔍 Opportunity data:', opportunity);
-  console.log('🔍 Opportunity tags:', opportunity?.tags);
-  console.log('🔍 Opportunity contactId:', opportunity?.contactId);
-  console.log('🔍 Edited tags:', editedTags);
+  const currentTags = opportunity?.tags || [];
 
   return (
     <div className="w-80 border-l bg-white dark:bg-gray-950 overflow-y-auto">
@@ -428,18 +428,23 @@ export default function TicketDetailsSidebar({
           
           {/* Selected Tags */}
           <div className="flex flex-wrap gap-2 mb-3 min-h-[36px] p-2 border rounded-md bg-background">
-            {editedTags.map((tag: string) => (
+            {currentTags.map((tag: string) => (
               <Badge key={tag} variant="secondary" className="gap-1">
                 {tag}
                 <button
                   onClick={() => handleRemoveTag(tag)}
+                  disabled={savingTagId === tag}
                   className="ml-1 hover:text-destructive"
                 >
-                  <X className="h-3 w-3" />
+                  {savingTagId === tag ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <X className="h-3 w-3" />
+                  )}
                 </button>
               </Badge>
             ))}
-            {editedTags.length === 0 && (
+            {currentTags.length === 0 && (
               <span className="text-sm text-muted-foreground">No tags assigned</span>
             )}
           </div>
@@ -447,7 +452,7 @@ export default function TicketDetailsSidebar({
           {/* Add Tags Popover */}
           <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full mb-2">
+              <Button variant="outline" size="sm" className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Tags
               </Button>
@@ -468,15 +473,21 @@ export default function TicketDetailsSidebar({
                 {filteredAvailableTags.length > 0 ? (
                   <div className="space-y-1">
                     {filteredAvailableTags.map((tag: any) => {
-                      const isSelected = editedTags.includes(tag.name);
+                      const isSelected = currentTags.includes(tag.name);
+                      const isSaving = savingTagId === tag.name;
+                      
                       return (
                         <div
                           key={tag.id}
                           className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
-                          onClick={() => handleToggleTag(tag.name)}
+                          onClick={() => !isSaving && handleToggleTag(tag.name)}
                         >
                           <div className="flex-1">{tag.name}</div>
-                          {isSelected && <Check className="h-4 w-4 text-primary" />}
+                          {isSaving ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          ) : isSelected ? (
+                            <Check className="h-4 w-4 text-primary" />
+                          ) : null}
                         </div>
                       );
                     })}
@@ -489,23 +500,6 @@ export default function TicketDetailsSidebar({
               </div>
             </PopoverContent>
           </Popover>
-
-          {/* Save Tags Button */}
-          <Button 
-            size="sm" 
-            className="w-full" 
-            onClick={handleSaveTags}
-            disabled={isSavingTags}
-          >
-            {isSavingTags ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Tags'
-            )}
-          </Button>
         </Card>
 
       </div>
