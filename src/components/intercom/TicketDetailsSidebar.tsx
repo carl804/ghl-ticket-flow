@@ -1,20 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Input } from '@/components/ui/input';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import ConversationSummary from './ConversationSummary';
-import { updateTicket, fetchTags, updateContactTags } from '@/lib/api-fixed';
-import type { Ticket } from '@/lib/types';
-import { toast } from 'sonner';
 import { 
   User, 
   Mail, 
@@ -25,19 +15,14 @@ import {
   Tag,
   FileText,
   CheckCircle2,
-  Loader2,
-  X,
-  Plus,
-  Search,
-  Check
+  Loader2
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Custom Field IDs
 const CUSTOM_FIELD_IDS = {
-  DESCRIPTION: 'y9aYiEln1CpSuz6u3rtE',
-  RESOLUTION_SUMMARY: 'ZzsDH7pErVhwLqJt1NjA',
-  PRIORITY: 'QMiATAEcjFjQc9q8FxW6',
-  CATEGORY: 'eCjK3IHuhErwlkyWJ4Wx'
+  DESCRIPTION: 'bxSIsLb4VIKd9ct56M6l',
+  RESOLUTION_SUMMARY: '4EyD7zuMT5aOUy3hNZYg'
 };
 
 // Date formatting helpers
@@ -71,216 +56,128 @@ export default function TicketDetailsSidebar({
   messages = [],
   onUpdate
 }: TicketDetailsSidebarProps) {
-  const queryClient = useQueryClient();
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingResolution, setIsEditingResolution] = useState(false);
-  const [description, setDescription] = useState('');
-  const [resolution, setResolution] = useState('');
-  const [tagSearch, setTagSearch] = useState("");
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const [savingTagId, setSavingTagId] = useState<string | null>(null);
-
-  const { data: availableTags = [] } = useQuery({
-    queryKey: ["tags"],
-    queryFn: fetchTags,
-  });
-
-  // Helper to get custom field value - matches api-fixed.ts logic
-  const getCustomFieldValue = (fieldId: string): string => {
-    const customFields = opportunity?.customFields || [];
-    const field = customFields.find((f: any) => f.id === fieldId);
-    return field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
-  };
-
-  // ✅ OPTIMISTIC UPDATE: Instant UI updates
-  const updateMutation = useMutation({
-    mutationFn: (updates: Partial<Ticket>) => updateTicket(ticketId, updates),
-    onMutate: async (updates) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["tickets"] });
-      
-      // Snapshot the previous value
-      const previousTickets = queryClient.getQueryData(["tickets"]);
-      
-      // Optimistically update the cache INSTANTLY
-      queryClient.setQueryData(["tickets"], (old: any) => {
-        if (!old) return old;
-        return old.map((ticket: any) => 
-          ticket.id === ticketId 
-            ? { ...ticket, customFields: ticket.customFields?.map((field: any) => {
-                if (updates.description && field.id === CUSTOM_FIELD_IDS.DESCRIPTION) {
-                  return { ...field, fieldValueString: updates.description, value: updates.description };
-                }
-                if (updates.resolutionSummary && field.id === CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY) {
-                  return { ...field, fieldValueString: updates.resolutionSummary, value: updates.resolutionSummary };
-                }
-                return field;
-              }), ...updates }
-            : ticket
-        );
-      });
-      
-      toast.success("Updated successfully");
-      
-      return { previousTickets };
-    },
-    onError: (err, updates, context) => {
-      // Rollback on error
-      if (context?.previousTickets) {
-        queryClient.setQueryData(["tickets"], context.previousTickets);
-      }
-      toast.error("Failed to update");
-    },
-    onSettled: () => {
-      // Always refetch after mutation to sync with backend
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      onUpdate?.();
-    },
-  });
+  const [description, setDescription] = useState(opportunity?.description || '');
+  const [resolution, setResolution] = useState(opportunity?.resolutionSummary || '');
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleSaveDescription = async () => {
+    setIsSaving(true);
     try {
-      await updateMutation.mutateAsync({ description });
+      const response = await fetch(`/api/opportunities/${ticketId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          customFields: [{
+            id: CUSTOM_FIELD_IDS.DESCRIPTION,
+            field_value: description
+          }]
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update description');
+
+      toast.success('Description updated');
       setIsEditingDescription(false);
+      onUpdate?.();
     } catch (error) {
       console.error('Failed to save description:', error);
+      toast.error('Failed to update description');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleSaveResolution = async () => {
+    setIsSaving(true);
     try {
-      await updateMutation.mutateAsync({ resolutionSummary: resolution });
+      const response = await fetch(`/api/opportunities/${ticketId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          customFields: [{
+            id: CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY,
+            field_value: resolution
+          }]
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update resolution summary');
+
+      toast.success('Resolution summary updated');
       setIsEditingResolution(false);
+      onUpdate?.();
     } catch (error) {
       console.error('Failed to save resolution:', error);
-    }
-  };
-
-  const handleToggleTag = async (tagName: string) => {
-    if (!opportunity?.contactId) {
-      toast.error("Contact ID not available");
-      return;
-    }
-
-    const currentTags = opportunity?.tags || [];
-    const newTags = currentTags.includes(tagName)
-      ? currentTags.filter((tag: string) => tag !== tagName)
-      : [...currentTags, tagName];
-    
-    setSavingTagId(tagName);
-    
-    // ✅ INSTANT UPDATE: Update cache immediately
-    await queryClient.cancelQueries({ queryKey: ["tickets"] });
-    queryClient.setQueryData(["tickets"], (old: any) => {
-      if (!old) return old;
-      return old.map((ticket: any) => 
-        ticket.id === ticketId 
-          ? { ...ticket, tags: newTags }
-          : ticket
-      );
-    });
-    
-    try {
-      console.log('💾 Saving tags to backend:', newTags);
-      await updateContactTags(opportunity.contactId, newTags);
-      toast.success(currentTags.includes(tagName) ? "Tag removed" : "Tag added");
-      setTagsOpen(false);
-    } catch (error) {
-      console.error('Failed to update tags:', error);
-      toast.error("Failed to update tags");
-      // Refetch on error to revert
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      toast.error('Failed to update resolution summary');
     } finally {
-      setSavingTagId(null);
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      onUpdate?.();
+      setIsSaving(false);
     }
   };
 
-  const handleRemoveTag = async (tagName: string) => {
-    if (!opportunity?.contactId) return;
-    
-    const currentTags = opportunity?.tags || [];
-    const newTags = currentTags.filter((tag: string) => tag !== tagName);
-    
-    setSavingTagId(tagName);
-    
-    // ✅ INSTANT UPDATE: Update cache immediately
-    await queryClient.cancelQueries({ queryKey: ["tickets"] });
-    queryClient.setQueryData(["tickets"], (old: any) => {
-      if (!old) return old;
-      return old.map((ticket: any) => 
-        ticket.id === ticketId 
-          ? { ...ticket, tags: newTags }
-          : ticket
-      );
-    });
-    
-    try {
-      console.log('💾 Removing tag from backend:', tagName);
-      await updateContactTags(opportunity.contactId, newTags);
-      toast.success("Tag removed");
-    } catch (error) {
-      console.error('Failed to remove tag:', error);
-      toast.error("Failed to remove tag");
-      // Refetch on error to revert
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-    } finally {
-      setSavingTagId(null);
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      onUpdate?.();
-    }
-  };
-
-  const filteredAvailableTags = availableTags.filter((tag: any) =>
-    tag.name.toLowerCase().includes(tagSearch.toLowerCase())
-  );
-
-  // Extract REAL customer (filter out Fin/bot)
-  const getRealCustomer = () => {
-    // Priority 1: Use GHL contact if available and valid
-    if (contact?.name && contact.name !== 'Fin' && 
-        contact.email && !contact.email.includes('operator+') && !contact.email.includes('@intercom.io')) {
-      return contact;
-    }
-    
-    // Priority 2: Get from conversation contacts array
-    if (conversation?.contacts?.contacts?.[0]) {
-      const contactData = conversation.contacts.contacts[0];
-      const name = contactData.name || contactData.email || 'Unknown';
-      const email = contactData.email || '';
-      
-      // Skip if it's Fin
-      if (name !== 'Fin' && !email.includes('operator+') && !email.includes('@intercom.io')) {
-        return contactData;
-      }
-    }
-    
-    // Priority 3: Get from source.author (only if not Fin)
-    if (conversation?.source?.author) {
-      const author = conversation.source.author;
-      const name = author.name || author.email || 'Unknown';
-      const email = author.email || '';
-      
-      if (author.type === 'user' && name !== 'Fin' && 
-          !email.includes('operator+') && !email.includes('@intercom.io')) {
-        return author;
-      }
-    }
-    
-    return { name: 'Unknown', email: '' };
-  };
-
-  const customer = getRealCustomer();
-  const intercomTicketOwner = opportunity?.intercomAgent || 'Unassigned';
+  // Extract customer info - MATCH IntercomChatView's getRealCustomer() logic
+  let customerName = 'Unknown';
+  let customerEmail = '';
+  let customerPhone = '';
   
-  // Use the helper function to get values by ID
-  const priority = getCustomFieldValue(CUSTOM_FIELD_IDS.PRIORITY);
-  const category = getCustomFieldValue(CUSTOM_FIELD_IDS.CATEGORY);
-  const descriptionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.DESCRIPTION);
-  const resolutionValue = getCustomFieldValue(CUSTOM_FIELD_IDS.RESOLUTION_SUMMARY);
+  // Priority 1: Use contact prop if valid (passed from parent)
+  if (contact?.name && contact.name !== 'Unknown' && contact.name !== 'Fin' &&
+      contact?.email && !contact.email.includes('operator+') && !contact.email.includes('@intercom.io')) {
+    customerName = contact.name;
+    customerEmail = contact.email || '';
+    customerPhone = contact.phone || '';
+    console.log('✅ Using contact prop for customer:', { name: customerName, email: customerEmail });
+  }
+  
+  // Priority 2: From conversation.contacts.contacts[0] (most reliable for real customer)
+  if (customerName === 'Unknown' && conversation?.contacts?.contacts?.[0]) {
+    const contactData = conversation.contacts.contacts[0];
+    const name = contactData.name || contactData.email || 'Unknown Customer';
+    const email = contactData.email || '';
+    
+    // Skip if it's Fin
+    if (name !== 'Fin' && !email.includes('operator+') && !email.includes('@intercom.io')) {
+      customerName = name;
+      customerEmail = email;
+      console.log('✅ Using conversation.contacts[0] for customer:', { name: customerName, email: customerEmail });
+    } else {
+      console.log('⚠️ Skipping Fin in contacts[0]:', { name, email });
+    }
+  }
+  
+  // Priority 3: From conversation.source.author (with Fin filtering) - LOWER PRIORITY
+  if (customerName === 'Unknown' && conversation?.source?.author) {
+    const author = conversation.source.author;
+    const name = author.name || '';
+    const email = author.email || '';
+    
+    // Only use if NOT Fin or operator AND is a user/lead
+    if (author.type === 'user' && name && name !== 'Fin' && 
+        !email.includes('operator+') && !email.includes('@intercom.io')) {
+      customerName = name;
+      customerEmail = email;
+      console.log('✅ Using source.author for customer:', { name: customerName, email: customerEmail });
+    } else {
+      console.log('⚠️ Skipping Fin/operator in source.author:', { name, email, type: author.type });
+    }
+  }
+  
+  // Priority 4: From opportunity contact (GHL data fallback)
+  if (customerName === 'Unknown' && opportunity?.contact) {
+    customerName = opportunity.contact.name || opportunity.contact.email || 'Unknown';
+    customerEmail = opportunity.contact.email || '';
+    customerPhone = opportunity.contact.phone || '';
+    console.log('✅ Using opportunity.contact for customer:', { name: customerName, email: customerEmail });
+  }
 
-  const currentTags = opportunity?.tags || [];
+  const intercomTicketOwner = opportunity?.intercomAgent || 'Unassigned';
+  const priority = opportunity?.customFields?.find(
+    (f: any) => f.key === 'priority'
+  )?.value || opportunity?.priority;
+  const category = opportunity?.customFields?.find(
+    (f: any) => f.key === 'category'
+  )?.value || opportunity?.category;
 
   return (
     <div className="w-80 border-l bg-white dark:bg-gray-950 overflow-y-auto">
@@ -300,45 +197,48 @@ export default function TicketDetailsSidebar({
         {/* Contact Information */}
         <Card className="p-4">
           <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-            <User className="w-4 h-4" />
+            <User className="h-4 w-4" />
             Contact Information
           </h3>
-          <div className="space-y-2 text-sm">
+          <div className="space-y-3">
             <div className="flex items-start gap-2">
-              <User className="w-4 h-4 text-gray-400 mt-0.5" />
+              <User className="h-4 w-4 text-muted-foreground mt-0.5" />
               <div>
-                <div className="font-medium">{customer.name || 'Unknown'}</div>
+                <div className="text-sm font-medium">{customerName}</div>
+                {customerName === 'Unknown' && (
+                  <div className="text-xs text-muted-foreground">No contact data available</div>
+                )}
               </div>
             </div>
             
-            {customer.email && (
+            {customerEmail && (
               <div className="flex items-start gap-2">
-                <Mail className="w-4 h-4 text-gray-400 mt-0.5" />
+                <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <a 
-                  href={`mailto:${customer.email}`}
-                  className="text-blue-600 hover:underline break-all"
+                  href={`mailto:${customerEmail}`}
+                  className="text-sm text-primary hover:underline break-all"
                 >
-                  {customer.email}
+                  {customerEmail}
                 </a>
               </div>
             )}
             
-            {contact?.phone && (
+            {customerPhone && (
               <div className="flex items-start gap-2">
-                <Phone className="w-4 h-4 text-gray-400 mt-0.5" />
+                <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <a 
-                  href={`tel:${contact.phone}`}
-                  className="text-blue-600 hover:underline"
+                  href={`tel:${customerPhone}`}
+                  className="text-sm text-primary hover:underline"
                 >
-                  {contact.phone}
+                  {customerPhone}
                 </a>
               </div>
             )}
             
-            {contact?.companyName && (
+            {opportunity?.agencyName && (
               <div className="flex items-start gap-2">
-                <Building2 className="w-4 h-4 text-gray-400 mt-0.5" />
-                <span>{contact.companyName}</span>
+                <Building2 className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <span className="text-sm">{opportunity.agencyName}</span>
               </div>
             )}
           </div>
@@ -347,62 +247,55 @@ export default function TicketDetailsSidebar({
         {/* Details */}
         <Card className="p-4">
           <h3 className="font-semibold text-sm mb-3">Details</h3>
-          <div className="space-y-3 text-sm">
-            
+          <div className="space-y-2 text-sm">
             <div className="flex justify-between items-start">
-              <span className="text-gray-500">Intercom Ticket Owner</span>
-              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                {intercomTicketOwner}
-              </Badge>
+              <span className="text-muted-foreground">Intercom Owner</span>
+              <span className="font-medium text-right">{intercomTicketOwner}</span>
             </div>
-
+            
+            {opportunity?.assignedTo && (
+              <div className="flex justify-between items-start">
+                <span className="text-muted-foreground">GHL Assigned</span>
+                <span className="font-medium text-right">{opportunity.assignedTo}</span>
+              </div>
+            )}
+            
             {priority && (
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500">Priority</span>
-                <Badge variant="outline" className={
-                  priority === 'High' || priority === 'Urgent'
-                    ? 'bg-red-50 text-red-700 border-red-200'
-                    : priority === 'Medium'
-                    ? 'bg-orange-50 text-orange-700 border-orange-200'
-                    : 'bg-blue-50 text-blue-700 border-blue-200'
-                }>
-                  {priority}
-                </Badge>
+              <div className="flex justify-between items-start">
+                <span className="text-muted-foreground">Priority</span>
+                <Badge variant="outline" className="capitalize">{priority}</Badge>
               </div>
             )}
-
+            
             {category && (
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500">Category</span>
-                <Badge variant="outline">{category}</Badge>
+              <div className="flex justify-between items-start">
+                <span className="text-muted-foreground">Category</span>
+                <span className="font-medium text-right">{category}</span>
               </div>
             )}
-
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500">Value</span>
-              <span className="font-medium flex items-center gap-1">
-                <DollarSign className="w-3 h-3" />
-                {opportunity?.monetaryValue || 0}
-              </span>
-            </div>
-
-            <Separator />
-
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-500">Created</span>
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {opportunity?.createdAt && formatDate(opportunity.createdAt)}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-500">Updated</span>
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {opportunity?.updatedAt && formatDate(opportunity.updatedAt)}
-              </span>
-            </div>
+            
+            {opportunity?.value !== undefined && (
+              <div className="flex justify-between items-start">
+                <span className="text-muted-foreground">Value</span>
+                <span className="font-medium">${opportunity.value}</span>
+              </div>
+            )}
+            
+            <Separator className="my-2" />
+            
+            {opportunity?.createdAt && (
+              <div className="flex justify-between items-start">
+                <span className="text-muted-foreground">Created</span>
+                <span className="text-xs text-right">{formatDate(opportunity.createdAt)}</span>
+              </div>
+            )}
+            
+            {opportunity?.updatedAt && (
+              <div className="flex justify-between items-start">
+                <span className="text-muted-foreground">Updated</span>
+                <span className="text-xs text-right">{formatDate(opportunity.updatedAt)}</span>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -410,17 +303,15 @@ export default function TicketDetailsSidebar({
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm flex items-center gap-2">
-              <FileText className="w-4 h-4" />
+              <FileText className="h-4 w-4" />
               Description
             </h3>
             {!isEditingDescription && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  setDescription(descriptionValue);
-                  setIsEditingDescription(true);
-                }}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditingDescription(true)}
+                className="h-7 text-xs"
               >
                 Edit
               </Button>
@@ -433,29 +324,35 @@ export default function TicketDetailsSidebar({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add description..."
-                className="min-h-[100px]"
+                className="min-h-[100px] text-sm"
               />
               <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  onClick={handleSaveDescription} 
-                  disabled={updateMutation.isPending}
+                <Button
+                  size="sm"
+                  onClick={handleSaveDescription}
+                  disabled={isSaving}
+                  className="h-8"
                 >
-                  {updateMutation.isPending ? 'Saving...' : 'Save'}
+                  {isSaving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                  Save
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setIsEditingDescription(false)}
-                  disabled={updateMutation.isPending}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setDescription(opportunity?.description || '');
+                    setIsEditingDescription(false);
+                  }}
+                  disabled={isSaving}
+                  className="h-8"
                 >
                   Cancel
                 </Button>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-600">
-              {descriptionValue || 'No description provided'}
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              {description || 'No description provided'}
             </p>
           )}
         </Card>
@@ -464,17 +361,15 @@ export default function TicketDetailsSidebar({
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="h-4 w-4" />
               Resolution Summary
             </h3>
             {!isEditingResolution && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  setResolution(resolutionValue);
-                  setIsEditingResolution(true);
-                }}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditingResolution(true)}
+                className="h-7 text-xs"
               >
                 Edit
               </Button>
@@ -487,116 +382,55 @@ export default function TicketDetailsSidebar({
                 value={resolution}
                 onChange={(e) => setResolution(e.target.value)}
                 placeholder="Add resolution summary..."
-                className="min-h-[100px]"
+                className="min-h-[100px] text-sm"
               />
               <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  onClick={handleSaveResolution} 
-                  disabled={updateMutation.isPending}
+                <Button
+                  size="sm"
+                  onClick={handleSaveResolution}
+                  disabled={isSaving}
+                  className="h-8"
                 >
-                  {updateMutation.isPending ? 'Saving...' : 'Save'}
+                  {isSaving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                  Save
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setIsEditingResolution(false)}
-                  disabled={updateMutation.isPending}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setResolution(opportunity?.resolutionSummary || '');
+                    setIsEditingResolution(false);
+                  }}
+                  disabled={isSaving}
+                  className="h-8"
                 >
                   Cancel
                 </Button>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-600">
-              {resolutionValue || 'No resolution summary yet'}
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              {resolution || 'No resolution summary yet'}
             </p>
           )}
         </Card>
 
         {/* Tags */}
-        <Card className="p-4">
-          <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-            <Tag className="w-4 h-4" />
-            Tags
-          </h3>
-          
-          {/* Selected Tags */}
-          <div className="flex flex-wrap gap-2 mb-3 min-h-[36px] p-2 border rounded-md bg-background">
-            {currentTags.map((tag: string) => (
-              <Badge key={tag} variant="secondary" className="gap-1">
-                {tag}
-                <button
-                  onClick={() => handleRemoveTag(tag)}
-                  disabled={savingTagId === tag}
-                  className="ml-1 hover:text-destructive"
-                >
-                  {savingTagId === tag ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <X className="h-3 w-3" />
-                  )}
-                </button>
-              </Badge>
-            ))}
-            {currentTags.length === 0 && (
-              <span className="text-sm text-muted-foreground">No tags assigned</span>
-            )}
-          </div>
-
-          {/* Add Tags Popover */}
-          <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Tags
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="start">
-              <div className="p-2 border-b">
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search tags..."
-                    value={tagSearch}
-                    onChange={(e) => setTagSearch(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
-              </div>
-              <div className="max-h-[300px] overflow-y-auto p-2">
-                {filteredAvailableTags.length > 0 ? (
-                  <div className="space-y-1">
-                    {filteredAvailableTags.map((tag: any) => {
-                      const isSelected = currentTags.includes(tag.name);
-                      const isSaving = savingTagId === tag.name;
-                      
-                      return (
-                        <div
-                          key={tag.id}
-                          className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
-                          onClick={() => !isSaving && handleToggleTag(tag.name)}
-                        >
-                          <div className="flex-1">{tag.name}</div>
-                          {isSaving ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                          ) : isSelected ? (
-                            <Check className="h-4 w-4 text-primary" />
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    No tags found
-                  </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </Card>
-
+        {opportunity?.tags && opportunity.tags.length > 0 && (
+          <Card className="p-4">
+            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <Tag className="h-4 w-4" />
+              Tags
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {opportunity.tags.map((tag: string, index: number) => (
+                <Badge key={index} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );
