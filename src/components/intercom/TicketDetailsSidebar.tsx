@@ -236,59 +236,41 @@ export default function TicketDetailsSidebar({
     tag.name.toLowerCase().includes(tagSearch.toLowerCase())
   );
 
-  // Extract REAL customer (filter out Fin/bot) - UPDATED WITH PRIORITY 4
+  // Extract REAL customer - PRIORITIZE GHL DATA FIRST
   const getRealCustomer = () => {
     console.log('🔍 getRealCustomer called with:', {
       hasContact: !!contact,
       contactName: contact?.name,
-      hasConversation: !!conversation,
-      hasConversationContacts: !!conversation?.contacts?.contacts?.[0],
-      hasSourceAuthor: !!conversation?.source?.author,
+      contactEmail: contact?.email,
       hasOpportunityContact: !!opportunity?.contact,
-      opportunityContactName: opportunity?.contact?.name
+      opportunityContactName: opportunity?.contact?.name,
+      opportunityContactEmail: opportunity?.contact?.email,
+      fullContact: contact,
+      fullOpportunityContact: opportunity?.contact
     });
 
-    // Priority 1: Use GHL contact if available and valid
-    if (contact?.name && contact.name !== 'Fin' && contact.name !== 'Unknown' &&
-        contact.email && !contact.email.includes('operator+') && !contact.email.includes('@intercom.io')) {
-      console.log('✅ Using Priority 1: GHL contact prop');
+    // Priority 1: GHL contact prop (fetched from GHL API)
+    if (contact?.name && contact.name !== 'Unknown') {
+      console.log('✅ Using Priority 1: GHL contact prop', contact);
       return contact;
     }
     
-    // Priority 2: Get from conversation contacts array (MOST RELIABLE)
+    // Priority 2: opportunity.contact (ticket's contact from GHL opportunity)
+    if (opportunity?.contact?.name && opportunity.contact.name !== 'Unknown') {
+      console.log('✅ Using Priority 2: opportunity.contact (GHL ticket contact)', opportunity.contact);
+      return opportunity.contact;
+    }
+    
+    // Priority 3: Fallback to Intercom conversation data if GHL has nothing
     if (conversation?.contacts?.contacts?.[0]) {
       const contactData = conversation.contacts.contacts[0];
       const name = contactData.name || contactData.email || 'Unknown';
       const email = contactData.email || '';
       
-      // Skip if it's Fin
       if (name !== 'Fin' && !email.includes('operator+') && !email.includes('@intercom.io')) {
-        console.log('✅ Using Priority 2: conversation.contacts[0]');
+        console.log('✅ Using Priority 3: conversation.contacts[0] (Intercom fallback)', contactData);
         return contactData;
-      } else {
-        console.log('⚠️ Skipping Fin in conversation.contacts[0]');
       }
-    }
-    
-    // Priority 3: Get from source.author (only if not Fin and type === 'user')
-    if (conversation?.source?.author) {
-      const author = conversation.source.author;
-      const name = author.name || author.email || 'Unknown';
-      const email = author.email || '';
-      
-      if (author.type === 'user' && name !== 'Fin' && 
-          !email.includes('operator+') && !email.includes('@intercom.io')) {
-        console.log('✅ Using Priority 3: conversation.source.author');
-        return author;
-      } else {
-        console.log('⚠️ Skipping Fin/operator in source.author:', { name, email, type: author.type });
-      }
-    }
-    
-    // Priority 4: Fallback to opportunity.contact (ticket.contact from GHL)
-    if (opportunity?.contact?.name && opportunity.contact.name !== 'Unknown') {
-      console.log('✅ Using Priority 4: opportunity.contact (GHL ticket contact)');
-      return opportunity.contact;
     }
     
     console.log('❌ No valid customer found, returning Unknown');
