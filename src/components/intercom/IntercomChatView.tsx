@@ -85,7 +85,7 @@ const STAGE_OPTIONS = [
 const PRIORITY_OPTIONS = ['Low', 'Medium', 'High', 'Urgent'];
 
 const CATEGORY_OPTIONS = [
-    'Select Category',
+  'Select Category',
   'Billing',
   'Technical Support',
   'Onboarding',
@@ -239,6 +239,7 @@ export default function IntercomChatView({
   const [macrosLoading, setMacrosLoading] = useState(false);
   const [macroLoadProgress, setMacroLoadProgress] = useState({ current: 0, total: 0 });
   const [macroSearch, setMacroSearch] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
   
   // Dropdown states - Start empty for manual selection
   const [currentPriority, setCurrentPriority] = useState<string>('');
@@ -511,6 +512,38 @@ export default function IntercomChatView({
     });
     
     toast.success('Image removed');
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if we're leaving the drop zone entirely
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleImageAttachment(files);
+    }
   };
 
   useEffect(() => {
@@ -1007,10 +1040,42 @@ export default function IntercomChatView({
     })),
   ];
 
-  const customerName = propContactName && propContactName !== 'Unknown' 
-    ? propContactName 
-    : conversation.source.author.name || 'Unknown Customer';
-  const customerEmail = propContactEmail || conversation.source.author.email || '';
+  // Extract REAL customer (filter out Fin/bot)
+  const getRealCustomer = () => {
+    // Priority 1: Use props if valid
+    if (propContactName && propContactName !== 'Unknown' && propContactName !== 'Fin' &&
+        propContactEmail && !propContactEmail.includes('operator+') && !propContactEmail.includes('@intercom.io')) {
+      return { name: propContactName, email: propContactEmail };
+    }
+    
+    // Priority 2: Get from contacts array
+    if (conversation.contacts?.contacts?.[0]) {
+      const contact = conversation.contacts.contacts[0];
+      const name = contact.name || contact.email || 'Unknown Customer';
+      const email = contact.email || '';
+      
+      // Skip if it's Fin
+      if (name !== 'Fin' && !email.includes('operator+') && !email.includes('@intercom.io')) {
+        return { name, email };
+      }
+    }
+    
+    // Priority 3: Get from source.author (only if not Fin)
+    if (conversation.source?.author) {
+      const author = conversation.source.author;
+      const name = author.name || author.email || 'Unknown Customer';
+      const email = author.email || '';
+      
+      if (author.type === 'user' && name !== 'Fin' && 
+          !email.includes('operator+') && !email.includes('@intercom.io')) {
+        return { name, email };
+      }
+    }
+    
+    return { name: 'Unknown Customer', email: '' };
+  };
+
+  const { name: customerName, email: customerEmail } = getRealCustomer();
   const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
@@ -1415,9 +1480,28 @@ export default function IntercomChatView({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Reply Box - Compact */}
+        {/* Reply Box - Compact WITH DRAG AND DROP */}
         {selectedAgent && (
-          <div className="border-t border-gray-200 bg-white px-4 py-3 space-y-2">
+          <div 
+            className={`border-t border-gray-200 bg-white px-4 py-3 space-y-2 relative ${
+              isDragging ? 'ring-4 ring-indigo-300 ring-inset' : ''
+            }`}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {/* Drag overlay */}
+            {isDragging && (
+              <div className="absolute inset-0 bg-indigo-50/90 border-4 border-dashed border-indigo-400 rounded-lg flex items-center justify-center z-50 pointer-events-none">
+                <div className="text-center">
+                  <Paperclip className="h-12 w-12 text-indigo-500 mx-auto mb-2" />
+                  <p className="text-lg font-semibold text-indigo-700">Drop images here</p>
+                  <p className="text-sm text-indigo-600">You can drop multiple images at once</p>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Button
@@ -1616,7 +1700,7 @@ export default function IntercomChatView({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder={isNote ? 'Add note... (paste images with Ctrl+V)' : isAssigned ? 'Type reply... (paste images with Ctrl+V)' : 'Assign first...'}
+                placeholder={isNote ? 'Add note... (paste or drag images)' : isAssigned ? 'Type reply... (paste or drag images)' : 'Assign first...'}
                 rows={3}
                 disabled={!isNote && !isAssigned}
                 className="flex-1 resize-none text-sm"

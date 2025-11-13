@@ -236,8 +236,42 @@ export default function TicketDetailsSidebar({
     tag.name.toLowerCase().includes(tagSearch.toLowerCase())
   );
 
-  // Prioritize GHL contact data over Intercom conversation data
-  const customer = contact || conversation?.source?.author || {};
+  // Extract REAL customer (filter out Fin/bot)
+  const getRealCustomer = () => {
+    // Priority 1: Use GHL contact if available and valid
+    if (contact?.name && contact.name !== 'Fin' && 
+        contact.email && !contact.email.includes('operator+') && !contact.email.includes('@intercom.io')) {
+      return contact;
+    }
+    
+    // Priority 2: Get from conversation contacts array
+    if (conversation?.contacts?.contacts?.[0]) {
+      const contactData = conversation.contacts.contacts[0];
+      const name = contactData.name || contactData.email || 'Unknown';
+      const email = contactData.email || '';
+      
+      // Skip if it's Fin
+      if (name !== 'Fin' && !email.includes('operator+') && !email.includes('@intercom.io')) {
+        return contactData;
+      }
+    }
+    
+    // Priority 3: Get from source.author (only if not Fin)
+    if (conversation?.source?.author) {
+      const author = conversation.source.author;
+      const name = author.name || author.email || 'Unknown';
+      const email = author.email || '';
+      
+      if (author.type === 'user' && name !== 'Fin' && 
+          !email.includes('operator+') && !email.includes('@intercom.io')) {
+        return author;
+      }
+    }
+    
+    return { name: 'Unknown', email: '' };
+  };
+
+  const customer = getRealCustomer();
   const intercomTicketOwner = opportunity?.intercomAgent || 'Unassigned';
   
   // Use the helper function to get values by ID
