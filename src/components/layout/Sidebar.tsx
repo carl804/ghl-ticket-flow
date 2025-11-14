@@ -86,12 +86,16 @@ export function Sidebar({ className }: SidebarProps) {
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className={cn("h-8 w-8", collapsed && "mx-auto")}
+            className={cn(
+              "h-8 w-8 hover:bg-accent",
+              collapsed && "mx-auto"
+            )}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-5 w-5" />
             ) : (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-5 w-5" />
             )}
           </Button>
         </div>

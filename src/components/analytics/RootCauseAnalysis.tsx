@@ -162,86 +162,114 @@ export default function RootCauseAnalysis() {
       )}
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Pain Point Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percentage }) => `${name}: ${percentage}%`}
-                  outerRadius={80}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+<div className="grid grid-cols-1 gap-6">
+  <Card>
+    <CardHeader>
+      <CardTitle>Pain Point Distribution</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={400}>
+        <PieChart>
+          <Pie
+            data={pieData}
+            cx="50%"
+            cy="50%"
+            outerRadius={120}
+            dataKey="value"
+            label={false}
+          >
+            {pieData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.fill} />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value: number, name: string, props: any) => [
+              `${value} tickets (${props.payload.percentage}%)`,
+              name
+            ]}
+          />
+          <Legend 
+            verticalAlign="middle" 
+            align="right"
+            layout="vertical"
+            formatter={(value, entry: any) => `${value}: ${entry.payload.percentage}%`}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Tickets by Category</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+  <Card>
+    <CardHeader>
+      <CardTitle>Tickets by Category</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart data={barData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            dataKey="name" 
+            angle={-45} 
+            textAnchor="end" 
+            height={100}
+            interval={0}
+          />
+          <YAxis />
+          <Tooltip 
+            content={({ active, payload }) => {
+              if (active && payload && payload.length) {
+                return (
+                  <div className="bg-white dark:bg-gray-800 p-3 border rounded shadow-lg">
+                    <p className="font-semibold">{payload[0].payload.fullName}</p>
+                    <p className="text-sm">{payload[0].value} tickets</p>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Bar dataKey="count" />
+        </BarChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
+</div>
 
       {/* Detailed Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data.categories.map((category, index) => {
-          const Icon = CATEGORY_ICONS[category.name] || HelpCircle;
-          return (
-            <Card key={category.name} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-5 w-5" style={{ color: COLORS[index % COLORS.length] }} />
-                    <CardTitle className="text-lg">{category.name}</CardTitle>
-                  </div>
-                  <div className="text-2xl font-bold" style={{ color: COLORS[index % COLORS.length] }}>
-                    {category.percentage}%
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">{category.count} tickets</p>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold">Top Issues:</p>
-                  <ul className="space-y-1">
-                    {category.topIssues.slice(0, 3).map((issue, idx) => (
-                      <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <span className="font-medium text-foreground">{issue.count}×</span>
-                        <span>{issue.issue}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {data.categories.map((category, index) => {
+    const Icon = CATEGORY_ICONS[category.name as keyof typeof CATEGORY_ICONS] || HelpCircle;
+    return (
+      <Card key={category.name} className="hover:shadow-lg transition-shadow">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Icon className="h-5 w-5" style={{ color: COLORS[index % COLORS.length] }} />
+              <CardTitle className="text-lg">{category.name}</CardTitle>
+            </div>
+            <div className="text-2xl font-bold" style={{ color: COLORS[index % COLORS.length] }}>
+              {category.percentage}%
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">{category.count} tickets</p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Top Issues:</p>
+            <ul className="space-y-1">
+              {category.topIssues.slice(0, 3).map((issue, idx) => (
+                <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                  <span className="font-medium text-foreground">{issue.count}×</span>
+                  <span>{issue.issue}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  })}
+    </div>
     </div>
   );
 }
