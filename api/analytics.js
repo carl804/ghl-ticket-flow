@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import OpenAI from 'openai';
 
 // Stage mapping
 const STAGE_MAP = {
@@ -11,6 +12,7 @@ const STAGE_MAP = {
 };
 
 const TICKET_OWNER_FIELD_ID = 'VYv1QpVAAgns13227Pii';
+const AI_SUMMARY_FIELD_ID = 'vyVjRNq3dgT7MY5vlcFT';
 
 // Cache for rate limiting
 let cachedOverviewData = null;
@@ -33,10 +35,14 @@ export default async function handler(req, res) {
     return await handleLiveOverview(req, res);
   }
 
-  if (!type || !['agent-performance', 'daily-metrics'].includes(type)) {
+  if (type === 'root-cause') {
+    return await handleRootCauseAnalysis(req, res);
+  }
+
+  if (!type || !['agent-performance', 'daily-metrics', 'root-cause'].includes(type)) {
     return res.status(400).json({ 
       error: 'Invalid type parameter',
-      details: 'Use ?type=agent-performance, ?type=daily-metrics, or ?type=overview'
+      details: 'Use ?type=agent-performance, ?type=daily-metrics, ?type=root-cause, or ?type=overview'
     });
   }
 
@@ -371,6 +377,161 @@ async function handleLiveOverview(req, res) {
     
     return res.status(500).json({ 
       error: 'Failed to fetch analytics',
+      details: error.message 
+    });
+  }
+}
+
+// Handle root cause analysis
+async function handleRootCauseAnalysis(req, res) {
+  try {
+    const { days = '30' } = req.query;
+    const daysNumber = parseInt(days);
+    
+    console.log(`Analyzing root causes for last ${daysNumber} days...`);
+
+    const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP || process.env.GHL_ACCESS_TOKEN || req.headers.authorization?.replace('Bearer ', '');
+    const locationId = process.env.GHL_LOCATION_ID;
+
+    if (!accessToken || !locationId) {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        details: 'GHL access token or location ID not found'
+      });
+    }
+
+    const pipelineId = 'p14Is7nXjiqS6MVI0cCk';
+
+    const response = await fetch(
+      `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&limit=100`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`GHL API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const opportunities = data.opportunities || [];
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysNumber);
+
+    const recentTickets = opportunities.filter(opp => {
+      const createdAt = new Date(opp.createdAt);
+      return createdAt >= cutoffDate;
+    });
+
+    console.log(`Found ${recentTickets.length} tickets in last ${daysNumber} days`);
+
+    function getCustomFieldValue(opp, fieldId) {
+      const customFields = opp.customFields || [];
+      const field = customFields.find(f => f.id === fieldId);
+      return field?.fieldValueString || field?.fieldValue || field?.value || field?.field_value || '';
+    }
+
+    const summaries = recentTickets
+      .map(opp => {
+        const summary = getCustomFieldValue(opp, AI_SUMMARY_FIELD_ID);
+        return {
+          ticketId: opp.id,
+          ticketName: opp.name,
+          summary: summary,
+          status: STAGE_MAP[opp.pipelineStageId] || "Open",
+          createdAt: opp.createdAt
+        };
+      })
+      .filter(item => item.summary && item.summary.trim().length > 0);
+
+    console.log(`Found ${summaries.length} tickets with AI summaries`);
+
+    if (summaries.length === 0) {
+      return res.status(200).json({
+        success: true,
+        days: daysNumber,
+        totalTickets: recentTickets.length,
+        analyzedTickets: 0,
+        message: 'No tickets with AI summaries found',
+        categories: []
+      });
+    }
+
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+
+    const summaryText = summaries.map((s, i) => 
+      `${i + 1}. ${s.ticketName}: ${s.summary}`
+    ).join('\n');
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{
+        role: "system",
+        content: `You are an expert support analyst. Analyze these ticket summaries and categorize them into pain points.
+
+Categories to use:
+- Product Bugs: Software errors, features not working correctly, technical failures
+- User Education: How-to questions, confusion about features, need training/documentation
+- Feature Requests: Customers want new functionality that doesn't exist
+- Billing Issues: Payment problems, subscription questions, pricing confusion
+- Integration Problems: Issues connecting with other tools/services
+- Configuration Help: Setup assistance, settings questions, account configuration
+- Performance Issues: Slow loading, timeouts, system performance problems
+- Data Issues: Import/export problems, data sync issues, missing data
+- Other: Anything that doesn't fit above categories
+
+Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
+{
+  "categories": [
+    {
+      "name": "Product Bugs",
+      "count": 15,
+      "percentage": 35,
+      "topIssues": [
+        {"issue": "Export feature failing", "count": 5},
+        {"issue": "Dashboard not loading", "count": 4}
+      ]
+    }
+  ],
+  "insights": [
+    "Most common issue is...",
+    "Consider improving..."
+  ]
+}`
+      }, {
+        role: "user",
+        content: `Analyze these ${summaries.length} ticket summaries:\n\n${summaryText}`
+      }],
+      temperature: 0.3,
+      max_tokens: 1500
+    });
+
+    const result = completion.choices[0].message.content;
+    const cleanedResult = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const analysis = JSON.parse(cleanedResult);
+
+    console.log('Root cause analysis complete');
+
+    return res.status(200).json({
+      success: true,
+      days: daysNumber,
+      totalTickets: recentTickets.length,
+      analyzedTickets: summaries.length,
+      ...analysis,
+      fetchedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error in root cause analysis:', error);
+    return res.status(500).json({ 
+      error: 'Failed to analyze root causes',
       details: error.message 
     });
   }

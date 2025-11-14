@@ -5,6 +5,7 @@ import { getAccessToken } from "@/integrations/ghl/oauth";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Users, TrendingUp, Clock, Target } from "lucide-react";
 import DailyMetricsDashboard from "@/components/analytics/DailyMetricsDashboard";
+import RootCauseAnalysis from "@/components/analytics/RootCauseAnalysis";
 
 const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#14b8a6'];
 
@@ -83,6 +84,7 @@ export default function AnalyticsView() {
             <TabsList>
               <TabsTrigger value="agent">Agent Performance</TabsTrigger>
               <TabsTrigger value="daily">Daily Metrics</TabsTrigger>
+              <TabsTrigger value="rootcause">Root Cause Analysis</TabsTrigger>
             </TabsList>
           </div>
 
@@ -228,6 +230,10 @@ export default function AnalyticsView() {
 
           <TabsContent value="daily" className="space-y-6">
             <DailyMetricsDashboard />
+          </TabsContent>
+
+          <TabsContent value="rootcause" className="space-y-6">
+            <RootCauseAnalysis />
           </TabsContent>
         </Tabs>
       </div>
