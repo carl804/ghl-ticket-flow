@@ -599,6 +599,8 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
 // Helper: Get cache from GHL custom value
 async function getCustomValueCache(locationId, customValueId, accessToken) {
   try {
+    console.log(`📥 Fetching cache from custom value ${customValueId}...`);
+    
     const response = await fetch(
       `https://services.leadconnectorhq.com/locations/${locationId}/customValues/${customValueId}`,
       {
@@ -609,24 +611,29 @@ async function getCustomValueCache(locationId, customValueId, accessToken) {
       }
     );
 
+    console.log(`Cache GET response status: ${response.status}`);
+    
     if (!response.ok) {
-      console.log('No cache found or error fetching cache');
+      const errorText = await response.text();
+      console.log('❌ Cache GET error:', errorText);
       return null;
     }
 
     const data = await response.json();
+    console.log('Raw cache response:', JSON.stringify(data, null, 2));
+    
     const value = data.customValue?.value || data.value;
     
     if (!value || value.trim() === '') {
-      console.log('Cache is empty');
+      console.log('📭 Cache is empty');
       return null;
     }
 
     const parsed = JSON.parse(value);
-    console.log('Cache retrieved successfully');
+    console.log('✅ Cache retrieved successfully. Keys:', Object.keys(parsed));
     return parsed;
   } catch (error) {
-    console.error('Error reading cache:', error);
+    console.error('❌ Error reading cache:', error);
     return null;
   }
 }
@@ -638,6 +645,13 @@ async function saveCustomValueCache(locationId, customValueId, accessToken, days
     const cacheValue = existingCache || {};
     cacheValue[daysKey] = analysisData;
 
+    const payload = {
+      value: JSON.stringify(cacheValue)
+    };
+
+    console.log(`💾 Saving cache for ${daysKey} days...`);
+    console.log('Payload size:', JSON.stringify(payload).length, 'characters');
+
     const response = await fetch(
       `https://services.leadconnectorhq.com/locations/${locationId}/customValues/${customValueId}`,
       {
@@ -647,21 +661,24 @@ async function saveCustomValueCache(locationId, customValueId, accessToken, days
           'Version': '2021-07-28',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          value: JSON.stringify(cacheValue)
-        })
+        body: JSON.stringify(payload)
       }
     );
 
+    console.log(`Cache PUT response status: ${response.status}`);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.log('❌ Cache PUT error:', errorText);
       throw new Error(`Failed to save cache: ${response.status} - ${errorText}`);
     }
 
+    const result = await response.json();
+    console.log('✅ Cache save result:', JSON.stringify(result, null, 2));
     console.log(`✅ Cache saved for ${daysKey} days`);
     return true;
   } catch (error) {
-    console.error('Error saving cache:', error);
+    console.error('❌ Error saving cache:', error);
     // Don't fail the request if cache save fails
     return false;
   }
