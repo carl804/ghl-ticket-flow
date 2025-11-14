@@ -232,78 +232,71 @@ export default function RootCauseAnalysis() {
       )}
 
       {/* Charts */}
-      <div className="grid grid-cols-1 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Pain Point Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={400}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={120}
-                  dataKey="value"
-                  label={false}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value: number, name: string, props: any) => [
-                    `${value} tickets (${props.payload.percentage}%)`,
-                    name
-                  ]}
-                />
-                <Legend 
-                  verticalAlign="middle" 
-                  align="right"
-                  layout="vertical"
-                  formatter={(value, entry: any) => `${value}: ${entry.payload.percentage}%`}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+<div className="grid gap-6 md:grid-cols-2">
+  <Card>
+    <CardHeader>
+      <CardTitle>Pain Point Distribution</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
+          <Pie
+            data={pieData}
+            cx="50%"
+            cy="50%"
+            labelLine={true}
+            label={({ name, percent }) => {
+              const shortName = name.length > 18 ? name.substring(0, 15) + '...' : name;
+              return `${shortName}: ${(percent * 100).toFixed(1)}%`;
+            }}
+            outerRadius={80}
+            fill="#8884d8"
+            dataKey="value"
+          >
+            {pieData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.fill} />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value: number, name: string, props: any) => [
+              `${value} tickets (${props.payload.percentage}%)`,
+              name
+            ]}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Tickets by Category</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="name" 
-                  angle={-45} 
-                  textAnchor="end" 
-                  height={100}
-                  interval={0}
-                />
-                <YAxis />
-                <Tooltip 
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-white dark:bg-gray-800 p-3 border rounded shadow-lg">
-                          <p className="font-semibold">{payload[0].payload.fullName}</p>
-                          <p className="text-sm">{payload[0].value} tickets</p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Bar dataKey="count" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+  <Card>
+    <CardHeader>
+      <CardTitle>Tickets by Category</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={barData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+          <YAxis />
+          <Tooltip 
+            content={({ active, payload }) => {
+              if (active && payload && payload.length) {
+                return (
+                  <div className="bg-white dark:bg-gray-800 p-3 border rounded shadow-lg">
+                    <p className="font-semibold">{payload[0].payload.fullName}</p>
+                    <p className="text-sm">{payload[0].value} tickets</p>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Bar dataKey="count" />
+        </BarChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
+</div>
 
       {/* Detailed Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
