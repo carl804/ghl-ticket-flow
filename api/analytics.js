@@ -13,7 +13,12 @@ const STAGE_MAP = {
 
 const TICKET_OWNER_FIELD_ID = 'VYv1QpVAAgns13227Pii';
 const AI_SUMMARY_FIELD_ID = 'vyVjRNq3dgT7MY5vlcFT';
-const ROOT_CAUSE_CACHE_ID = 'qP11dpPLZKwvjL4FYeBk';
+
+// Separate cache IDs for each timeframe
+const ROOT_CAUSE_CACHE_IDS = {
+  '7': 'T0fTjcTmVZHudthewqTe',   // 7-day cache
+  '30': 'qP11dpPLZKwvjL4FYeBk'   // 30-day cache
+};
 
 // Cache thresholds for root cause analysis
 const CACHE_THRESHOLDS = {
@@ -470,23 +475,23 @@ async function handleRootCauseAnalysis(req, res) {
       });
     }
 
-    // 2. Get cached data from GHL custom value
-    const cacheData = await getCustomValueCache(locationId, ROOT_CAUSE_CACHE_ID, accessToken);
-    const cachedAnalysis = cacheData?.[days];
+    // 2. Get cached data from GHL custom value (using correct cache ID)
+    const cacheId = ROOT_CAUSE_CACHE_IDS[days];
+    const cacheData = await getCustomValueCache(locationId, cacheId, accessToken);
 
     // 3. Check if we should use cache
-    if (!forceRefresh && cachedAnalysis) {
-      const ticketDiff = summaries.length - cachedAnalysis.ticketCount;
+    if (!forceRefresh && cacheData) {
+      const ticketDiff = summaries.length - cacheData.ticketCount;
       const threshold = CACHE_THRESHOLDS[days];
       
       console.log(`Cache check: ${ticketDiff} new tickets since cache (threshold: ${threshold})`);
       
       if (ticketDiff < threshold) {
-        const cacheAge = Math.round((Date.now() - new Date(cachedAnalysis.analyzedAt).getTime()) / 1000 / 60); // minutes
+        const cacheAge = Math.round((Date.now() - new Date(cacheData.analyzedAt).getTime()) / 1000 / 60); // minutes
         console.log(`✅ Using cached analysis (${cacheAge} minutes old)`);
         
         return res.status(200).json({
-          ...cachedAnalysis.results,
+          ...cacheData.results,
           cached: true,
           cacheAge: `${cacheAge} minutes`,
           newTicketsSinceCache: ticketDiff,
@@ -563,21 +568,20 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
       analyzedTickets: summaries.length,
       categories: analysis.categories || [],
       insights: analysis.insights || [],
-      analyzedAt: new Date().toISOString()
+      fetchedAt: new Date().toISOString()
     };
 
-    // 5. Save to cache
+    // 5. Save to cache (using correct cache ID)
     await saveCustomValueCache(
       locationId, 
-      ROOT_CAUSE_CACHE_ID, 
+      cacheId,  // Use the specific cache ID for this timeframe
       accessToken,
       days,
       {
         results,
         ticketCount: summaries.length,
         analyzedAt: new Date().toISOString()
-      },
-      cacheData // Pass existing cache to preserve other day ranges
+      }
     );
 
     console.log(`✅ Analysis complete and cached`);
@@ -630,7 +634,7 @@ async function getCustomValueCache(locationId, customValueId, accessToken) {
     }
 
     const parsed = JSON.parse(value);
-    console.log('✅ Cache retrieved successfully. Keys:', Object.keys(parsed));
+    console.log('✅ Cache retrieved successfully');
     return parsed;
   } catch (error) {
     console.error('❌ Error reading cache:', error);
@@ -639,18 +643,18 @@ async function getCustomValueCache(locationId, customValueId, accessToken) {
 }
 
 // Helper: Save cache to GHL custom value
-async function saveCustomValueCache(locationId, customValueId, accessToken, daysKey, analysisData, existingCache) {
+async function saveCustomValueCache(locationId, customValueId, accessToken, daysKey, analysisData) {
   try {
-    // Merge with existing cache to preserve other day ranges
-    const cacheValue = existingCache || {};
-    cacheValue[daysKey] = analysisData;
+    const cacheName = daysKey === '7' 
+      ? 'Root Cause Analysis (7 Days)' 
+      : 'Root Cause Analysis';
 
     const payload = {
-      name: "Root Cause Analysis",  // ← ADD THIS LINE
-      value: JSON.stringify(cacheValue)
+      name: cacheName,
+      value: JSON.stringify(analysisData)
     };
 
-    console.log(`💾 Saving cache for ${daysKey} days...`);
+    console.log(`💾 Saving cache for ${daysKey} days to ${customValueId}...`);
     console.log('Payload size:', JSON.stringify(payload).length, 'characters');
 
     const response = await fetch(

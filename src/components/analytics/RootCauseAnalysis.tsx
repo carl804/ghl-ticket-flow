@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Bug, BookOpen, Lightbulb, CreditCard, Plug, Settings, Zap, Database, HelpCircle, TrendingUp, RefreshCw } from "lucide-react";
@@ -155,12 +156,24 @@ export default function RootCauseAnalysis() {
       {/* Header with Time Range Selector and Force Refresh */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Root Cause Analysis</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold">Root Cause Analysis</h2>
+            {data.cached && (
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                📦 Cached
+              </Badge>
+            )}
+            {!data.cached && (
+              <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                ✨ Fresh
+              </Badge>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             AI-powered analysis of {data.analyzedTickets} tickets (out of {data.totalTickets} total)
-            {data.cached && (
+            {data.cached && data.cacheAge && (
               <span className="ml-2 text-blue-600">
-                • Cached ({data.cacheAge} old)
+                • {data.cacheAge} old
               </span>
             )}
           </p>
@@ -232,71 +245,71 @@ export default function RootCauseAnalysis() {
       )}
 
       {/* Charts */}
-<div className="grid gap-6 md:grid-cols-2">
-  <Card>
-    <CardHeader>
-      <CardTitle>Pain Point Distribution</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie
-            data={pieData}
-            cx="50%"
-            cy="50%"
-            labelLine={true}
-            label={({ name, percent }) => {
-              const shortName = name.length > 18 ? name.substring(0, 15) + '...' : name;
-              return `${shortName}: ${(percent * 100).toFixed(1)}%`;
-            }}
-            outerRadius={80}
-            fill="#8884d8"
-            dataKey="value"
-          >
-            {pieData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.fill} />
-            ))}
-          </Pie>
-          <Tooltip 
-            formatter={(value: number, name: string, props: any) => [
-              `${value} tickets (${props.payload.percentage}%)`,
-              name
-            ]}
-          />
-        </PieChart>
-      </ResponsiveContainer>
-    </CardContent>
-  </Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Pain Point Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={true}
+                  label={({ name, percent }) => {
+                    const shortName = name.length > 18 ? name.substring(0, 15) + '...' : name;
+                    return `${shortName}: ${(percent * 100).toFixed(1)}%`;
+                  }}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value: number, name: string, props: any) => [
+                    `${value} tickets (${props.payload.percentage}%)`,
+                    name
+                  ]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-  <Card>
-    <CardHeader>
-      <CardTitle>Tickets by Category</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={barData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-          <YAxis />
-          <Tooltip 
-            content={({ active, payload }) => {
-              if (active && payload && payload.length) {
-                return (
-                  <div className="bg-white dark:bg-gray-800 p-3 border rounded shadow-lg">
-                    <p className="font-semibold">{payload[0].payload.fullName}</p>
-                    <p className="text-sm">{payload[0].value} tickets</p>
-                  </div>
-                );
-              }
-              return null;
-            }}
-          />
-          <Bar dataKey="count" />
-        </BarChart>
-      </ResponsiveContainer>
-    </CardContent>
-  </Card>
-</div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Tickets by Category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={barData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                <YAxis />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white dark:bg-gray-800 p-3 border rounded shadow-lg">
+                          <p className="font-semibold">{payload[0].payload.fullName}</p>
+                          <p className="text-sm">{payload[0].value} tickets</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="count" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Detailed Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
