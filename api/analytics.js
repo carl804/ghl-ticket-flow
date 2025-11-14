@@ -13,8 +13,15 @@ const STAGE_MAP = {
 
 const TICKET_OWNER_FIELD_ID = 'VYv1QpVAAgns13227Pii';
 const AI_SUMMARY_FIELD_ID = 'vyVjRNq3dgT7MY5vlcFT';
+const ROOT_CAUSE_CACHE_ID = 'qP11dpPLZKwvjL4FYeBk';
 
-// Cache for rate limiting
+// Cache thresholds for root cause analysis
+const CACHE_THRESHOLDS = {
+  '7': 20,   // Re-analyze after 20 new tickets for 7-day view
+  '30': 50   // Re-analyze after 50 new tickets for 30-day view
+};
+
+// Cache for rate limiting overview
 let cachedOverviewData = null;
 let lastOverviewFetch = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
@@ -382,13 +389,14 @@ async function handleLiveOverview(req, res) {
   }
 }
 
-// Handle root cause analysis
+// Handle root cause analysis with intelligent caching
 async function handleRootCauseAnalysis(req, res) {
   try {
-    const { days = '30' } = req.query;
+    const { days = '30', force = 'false' } = req.query;
     const daysNumber = parseInt(days);
+    const forceRefresh = force === 'true';
     
-    console.log(`Analyzing root causes for last ${daysNumber} days...`);
+    console.log(`Root cause analysis requested for ${daysNumber} days (force: ${forceRefresh})`);
 
     const accessToken = process.env.GHL_ACCESS_TOKEN_TEMP || process.env.GHL_ACCESS_TOKEN || req.headers.authorization?.replace('Bearer ', '');
     const locationId = process.env.GHL_LOCATION_ID;
@@ -402,6 +410,7 @@ async function handleRootCauseAnalysis(req, res) {
 
     const pipelineId = 'p14Is7nXjiqS6MVI0cCk';
 
+    // 1. Fetch current tickets
     const response = await fetch(
       `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&limit=100`,
       {
@@ -428,8 +437,6 @@ async function handleRootCauseAnalysis(req, res) {
       return createdAt >= cutoffDate;
     });
 
-    console.log(`Found ${recentTickets.length} tickets in last ${daysNumber} days`);
-
     function getCustomFieldValue(opp, fieldId) {
       const customFields = opp.customFields || [];
       const field = customFields.find(f => f.id === fieldId);
@@ -449,7 +456,7 @@ async function handleRootCauseAnalysis(req, res) {
       })
       .filter(item => item.summary && item.summary.trim().length > 0);
 
-    console.log(`Found ${summaries.length} tickets with AI summaries`);
+    console.log(`Found ${summaries.length} tickets with AI summaries out of ${recentTickets.length} total`);
 
     if (summaries.length === 0) {
       return res.status(200).json({
@@ -458,10 +465,41 @@ async function handleRootCauseAnalysis(req, res) {
         totalTickets: recentTickets.length,
         analyzedTickets: 0,
         message: 'No tickets with AI summaries found',
-        categories: []
+        categories: [],
+        cached: false
       });
     }
 
+    // 2. Get cached data from GHL custom value
+    const cacheData = await getCustomValueCache(locationId, ROOT_CAUSE_CACHE_ID, accessToken);
+    const cachedAnalysis = cacheData?.[days];
+
+    // 3. Check if we should use cache
+    if (!forceRefresh && cachedAnalysis) {
+      const ticketDiff = summaries.length - cachedAnalysis.ticketCount;
+      const threshold = CACHE_THRESHOLDS[days];
+      
+      console.log(`Cache check: ${ticketDiff} new tickets since cache (threshold: ${threshold})`);
+      
+      if (ticketDiff < threshold) {
+        const cacheAge = Math.round((Date.now() - new Date(cachedAnalysis.analyzedAt).getTime()) / 1000 / 60); // minutes
+        console.log(`✅ Using cached analysis (${cacheAge} minutes old)`);
+        
+        return res.status(200).json({
+          ...cachedAnalysis.results,
+          cached: true,
+          cacheAge: `${cacheAge} minutes`,
+          newTicketsSinceCache: ticketDiff,
+          nextAnalysisAt: `${threshold - ticketDiff} more tickets`
+        });
+      } else {
+        console.log(`🔄 Threshold exceeded, running fresh analysis`);
+      }
+    }
+
+    // 4. Run AI analysis (cache miss or threshold exceeded)
+    console.log('Running OpenAI analysis...');
+    
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     });
@@ -517,15 +555,36 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
     const cleanedResult = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const analysis = JSON.parse(cleanedResult);
 
-    console.log('Root cause analysis complete');
-
-    return res.status(200).json({
+    // Add metadata
+    const results = {
       success: true,
       days: daysNumber,
       totalTickets: recentTickets.length,
       analyzedTickets: summaries.length,
-      ...analysis,
-      fetchedAt: new Date().toISOString()
+      categories: analysis.categories || [],
+      insights: analysis.insights || [],
+      analyzedAt: new Date().toISOString()
+    };
+
+    // 5. Save to cache
+    await saveCustomValueCache(
+      locationId, 
+      ROOT_CAUSE_CACHE_ID, 
+      accessToken,
+      days,
+      {
+        results,
+        ticketCount: summaries.length,
+        analyzedAt: new Date().toISOString()
+      },
+      cacheData // Pass existing cache to preserve other day ranges
+    );
+
+    console.log(`✅ Analysis complete and cached`);
+
+    return res.status(200).json({
+      ...results,
+      cached: false
     });
 
   } catch (error) {
@@ -534,6 +593,77 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
       error: 'Failed to analyze root causes',
       details: error.message 
     });
+  }
+}
+
+// Helper: Get cache from GHL custom value
+async function getCustomValueCache(locationId, customValueId, accessToken) {
+  try {
+    const response = await fetch(
+      `https://services.leadconnectorhq.com/locations/${locationId}/customValues/${customValueId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Version': '2021-07-28'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      console.log('No cache found or error fetching cache');
+      return null;
+    }
+
+    const data = await response.json();
+    const value = data.customValue?.value || data.value;
+    
+    if (!value || value.trim() === '') {
+      console.log('Cache is empty');
+      return null;
+    }
+
+    const parsed = JSON.parse(value);
+    console.log('Cache retrieved successfully');
+    return parsed;
+  } catch (error) {
+    console.error('Error reading cache:', error);
+    return null;
+  }
+}
+
+// Helper: Save cache to GHL custom value
+async function saveCustomValueCache(locationId, customValueId, accessToken, daysKey, analysisData, existingCache) {
+  try {
+    // Merge with existing cache to preserve other day ranges
+    const cacheValue = existingCache || {};
+    cacheValue[daysKey] = analysisData;
+
+    const response = await fetch(
+      `https://services.leadconnectorhq.com/locations/${locationId}/customValues/${customValueId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          value: JSON.stringify(cacheValue)
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to save cache: ${response.status} - ${errorText}`);
+    }
+
+    console.log(`✅ Cache saved for ${daysKey} days`);
+    return true;
+  } catch (error) {
+    console.error('Error saving cache:', error);
+    // Don't fail the request if cache save fails
+    return false;
   }
 }
 
