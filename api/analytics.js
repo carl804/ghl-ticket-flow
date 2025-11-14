@@ -646,6 +646,7 @@ async function saveCustomValueCache(locationId, customValueId, accessToken, days
     cacheValue[daysKey] = analysisData;
 
     const payload = {
+      name: "Root Cause Analysis",  // ← ADD THIS LINE
       value: JSON.stringify(cacheValue)
     };
 
